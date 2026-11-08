@@ -11,3 +11,13 @@
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Local runtime, model weights, private data and diagnostics
+/runtime/
+/data/
+/logs/
+/model/
+*.gguf
+*.log
+__pycache__/
+*.pyc
