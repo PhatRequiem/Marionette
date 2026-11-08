@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using llama.cpp. Runs in the foreground with no background service, account, or personality file. Replies stream directly into the terminal; conversations are not saved.
+Local terminal chat with Qwen3.5 4B using llama.cpp. Runs in the foreground with no background service, account, or personality file. Each launch opens a live log terminal and saves a dated text transcript locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher executes `llama-cli` directly, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. No custom system prompt is supplied.
+Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-cli` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. No custom system prompt is supplied.
 
 ## Folder map
 
@@ -23,6 +23,7 @@ Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repe
 - `docs/native-linux/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
+- `data/conversations/`: dated text transcripts; ignored by Git.
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.

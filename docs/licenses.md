@@ -8,6 +8,10 @@ All selected software is free and open source. Local operation has no paid featu
 |---|---|---|
 | llama.cpp, ggml, bundled CLI libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
 | Python (setup, standard library only) | 3.14.8 | PSF-2.0 |
+| util-linux (`script` terminal recorder) | 2.42.4 | util-linux package: BSD-2-Clause, BSD-3-Clause, BSD-4-Clause-UC, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-or-later, ISC, LGPL-2.1-or-later, public domain; installed license texts under `/usr/share/licenses/util-linux/` |
+| xdg-terminal-exec (default terminal launcher) | 0.14.3 | GPL-3.0-or-later, verified in `/usr/bin/xdg-terminal-exec` |
+| Kitty (configured log terminal) | 0.49.2 | GPL-3.0-only |
+| GNU coreutils (tail, mktemp, date, mkdir) | 9.12 | GPL-3.0-or-later; package documentation GFDL-1.3-or-later |
 | Bash (launcher) | 5.3.20 | GPL-3.0-or-later |
 | Git (checkout and maintenance) | 2.56.0 | GPL-2.0-only |
 | glibc | 2.44+r50+g1848099f063e | LGPL-2.1-or-later / GPL-2.0-or-later package components |

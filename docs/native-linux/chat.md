@@ -9,7 +9,7 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-Wait for the `>` prompt, then type your message and press **Enter**.
+A second terminal opens to show the live log. In the chat terminal, wait for the `>` prompt, then type your message and press **Enter**.
 
 ## While chatting
 
@@ -20,7 +20,9 @@ Type these at the chat prompt:
 | `/clear` | Clears the current conversation so you can start fresh. |
 | `/exit` | Closes the chat and returns you to the terminal. |
 
-She runs locally and offline. Conversations are not saved between launches.
+Each session saves a dated `.txt` file in `data/conversations/`. Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
+
+Closing the log window does not stop chat or recording. After `/exit`, press **Enter** in the log window to close it. `/clear` resets her context but does not erase the log.
 
 ## If setup is missing
 

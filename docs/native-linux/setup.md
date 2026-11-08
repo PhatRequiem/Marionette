@@ -2,7 +2,7 @@
 
 ## Requirements and repeatable installation
 
-Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer (with tarfile extraction filters). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. The host already provided these; no system packages or services were installed.
+Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer (with tarfile extraction filters). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` with direct command argument support (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands exist; the recorder must support direct command arguments (`script file -- command`). The host already provided these; no system packages or services were installed.
 
 ```bash
 python scripts/native-linux/setup.py
@@ -17,12 +17,14 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
 
-The launcher resolves paths relative to itself and can be invoked from any directory. It uses `exec` to replace the shell with `llama-cli`. No daemon, systemd unit, server command, or network listener is launched. The release bundles shared server implementation code, but the selected entry point is the foreground CLI.
+The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with `llama-cli` as its foreground child. A separate desktop terminal follows the current transcript. No daemon, systemd unit, server command, or network listener is launched. The release bundles shared server implementation code, but the selected entry point is the foreground CLI.
 
 - No personality file or custom system prompt is used; the model's embedded chat template formats messages.
-- History lasts only for this process. No persistent memory, conversation database, backup, or migration system is implemented or claimed verified.
+- Model context lasts only for this process. Dated transcripts are saved for the user; they are never fed back into the model. No memory database or cross-database migration exists.
 - Chat uses `--offline`; no hosted API or login is needed.
-- No conversation log is configured. Diagnostic output remains in the terminal.
+- Transcripts are UTF-8 terminal text under `data/conversations/`, including echoed messages, replies, startup information, and session timestamps/command provenance. `--simple-io` and disabled log colors keep them readable; normal terminal carriage returns may remain.
+- Files use owner-only permissions and unique timestamped names. The recorder flushes each write, and the viewer stops following when the chat process ends. Closing the viewer does not stop recording.
+- `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy the text files to export or back them up; no special reader or database is required.
 
 The default device is Vulkan0, verified as the RX 7900 XT on this machine. Check device ordering after driver/hardware changes:
 
@@ -31,6 +33,10 @@ The default device is Vulkan0, verified as the RX 7900 XT on this machine. Check
 ```
 
 Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-linux/chat.sh`. A CPU alternative is `MARIONETTE_DEVICE=none ./scripts/native-linux/chat.sh --gpu-layers 0`; CPU performance has not been benchmarked.
+
+## Log storage and recovery
+
+Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy backed-up `.txt` files into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
 
 ## Choices and updates
 
@@ -43,3 +49,5 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 On the initial installation, both published checksums matched and the launcher answered a synthetic greeting prompt with `Hello!`, reporting about 60 generated tokens/second for that very short response. This is a smoke check, not a representative speed benchmark. Setup was rerun against cached downloads. Shell syntax and the staged diff were checked. No real conversation data was used.
 
 An interactive terminal session also accepted a typed synthetic greeting, streamed its reply, and exited successfully with `/exit`.
+
+Logging was verified with a synthetic interactive GPU conversation in a separate temporary directory: live viewer window and follower process, both sides of the conversation in the transcript, clean `/exit`, owner-only file permissions, and byte-identical text-file backup restoration. No real conversation data was used.

@@ -36,6 +36,10 @@ def download(spec, target):
 def main():
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("This pinned runtime requires x86_64 Linux.")
+    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date")
+    missing = [command for command in required if shutil.which(command) is None]
+    if missing:
+        raise SystemExit("Install required system commands first: " + ", ".join(missing))
     spec = MANIFEST["runtime"]
     archive = ROOT / "data/downloads" / spec["url"].rsplit("/", 1)[-1]
     download(spec, archive)
