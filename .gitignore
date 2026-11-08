@@ -1,0 +1,13 @@
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+.aws/
+
+# Local agent settings
+.codex/
+.agents/
+
+# Operating system files
+.DS_Store
+Thumbs.db
