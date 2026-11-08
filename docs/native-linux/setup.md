@@ -2,7 +2,7 @@
 
 ## Requirements and repeatable installation
 
-Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer (with tarfile extraction filters). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` with direct command argument support (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands exist; the recorder must support direct command arguments (`script file -- command`). The host already provided these; no system packages or services were installed.
+Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer (with tarfile extraction filters). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands exist. The host already provided these; no system packages or services were installed.
 
 ```bash
 python scripts/native-linux/setup.py
@@ -17,14 +17,17 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
 
-The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with `llama-cli` as its foreground child. A separate desktop terminal follows the current transcript. No daemon, systemd unit, server command, or network listener is launched. The release bundles shared server implementation code, but the selected entry point is the foreground CLI.
+The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with `llama-cli` as its foreground child. A separate desktop terminal follows the current full debug log. No daemon, systemd unit, server command, or network listener is launched. The release bundles shared server implementation code, but the selected entry point is the foreground CLI.
 
 - No personality file or custom system prompt is used; the model's embedded chat template formats messages.
 - Model context lasts only for this process. Dated transcripts are saved for the user; they are never fed back into the model. No memory database or cross-database migration exists.
 - Chat uses `--offline`; no hosted API or login is needed.
-- Transcripts are UTF-8 terminal text under `data/conversations/`, including echoed messages, replies, startup information, and session timestamps/command provenance. `--simple-io` and disabled log colors keep them readable; normal terminal carriage returns may remain.
-- Files use owner-only permissions and unique timestamped names. The recorder flushes each write, and the viewer stops following when the chat process ends. Closing the viewer does not stop recording.
-- `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy the text files to export or back them up; no special reader or database is required.
+- Each session has a shared timestamp and unique suffix with `-chat.txt` and `-debug.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. `--simple-io` and disabled colors keep it readable; terminal carriage returns may remain.
+- The debug file records session start/end times, exact launch arguments, runtime/recorder versions, and the exit status. llama.cpp runs with `--verbose --log-prefix --log-timestamps`, capturing all diagnostics exposed by this build, including model, device, memory, prompt, token, timing, and error details. Runtime timestamps are elapsed time; session headers give local time and UTC offset.
+- The CLI stderr stream goes directly to the debug file inside the recorder, keeping verbose diagnostics out of the chat transcript. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder; no new dependencies are added.
+- Files use owner-only permissions and unique timestamped names. The chat recorder flushes each write, and the viewer follows the debug file until the launcher exits. Debug visibility follows the runtime logging flush behavior. Closing the viewer does not stop recording.
+- `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy both matching text files to export or back them up; no special reader or database is required.
+- Debug files can include full prompts and replies, local paths, and very large amounts of output. They are private local files, excluded from Git. No automatic deletion or rotation is configured. This enables the runtime’s fullest logging, not automatic crash backtraces. A forced kill or power loss may leave no ending footer.
 
 The default device is Vulkan0, verified as the RX 7900 XT on this machine. Check device ordering after driver/hardware changes:
 
@@ -36,7 +39,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Log storage and recovery
 
-Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy backed-up `.txt` files into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
+Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy both backed-up `.txt` files for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
 
 ## Choices and updates
 
@@ -51,3 +54,5 @@ On the initial installation, both published checksums matched and the launcher a
 An interactive terminal session also accepted a typed synthetic greeting, streamed its reply, and exited successfully with `/exit`.
 
 Logging was verified with a synthetic interactive GPU conversation in a separate temporary directory: live viewer window and follower process, both sides of the conversation in the transcript, clean `/exit`, owner-only file permissions, and byte-identical text-file backup restoration. No real conversation data was used.
+
+Paired logging was verified with synthetic input: chat/debug separation, live debug follower, GPU and context diagnostics, successful exit footer, deliberate invalid-option error with nonzero status, and a log directory containing spaces. Both file types were checked for owner-only permissions and byte-identical copy/restore.
