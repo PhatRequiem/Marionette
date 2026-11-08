@@ -11,7 +11,7 @@ python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
 
-Setup downloads and verifies the pinned runtime and model. Subsequent chat runs are offline. Type `/exit` to quit or `/clear` to clear the current conversation.
+Setup downloads and verifies the pinned runtime and model. Subsequent chat runs are offline. See the short [terminal chat guide](docs/native-linux/chat.md) for everyday launch and exit commands.
 
 ## Status and architecture
 

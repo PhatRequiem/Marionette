@@ -15,11 +15,10 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 ## Operation
 
+For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
+
 The launcher resolves paths relative to itself and can be invoked from any directory. It uses `exec` to replace the shell with `llama-cli`. No daemon, systemd unit, server command, or network listener is launched. The release bundles shared server implementation code, but the selected entry point is the foreground CLI.
 
-- Type a message and press Enter.
-- `/exit` exits; Ctrl+C stops or exits as shown by the CLI.
-- `/clear` clears the current chat.
 - No personality file or custom system prompt is used; the model's embedded chat template formats messages.
 - History lasts only for this process. No persistent memory, conversation database, backup, or migration system is implemented or claimed verified.
 - Chat uses `--offline`; no hosted API or login is needed.
