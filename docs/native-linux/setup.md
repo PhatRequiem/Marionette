@@ -67,9 +67,9 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client requires no third-party Python packages or persistent service. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
-The model's native template is used with reasoning disabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
+The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
-The context remains 8,192 tokens with a 512-token reply allowance. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
+The context remains 8,192 tokens with a 1,024-token combined thinking-and-answer allowance and a 256-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
 ## Verification
 

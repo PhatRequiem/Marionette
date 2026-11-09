@@ -16,3 +16,7 @@ These measurements are synthetic, not a guarantee for every conversation or GPU 
 ## Source-layout recheck
 
 After moving application code to `src/marionette/` (commit `e93ad96`), the unchanged launcher completed 17 synthetic replies at 8,192 tokens, including three preparations. The following requests reused 5,756, 5,757, and 5,759 tokens. `/clear`, all three text logs, absence of setup JSON, and removal of the owned server process and listener on exit were verified again. The 20 synthetic regression checks also passed. Desktop log windows were suppressed for this GPU check; viewer behavior is covered separately by the regression suite.
+
+## Thinking-mode recheck
+
+With thinking enabled, a 256-token server thinking cap, and a 1,024-token combined generation allowance, the 8,192-token synthetic session completed 17 replies, automatic preparation, `/clear`, and clean shutdown. Reasoning appeared before final answers and was recorded in the diagnostic logs. After preparation, requests reused the retained cache (for example, 5,767 cached tokens and 12 newly processed tokens). The 21 automated checks also passed, including white reasoning/pink answer output and retaining only final answers. The larger generation reserve can trigger preparation earlier; the context capacity and oldest-pair removal policy are unchanged.

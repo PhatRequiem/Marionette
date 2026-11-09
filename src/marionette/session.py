@@ -68,7 +68,7 @@ class API:
 
     @staticmethod
     def body(messages):
-        return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': False}}
+        return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
 
     def tokenize(self, prompt):
         return self.json('/tokenize', {'content': prompt, 'add_special': True,
@@ -96,7 +96,7 @@ class API:
     def reply(self, messages, reserve):
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
-        pieces, finish = [], None
+        pieces, thoughts, finish = [], [], None
         with self.open('/v1/chat/completions', body) as response:
             for line in response:
                 if not line.startswith(b'data: '):
@@ -105,13 +105,27 @@ class API:
                 if payload == b'[DONE]':
                     if finish is None:
                         raise RuntimeError('Response ended without a completion status.')
+                    if thoughts:
+                        log('Reasoning: ' + json.dumps(''.join(thoughts), ensure_ascii=False))
                     return ''.join(pieces), finish
                 event = json.loads(payload)
                 if 'error' in event:
                     raise RuntimeError(str(event['error']))
                 for choice in event.get('choices', []):
-                    text = choice.get('delta', {}).get('content') or ''
+                    delta = choice.get('delta', {})
+                    reasoning = delta.get('reasoning_content') or ''
+                    if reasoning:
+                        color('data')
+                        if not thoughts:
+                            print('Thinking:', flush=True)
+                        thoughts.append(reasoning)
+                        print(reasoning, end='', flush=True)
+                    text = delta.get('content') or ''
                     if text:
+                        if not pieces and thoughts:
+                            color('data')
+                            print('\n\nAnswer:', flush=True)
+                        color('reply')
                         pieces.append(text)
                         print(text, end='', flush=True)
                     finish = choice.get('finish_reason') or finish
@@ -182,12 +196,12 @@ class Preparation:
 
 
 def chat(api, capacity):
-    reserve = min(512, capacity // 4)
+    reserve = min(1024, capacity // 4)
     history = []
     pending = None
     log(f'Context policy: capacity={capacity}, reply_budget={reserve}, '
         f'next_message_allowance={min(1024, capacity // 8)}; no setup report.')
-    print(f'Ready. Context limit: {capacity}; reply allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
+    print(f'Ready. Context limit: {capacity}; thinking + answer allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
     while True:
         try:
             print()
@@ -221,7 +235,6 @@ def chat(api, capacity):
             log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < {capacity}; removed_exchanges={removed}.')
             if removed:
                 log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
-            color('reply')
             try:
                 answer, finish = api.reply(candidate, reserve)
             finally:
@@ -231,7 +244,7 @@ def chat(api, capacity):
             history = candidate + [{'role': 'assistant', 'content': answer}]
             pending = Preparation(api, history, capacity, reserve)
             if finish == 'length':
-                print('[Reply reached its token allowance.]')
+                print('[Thinking and answer reached their shared token allowance.]')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
             log(f'Request failed: {error}')
             print(f'\n{error}\nConversation history is unchanged; you can retry.')

@@ -1,6 +1,7 @@
 """Conversation policy: idle preparation, exact budgets, and failed turns."""
 import importlib.util
 import io
+import json
 import os
 import signal
 import subprocess
@@ -19,6 +20,24 @@ spec.loader.exec_module(client)
 
 
 class ClientTests(unittest.TestCase):
+    def test_reasoning_is_white_answer_is_pink_and_only_answer_is_retained(self):
+        events = [
+            {'choices': [{'delta': {'reasoning_content': 'Check '}}]},
+            {'choices': [{'delta': {'reasoning_content': 'the sum.', 'content': 'Four.'}, 'finish_reason': 'stop'}]},
+        ]
+        stream = io.BytesIO((''.join('data: ' + json.dumps(event) + '\n\n' for event in events)
+                             + 'data: [DONE]\n\n').encode())
+        output = io.StringIO()
+        api = client.API('http://127.0.0.1:1')
+        with patch.object(api, 'open', return_value=stream) as request, patch.object(client, 'log') as logged, patch('sys.stdout', output), patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
+            answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024)
+        self.assertEqual((answer, finish), ('Four.', 'stop'))
+        self.assertTrue(request.call_args.args[1]['chat_template_kwargs']['enable_thinking'])
+        self.assertEqual(output.getvalue(), client.COLORS['data'] + 'Thinking:\nCheck '
+                         + client.COLORS['data'] + 'the sum.' + client.COLORS['data']
+                         + '\n\nAnswer:\n' + client.COLORS['reply'] + 'Four.')
+        logged.assert_called_once_with('Reasoning: "Check the sum."')
+
     def test_rollover_removes_whole_exchanges(self):
         history = []
         for i in range(8):

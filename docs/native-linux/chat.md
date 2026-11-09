@@ -11,7 +11,7 @@ cd /home/phatkitty/Projects/Marionette
 
 Two log terminals open: **Connections and requests** and **Model processing**. In the chat terminal, wait for the `>` prompt, then type your message and press **Enter**.
 
-Your prompt and typed input are neon green (`#39FF14`), status information is white, and her replies are pink. Blank lines separate input, replies, and turns. Colors reset when chat exits; plain-output terminals remain uncolored. The chat transcript retains terminal color codes, while diagnostic logs keep their existing readable format.
+Your prompt and typed input are neon green (`#39FF14`), status information and her reasoning are white, and her final answers are pink. Blank lines separate input, replies, and turns. Colors reset when chat exits; plain-output terminals remain uncolored. The chat transcript retains terminal color codes, while diagnostic logs keep their existing readable format.
 
 ## While chatting
 
@@ -24,13 +24,13 @@ No setup report is generated or sent to her. She cannot open files or read logs 
 
 Each session saves three matching files in `data/conversations/`:
 
-- `…-chat.txt`: your messages and her replies.
+- `…-chat.txt`: your messages, her reasoning, and her final answers.
 - `…-server.txt`: connections and requests, shown in its own terminal.
 - `…-model.txt`: model processing, shown in its own terminal.
 
 After replies, the client checks space for the next turn. When needed, it leaves out oldest complete exchanges and prepares the shortened history while you read or type. Preparation and removed-exchange counts appear in the diagnostic logs, without interrupting the chat display. Older messages remain in the saved transcript but are no longer visible to her.
 
-The total context remains 8,192 tokens, including a 1,024-token next-message allowance and a 512-token reply allowance. Sending before preparation finishes, or sending a larger message, can still cause a wait. The client checks every actual message; oversized input is rejected without truncating it. A notice appears if a reply reaches its allowance.
+The total context remains 8,192 tokens, including a 1,024-token next-message allowance and a 1,024-token combined thinking-and-answer allowance. Sending before preparation finishes, or sending a larger message, can still cause a wait. The client checks every actual message; oversized input is rejected without truncating it. Thinking is capped at 256 tokens by the server, leaving room for the answer within that shared allowance. A notice appears if generation reaches its allowance. Thinking can increase the wait before the final answer; only final answers are kept in conversation history, while reasoning remains in the logs.
 
 Only `/clear` and `/exit` are supported commands. Ctrl+C also exits. No file attachments, tools, summaries, or saved-memory loading are implemented.
 
