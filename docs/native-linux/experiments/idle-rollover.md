@@ -12,3 +12,7 @@ Environment: pinned llama.cpp b12211, Qwen3.5-4B Q4_K_M, RX 7900 XT with Vulkan,
 The first experimental prefix ended on an assistant turn. Qwen rendered that differently from historical assistant replies and failed to reuse most of the cache. The final implementation renders through the next user boundary and excludes its temporary marker and last boundary token from prefill. GPU logs verified reuse after that correction.
 
 These measurements are synthetic, not a guarantee for every conversation or GPU load. Large inputs can still require input-time rollover. Preparation does not summarize messages or provide permanent memory.
+
+## Source-layout recheck
+
+After moving application code to `src/marionette/` (commit `e93ad96`), the unchanged launcher completed 17 synthetic replies at 8,192 tokens, including three preparations. The following requests reused 5,756, 5,757, and 5,759 tokens. `/clear`, all three text logs, absence of setup JSON, and removal of the owned server process and listener on exit were verified again. The 20 synthetic regression checks also passed. Desktop log windows were suppressed for this GPU check; viewer behavior is covered separately by the regression suite.
