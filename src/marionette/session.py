@@ -122,8 +122,8 @@ class API:
                     if reasoning:
                         if display:
                             if not thoughts:
-                                color('thinking_heading')
-                                print('Thinking:', flush=True)
+                                color('reasoning_heading')
+                                print('Reasoning:', flush=True)
                             color('data')
                             print(reasoning, end='', flush=True)
                         thoughts.append(reasoning)
@@ -247,7 +247,7 @@ class Conversation:
                 print(answer)
             if finish == 'length':
                 color('warning')
-                print('\n[Thinking and answer reached their shared token allowance.]')
+                print('\n[Reasoning and answer reached their shared token allowance.]')
             if timings is not None:
                 timings['processing_ms'] = round((time.monotonic() - processing_start) * 1000, 2)
             future.set_result((answer, finish))
@@ -333,7 +333,7 @@ def terminal(conversation, *, external=False):
             print()
             if finish == 'length':
                 color('warning')
-                print('[Thinking and answer reached their shared token allowance.]')
+                print('[Reasoning and answer reached their shared token allowance.]')
                 color('data')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
             log(f'Request failed: {error}')
@@ -347,7 +347,7 @@ def chat(api, capacity):
     log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     print(paint('Ready.', 'meta', enabled()) + paint(' Context limit: ', 'data', enabled()) + paint(str(capacity), 'tokens', enabled())
-          + paint('; thinking + answer allowance: ', 'data', enabled()) + paint(str(conversation.reserve), 'tokens', enabled())
+          + paint('; reasoning + answer allowance: ', 'data', enabled()) + paint(str(conversation.reserve), 'tokens', enabled())
           + ' tokens. /clear starts fresh; /exit quits.')
     from contextlib import nullcontext
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')

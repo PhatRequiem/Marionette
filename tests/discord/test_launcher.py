@@ -89,7 +89,7 @@ raise SystemExit(adapter.main())
                 main.communicate('terminal still works\n/exit\n', timeout=10)
                 self.assertEqual(main.returncode, 0)
                 self.assertIn('[Discord · 123]\nSynthetic Discord hello', output_path.read_text())
-                self.assertIn('Thinking:\nPRIVATE_THOUGHT', output_path.read_text())
+                self.assertIn('Reasoning:\nPRIVATE_THOUGHT', output_path.read_text())
                 self.assertIn('Answer:\nSynthetic reply.', output_path.read_text())
                 self.assertFalse(address.exists())
                 result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')],

@@ -34,7 +34,7 @@ class ClientTests(unittest.TestCase):
             answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024)
         self.assertEqual((answer, finish), ('Four.', 'stop'))
         self.assertTrue(request.call_args.args[1]['chat_template_kwargs']['enable_thinking'])
-        self.assertEqual(output.getvalue(), client.COLORS['thinking_heading'] + 'Thinking:\n' + client.COLORS['data'] + 'Check '
+        self.assertEqual(output.getvalue(), client.COLORS['reasoning_heading'] + 'Reasoning:\n' + client.COLORS['data'] + 'Check '
                          + client.COLORS['data'] + 'the sum.' + client.COLORS['answer_heading']
                          + '\n\nAnswer:\n' + client.COLORS['reply'] + 'Four.')
         logged.assert_called_once_with('Reasoning: "Check the sum."')

@@ -63,7 +63,7 @@ class ViewTests(unittest.TestCase):
                     '    | 0.0 E srv send_error: error\n')
         result = self.render(original, 'diagnostic')
         self.assertIn(COLORS['reply'] + '    | more answer', result)
-        self.assertIn(COLORS['thinking_heading'] + '    | "reasoning_content"', result)
+        self.assertIn(COLORS['reasoning_heading'] + '    | "reasoning_content"', result)
         self.assertIn(COLORS['answer_heading'] + '    | "content"', result)
         self.assertIn(COLORS['meta'] + '    | Client: Discord input [', result)
         self.assertIn(COLORS['input'] + '"hello"', result)

@@ -171,7 +171,7 @@ def diagnostic_row(line, kind, colored):
         return paint(match[1], 'answer_heading', colored) + paint(match[2], 'reply', colored)
     match = re.match(r'(    \| (?:Client: Reasoning: |"reasoning_content"\s*:))(.*)', text)
     if match:
-        return paint(match[1], 'thinking_heading', colored) + paint(match[2], 'data', colored)
+        return paint(match[1], 'reasoning_heading', colored) + paint(match[2], 'data', colored)
     match = re.match(r'(    \|\s*"[^"\n]+"\s*:)(.*)', text)
     if match and kind in ('timing', 'tokens', 'ids', 'error', 'success', 'warning'):
         return paint(match[1], 'data', colored) + paint(match[2], kind, colored)

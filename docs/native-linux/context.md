@@ -2,11 +2,11 @@
 
 `src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report, setup JSON file, personality file, or application system message is generated. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
 
-Thinking is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate thinking cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
+Reasoning is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate reasoning cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
 
 ## Between-turn preparation
 
-The total context is 65,536 tokens. The client reserves 2,048 tokens for the next input and 32,768 for thinking and its answer, inside that total. With the full input allowance, retained history and formatting must fit below 30,720 tokens. Smaller contexts use one eighth of capacity for the input allowance and one half for replies, capped at 2,048 and 32,768 respectively.
+The total context is 65,536 tokens. The client reserves 2,048 tokens for the next input and 32,768 for reasoning and its answer, inside that total. With the full input allowance, retained history and formatting must fit below 30,720 tokens. Smaller contexts use one eighth of capacity for the input allowance and one half for replies, capped at 2,048 and 32,768 respectively.
 
 After each successful reply, one worker checks the formatted history plus the next-turn formatting. If the allowances would no longer fit, it removes oldest complete user/reply pairs until the history uses at most 75% of capacity and both allowances fit with one spare token. It then processes the retained prefix through `/completion` with `n_predict: 0` and prompt caching enabled. No preparation reply is added to history or printed.
 
@@ -18,7 +18,7 @@ Input remains available during preparation. Before submitting the next message, 
 
 Every actual input is formatted with `/apply-template` and counted with `/tokenize`, including special tokens. If the message exceeds the reserved input space, it is still accepted when it fits: oldest complete exchanges are removed as needed to leave the reply allowance and one spare token. A message that cannot fit by itself is rejected without truncation. Failed streams do not add partial replies or the failed input to history.
 
-The larger generation allowance used for thinking can trigger rollover earlier than the previous 512-token allowance. The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
+The larger generation allowance used for reasoning can trigger rollover earlier than the previous 512-token allowance. The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
 
 ## Logs and checks
 

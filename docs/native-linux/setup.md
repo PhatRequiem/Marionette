@@ -50,8 +50,8 @@ The live windows use `log_view.py` and the shared palette in `style.py`:
 | Discord/source labels | Bright cyan |
 | User, channel, message IDs | Lavender |
 | User message text | Neon green |
-| Thinking heading | Bright yellow |
-| Thinking and routine processing | White |
+| Reasoning heading | Bright yellow |
+| Reasoning and routine processing | White |
 | Answer heading | Light pink (`#FF9ACB`) |
 | Assistant answer text | Hot pink (`#FF4FA3`) |
 | Timestamps and event headers | Light blue |
@@ -60,6 +60,8 @@ The live windows use `log_view.py` and the shared palette in `style.py`:
 | Token counts and context usage | Violet |
 | Warnings, disconnects, retries | Orange |
 | Errors | Bright red |
+
+The visible heading is **Reasoning**, matching the API’s `reasoning_content` field. **Answer** labels the final text from `content`; `assistant` is its message role, not another kind of output. The publisher’s “thinking mode” and the API’s `enable_thinking` option still describe the same enabled mode. Protocol names and original runtime diagnostics remain unchanged.
 
 Diagnostic field labels are white; their values carry the colors above. IDs, delivery progress, timings, and other details are separated into spaced groups in the Discord view. Session start/end and history-clear headings are cyan. Delivery starts are orange, confirmed parts turquoise, and failed parts red; confirmed earlier parts stay turquoise even after a later failure. Rollover starts are orange, completion turquoise, and failure red, with spacing around those events. Timing values show milliseconds where recorded. These are presentation changes only.
 

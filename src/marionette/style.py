@@ -4,7 +4,7 @@ import sys
 
 PALETTE = {
     'input': '#39FF14', 'data': '#FFFFFF', 'meta': '#55E7FF',
-    'ids': '#C6B4FF', 'muted': '#8ACBFF', 'thinking_heading': '#FFE66D',
+    'ids': '#C6B4FF', 'muted': '#8ACBFF', 'reasoning_heading': '#FFE66D',
     'answer_heading': '#FF9ACB', 'reply': '#FF4FA3', 'success': '#5CFFD6',
     'timing': '#FFC49B', 'tokens': '#D69CFF', 'warning': '#FFAD55', 'error': '#FF6262',
 }

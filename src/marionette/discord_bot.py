@@ -182,7 +182,7 @@ class DMChat(discord.Client):
                 if finish == 'length':
                     phase = 'notice'
                     await self.send_parts(message.channel,
-                        '[Thinking and answer reached their shared token allowance.]', context, kind='notice')
+                        '[Reasoning and answer reached their shared token allowance.]', context, kind='notice')
             except (OSError, ValueError, RuntimeError, discord.HTTPException) as error:
                 log('Discord turn failed; delivery may be partial; no automatic resend.',
                     **context, phase=phase, total_ms=elapsed(started),
