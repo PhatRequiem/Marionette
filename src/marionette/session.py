@@ -18,6 +18,7 @@ from conversation import Conversation
 from identity import Profiles
 from inference import API
 from log_store import chat_event
+from log_reader import LogReader
 
 
 def observe(line, facts):
@@ -100,6 +101,10 @@ def run(command):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
+        api.capacity = capacity
+        if os.environ.get('MARIONETTE_CHAT_LOG') and os.environ.get('MARIONETTE_SESSION_SOCKET'):
+            api.log_reader = LogReader(os.environ['MARIONETTE_CHAT_LOG'],
+                                       os.environ['MARIONETTE_SESSION_SOCKET'])
         chat(api, capacity)
         return 0
     finally:

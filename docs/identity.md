@@ -20,7 +20,7 @@ Selecting another terminal profile never transfers your Discord account to it. D
 
 The main diagnostic logs record **Sender identity** with these fields; the chat JSONL records profile selection, source/sender/person and turn IDs, messages, reasoning, and replies, alongside the raw terminal capture. See [logs](logs.md). Metadata is counted before generation and retained with each user message. `/clear` resets shared conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
 
-All profiles still share one history, budget, and rollover policy. This adds no relationship records, separate histories, persistent model memory, or file-reading access. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
+All profiles still share one history, budget, and rollover policy. This adds no relationship records, separate histories, persistent model memory, or arbitrary file access. The separate [active-log reader](log-reader.md) operates on this shared session; terminal profiles do not isolate log access. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
 
 ## Command permissions
 

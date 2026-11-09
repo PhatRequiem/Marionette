@@ -81,7 +81,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['log_store.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['log_reader.py', 'log_store.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))

@@ -41,7 +41,7 @@ if (( $# == 1 )); then
         --version|--list-devices) exec "$CLI" "$1" ;;
     esac
 fi
-for source in log_store.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
+for source in log_reader.py log_store.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1

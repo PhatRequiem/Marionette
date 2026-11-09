@@ -81,3 +81,11 @@ uv pip compile --python python --generate-hashes scripts/native-linux/discord-re
 Review changed packages and licenses and rerun both test suites when updating.
 
 Shared-history commands are checked separately by [command permissions](identity.md#command-permissions): `/clear` requires the resolved owner UUID, not merely an existing profile.
+
+## Active-log access
+
+While attached, the adapter registers its current log path and socket identity in private data/session/discord-log.json. The read-only log tool checks that the adapter process is alive and belongs to the same main socket before opening its log. Disconnect removes registration; a stale marker is rejected. No search for the latest saved file is used.
+
+Use the same log directory for main chat and Discord (the default does this). A Discord connection with a different MARIONETTE_LOG_DIR still operates, but its log is unavailable to the reader. Only the currently attached connection is eligible; logs from earlier connections are excluded.
+
+She can request log evidence while answering a Discord message, using the same tool as terminal chat. Reasoning, the reading notice, tool requests, and results remain local; only her final answer (plus existing status/error notices) is sent to Discord. See [active-log access](log-reader.md).

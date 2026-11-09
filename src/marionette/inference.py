@@ -7,11 +7,13 @@ import urllib.request
 
 import diagnostics
 from log_store import chat_event
+from log_reader import TOOL
 
 
 class API:
-    def __init__(self, address):
+    def __init__(self, address, log_reader=None, capacity=None):
         self.address = address
+        self.log_reader, self.capacity = log_reader, capacity
         self.closing = threading.Event()
         self.worker = None
         # Local traffic must not use an inherited HTTP proxy.
@@ -35,9 +37,12 @@ class API:
             raise RuntimeError(str(result['error']))
         return result
 
-    @staticmethod
-    def body(messages):
-        return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
+    def body(self, messages):
+        body = {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
+        if self.log_reader is not None:
+            body['tools'] = [TOOL]
+            body['parallel_tool_calls'] = False
+        return body
 
     def tokenize(self, prompt):
         return self.json('/tokenize', {'content': prompt, 'add_special': True,
@@ -63,9 +68,56 @@ class API:
         diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve, *, on_delta=None):
+        working = messages.copy()
+        remaining = reserve
+        for round_number in range(3):
+            allowance = remaining
+            if round_number:
+                allowance = min(allowance, self.capacity - self.count(working) - 1)
+            if allowance <= 0:
+                raise RuntimeError('Log review reached the context or generation allowance.')
+            message, finish, used = self._stream(working, allowance, on_delta=on_delta,
+                                                allow_tools=round_number < 2)
+            calls = message.get('tool_calls', [])
+            if not calls:
+                return message['content'], finish
+            if self.log_reader is None or round_number >= 2 or len(calls) != 1:
+                raise RuntimeError('Log review requires one tool call at a time, at most two per turn.')
+            if used is None:
+                # Conservatively count all generated fields if the server omitted usage.
+                used = len(self.tokenize(json.dumps(message)))
+            remaining -= used
+            call = calls[0]
+            if not call.get('id') or call.get('type') != 'function':
+                raise RuntimeError('Invalid tool-call identity.')
+            function = call['function']
+            chat_event('tool_call', tool_call_id=call['id'], function=function)
+            diagnostics.log('Log read requested: ' + json.dumps(function, ensure_ascii=False))
+            if on_delta is not None:
+                on_delta('tool', 'Reading active logs…')
+            try:
+                if function['name'] != 'read_logs':
+                    raise ValueError('Only read_logs is available.')
+                arguments = json.loads(function['arguments'])
+                result = self.log_reader.read(arguments)
+            except (ValueError, KeyError, TypeError) as error:
+                result = {'error': str(error), 'untrusted_log_data': True}
+            encoded = json.dumps(result, ensure_ascii=False)
+            chat_event('tool_result', tool_call_id=call['id'], content=encoded)
+            diagnostics.log('Log read completed: ' + json.dumps(
+                {'records': len(result.get('records', [])), 'available': result.get('available'),
+                 'error': result.get('error')}))
+            working += [message, {'role': 'tool', 'tool_call_id': call['id'],
+                                  'name': 'read_logs', 'content': encoded}]
+        raise RuntimeError('Log review did not produce a final answer.')
+
+    def _stream(self, messages, reserve, *, on_delta=None, allow_tools=True):
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
+        if self.log_reader is not None:
+            body['tool_choice'] = 'auto' if allow_tools else 'none'
         pieces, thoughts, finish = [], [], None
+        calls, used = {}, None
         completed = False
         try:
             with self.open('/v1/chat/completions', body) as response:
@@ -81,12 +133,32 @@ class API:
                         if thoughts:
                             diagnostics.log('Reasoning: ' + json.dumps(''.join(thoughts), ensure_ascii=False))
                         completed = True
-                        return ''.join(pieces), finish
+                        message = {'role': 'assistant', 'content': ''.join(pieces)}
+                        if calls:
+                            if finish != 'tool_calls':
+                                raise RuntimeError('Incomplete tool call; no log read was executed.')
+                            message['tool_calls'] = [calls[i] for i in sorted(calls)]
+                            message['reasoning_content'] = ''.join(thoughts)
+                        elif finish == 'tool_calls':
+                            raise RuntimeError('Missing tool-call data.')
+                        return message, finish, used
                     event = json.loads(payload)
                     if 'error' in event:
                         raise RuntimeError(str(event['error']))
                     for choice in event.get('choices', []):
                         delta = choice.get('delta', {})
+                        for fragment in delta.get('tool_calls', []):
+                            index = fragment.get('index', 0)
+                            if type(index) is not int or not 0 <= index < 4:
+                                raise RuntimeError('Invalid tool-call index.')
+                            call = calls.setdefault(index, {'id': '', 'type': 'function',
+                                                           'function': {'name': '', 'arguments': ''}})
+                            if fragment.get('id'):
+                                call['id'] += fragment['id']
+                            for key in ('name', 'arguments'):
+                                call['function'][key] += fragment.get('function', {}).get(key, '')
+                            if len(call['function']['arguments']) > 4096:
+                                raise RuntimeError('Tool arguments exceed the allowed size.')
                         reasoning = delta.get('reasoning_content') or ''
                         if reasoning:
                             if on_delta is not None:
@@ -101,10 +173,11 @@ class API:
                     if event.get('usage'):
                         diagnostics.log('Runtime usage: ' + json.dumps(event['usage']))
                         chat_event('usage', **event['usage'])
+                        used = event['usage'].get('completion_tokens')
             raise RuntimeError('Response stream closed early; partial reply was not kept.')
         finally:
             if thoughts:
                 chat_event('reasoning', content=''.join(thoughts), complete=completed)
             if pieces:
-                chat_event('answer', role='assistant', content=''.join(pieces),
+                chat_event('assistant_note' if calls else 'answer', role='assistant', content=''.join(pieces),
                            complete=completed, finish_reason=finish)

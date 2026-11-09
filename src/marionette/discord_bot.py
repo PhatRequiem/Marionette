@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Optional, owner-only Discord DM transport for the local chat engine."""
+from contextlib import nullcontext
+import os
 import asyncio
 import datetime
 import math
@@ -12,6 +14,7 @@ import discord
 
 from connection import request
 from log_store import record, encode
+from log_reader import discord_registration
 
 ROOT = Path(__file__).resolve().parents[2]
 ADDRESS = ROOT / 'data/session/chat.sock'
@@ -220,7 +223,10 @@ def main():
             finally:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
-    asyncio.run(serve())
+    registration = (discord_registration(ADDRESS, os.environ['MARIONETTE_DISCORD_LOG'])
+                    if os.environ.get('MARIONETTE_DISCORD_LOG') else nullcontext())
+    with registration:
+        asyncio.run(serve())
     return 0
 
 

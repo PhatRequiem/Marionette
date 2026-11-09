@@ -2,7 +2,7 @@
 
 New sessions save **JSONL**: one complete JSON object per line, in UTF-8. The log terminals decode these records into readable colored text; they do not display walls of JSON or Base64. Launch commands and window count are unchanged. Older text logs stay untouched and remain readable with the viewer.
 
-This is storage and presentation only. Marionette cannot read these files, recall previous sessions, or use them as memory.
+Marionette can request bounded, read-only evidence from active-session logs through the [log reader](log-reader.md). Previous sessions and archives remain inaccessible to the tool; no memory database or background recall is implemented.
 
 ## Normal and debug modes
 

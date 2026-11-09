@@ -24,6 +24,11 @@ class ReplyDisplay:
         self.stream_color = None
 
     def __call__(self, phase, text):
+        if phase == 'tool':
+            print(paint('\n\n' + text + '\n', 'meta', enabled()), flush=True)
+            self.reasoning = self.answer = False
+            self.stream_color = None
+            return
         if phase == 'reasoning':
             if not self.reasoning:
                 color('reasoning_heading')

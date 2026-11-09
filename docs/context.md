@@ -22,7 +22,7 @@ Each user message carries [sender metadata](identity.md) as part of its user-rol
 
 Every actual input is formatted with `/apply-template` and counted with `/tokenize`, including special tokens. If the message exceeds the reserved input space, it is still accepted when it fits: oldest complete exchanges are removed as needed to leave the reply allowance and one spare token. A message that cannot fit by itself is rejected without truncation. Failed streams do not add partial replies or the failed input to history.
 
-The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
+The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are not automatically reloaded as memory. The model can request bounded active-session evidence through [read_logs](log-reader.md); it has no arbitrary file access.
 
 ## Logs and checks
 
@@ -33,3 +33,11 @@ Each chat session saves `-chat.jsonl`, `-server.jsonl`, and `-model.jsonl`; each
 Run `python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
 Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](experiments/q4-return.md). This switch does not change rollover policy.
+
+## Log tool and context
+
+The read_logs guide/schema is supplied on every model request, including template rendering for token counting and rollover preparation. It uses the existing context capacity, with no additional reserved window or setup report.
+
+Within a turn, up to two sequential log calls can occur. Assistant tool-call messages (including that call's reasoning) and tool results exist only in the working request chain, so the template can continue correctly. Each continuation is counted against actual context capacity; preceding generations consume the same per-turn reasoning/answer allowance rather than receiving a fresh 32K budget. The final continuation disables tool choice.
+
+After a successful turn, history still retains only the user input and final answer. Tool evidence, intermediate commentary, and reasoning stay in saved logs, not future model history. Existing whole-exchange rollover remains unchanged. A later question can request evidence again. /clear resets conversation history but does not revoke access to earlier records in the same active session. Starting a new main session excludes the old session's logs.

@@ -95,6 +95,7 @@ raise SystemExit(adapter.main())
                     self.assertIsNone(main.poll())
                     self.assertEqual(Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text(), children)
                 self.assertFalse((root / 'viewer-calls.txt').exists())
+                self.assertFalse((root / 'data/session/discord-log.json').exists())
                 logs = list(fixture.logs.glob('*-discord.jsonl'))
                 self.assertEqual(len(logs), 2)
                 for log in logs:
