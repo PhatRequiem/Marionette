@@ -52,8 +52,8 @@ The live windows use `log_view.py` and the shared palette in `style.py`:
 | User message text | Neon green |
 | Thinking heading | Bright yellow |
 | Thinking and routine processing | White |
-| Answer heading | Hot pink (`#FF4FA3`) |
-| Assistant answer text | Light pink (`#FF9ACB`) |
+| Answer heading | Light pink (`#FF9ACB`) |
+| Assistant answer text | Hot pink (`#FF4FA3`) |
 | Timestamps and event headers | Light blue |
 | Connection/delivery success | Turquoise |
 | Queue, processing, delivery timings | Peach |

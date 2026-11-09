@@ -5,7 +5,7 @@ import sys
 PALETTE = {
     'input': '#39FF14', 'data': '#FFFFFF', 'meta': '#55E7FF',
     'ids': '#C6B4FF', 'muted': '#8ACBFF', 'thinking_heading': '#FFE66D',
-    'answer_heading': '#FF4FA3', 'reply': '#FF9ACB', 'success': '#5CFFD6',
+    'answer_heading': '#FF9ACB', 'reply': '#FF4FA3', 'success': '#5CFFD6',
     'timing': '#FFC49B', 'tokens': '#D69CFF', 'warning': '#FFAD55', 'error': '#FF6262',
 }
 COLORS = {name: '\033[38;2;' + ';'.join(str(int(value[i:i+2], 16)) for i in (1, 3, 5)) + 'm'
