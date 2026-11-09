@@ -1,5 +1,4 @@
 """Isolated synthetic checks; no real models, conversations, or desktop windows."""
-import base64
 import hashlib
 import fcntl
 import importlib.util
@@ -19,11 +18,6 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('setup', ROOT / 'scripts/native-linux/setup.py')
 setup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(setup)
-
-
-def raw_text(path):
-    return b''.join(base64.b64decode(event['raw_b64']) for event in
-                    map(json.loads, path.read_text().splitlines()) if 'raw_b64' in event).decode('utf-8')
 
 
 class SetupTests(unittest.TestCase):
@@ -81,7 +75,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['log_reader.py', 'log_store.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -114,26 +108,19 @@ class LauncherTests(unittest.TestCase):
         calls = (self.root / 'viewer-calls.txt').read_text()
         self.assertEqual(calls.count('Connections and requests'), 2)
         self.assertEqual(calls.count('Model processing'), 2)
-        chats = list(self.logs.glob('*-chat.jsonl'))
+        chats = list(self.logs.glob('*-chat.txt'))
         self.assertEqual(len(chats), 2)
         for chat in chats:
-            debug = chat.with_name(chat.name.replace('-chat.jsonl', '-model.jsonl'))
-            self.assertIn('Synthetic reply.', raw_text(chat))
-            records = list(map(json.loads, chat.read_text().splitlines()))
-            answer = next(event for event in records if event['event_type'] == 'answer')
-            incoming = next(event for event in records if event['event_type'] == 'message_received')
-            self.assertEqual(answer['data']['content'], 'Synthetic reply.')
-            self.assertEqual(answer['data']['turn_id'], incoming['data']['turn_id'])
-            self.assertTrue(answer['data']['complete'])
-            self.assertEqual({event['session_id'] for event in records}, {chat.name.removesuffix('-chat.jsonl')})
-            self.assertIn(payload, raw_text(debug))
-            self.assertNotIn('synthetic diagnostic', raw_text(chat))
-            self.assertIn('synthetic diagnostic', raw_text(debug))
-            self.assertIn('Exit status: 0', raw_text(debug))
+            debug = chat.with_name(chat.name.replace('-chat.txt', '-model.txt'))
+            self.assertIn('Synthetic reply.', chat.read_text())
+            self.assertIn(payload, debug.read_text())
+            self.assertNotIn('synthetic diagnostic', chat.read_text())
+            self.assertIn('synthetic diagnostic', debug.read_text())
+            self.assertIn('Exit status: 0', debug.read_text())
             self.assertFalse(list(self.logs.glob('*-setup.json')))
             self.assertIn('Debug window could not open', result.stderr)
-            server = chat.with_name(chat.name.replace('-chat.jsonl', '-server.jsonl'))
-            self.assertIn('synthetic diagnostic', raw_text(server))
+            server = chat.with_name(chat.name.replace('-chat.txt', '-server.txt'))
+            self.assertIn('synthetic diagnostic', server.read_text())
             self.assertFalse(list(self.logs.glob('*-debug.txt')))
             self.assertEqual(len(list(self.logs.iterdir())), 6)
             for path in [chat, debug, server]:
@@ -154,50 +141,7 @@ class LauncherTests(unittest.TestCase):
         result = self.run_chat('--test-fail')
         self.assertEqual(result.returncode, 1)
         self.assertIn('Chat exited with status 1', result.stderr)
-        self.assertIn('status 7', raw_text(next(self.logs.glob('*-model.jsonl'))))
-
-    def test_terminal_writer_failure_is_reported(self):
-        writer = self.root / 'src/marionette/log_store.py'
-        writer.write_text(writer.read_text().replace(
-            "    if mode == 'export-raw':",
-            "    if mode == 'terminal':\n        sys.stdin.buffer.read()\n        raise SystemExit(9)\n    if mode == 'export-raw':"))
-        result = self.run_chat()
-        self.assertEqual(result.returncode, 1)
-        self.assertIn('Terminal log writer failed', result.stderr)
-
-    def test_info_only_runtime_reaches_readiness(self):
-        runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
-        source = runtime.read_text().replace('llama_context: n_ctx_seq = 8192',
-                                            'srv load_model: n_ctx_slot = 8192')
-        source = source.replace("print('0.0 I srv update_slots: all slots are idle', file=sys.stderr, flush=True)", '')
-        runtime.write_text(source)
-        result = self.run_chat()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('Ready.', result.stdout)
-        self.assertIn('Synthetic reply.', result.stdout)
-
-    def test_normal_and_debug_modes_choose_runtime_verbosity(self):
-        for args, mode, expected in [((), 'normal', '--log-verbosity 3'),
-                                      (('--debug',), 'debug', '--verbose')]:
-            with self.subTest(mode=mode):
-                result = self.run_chat(*args)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn('Logging mode: ' + mode, result.stdout)
-                path = max(self.logs.glob('*-model.jsonl'), key=lambda p: p.stat().st_mtime_ns)
-                diagnostic = raw_text(path)
-                command = next(line for line in diagnostic.splitlines() if line.startswith('Command:'))
-                self.assertIn(expected, command)
-                self.assertNotIn('--debug', command)
-                self.assertIn('Logging mode: ' + mode, diagnostic)
-                if mode == 'normal':
-                    self.assertNotIn('--verbose', command)
-
-    def test_runtime_verbosity_overrides_require_launcher_debug_mode(self):
-        for flag in ['--verbose', '--log-verbosity=5', '-lv', '--verbosity']:
-            result = self.run_chat(flag)
-            self.assertEqual(result.returncode, 1)
-            self.assertIn('unsupported override', result.stderr)
-        self.assertFalse(self.logs.exists())
+        self.assertIn('status 7', next(self.logs.glob('*-model.txt')).read_text())
 
     def test_inspection_does_not_create_a_session(self):
         result = self.run_chat('--version')

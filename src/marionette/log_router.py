@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Number and route diagnostics to two files without a third raw log."""
-import re
-import base64
 import datetime
+import re
 import sys
 import textwrap
-
-from log_store import record, encode, raw_batches, timestamp
 
 RECORD = re.compile(rb'^\d[\d.]*\s+([A-Z])\s+(.*)')
 COMPONENT = re.compile(rb'^(srv|slot|que|res)\s+([^:]+):\s*(.*)')
@@ -51,56 +48,17 @@ def category(line):
     return 'both'
 
 
-def diagnostic_lines(event):
-    """Expand old records or compact [sequence, microsecond offset, byte length] rows."""
-    raw = base64.b64decode(event['raw_b64'], validate=True)
-    if event['event_type'] == 'diagnostic':
-        yield event['sequence'], event['timestamp'], raw
-        return
-    start = datetime.datetime.fromisoformat(event['timestamp'])
-    position = 0
-    for sequence, offset, length in event['data']['lines']:
-        line = raw[position:position + length]
-        if len(line) != length:
-            raise ValueError('Truncated diagnostic payload')
-        yield sequence, (start + datetime.timedelta(microseconds=offset)).isoformat(timespec='microseconds'), line
-        position += length
-    if position != len(raw):
-        raise ValueError('Unindexed diagnostic bytes')
-
-
 def route(source, server, model):
-    number, pending = 0, b''
-    def write(lines):
-        if not lines:
-            return
-        start = lines[0][1]
+    for number, line in enumerate(source, 1):
+        destination = category(line)
+        # Runtime elapsed timestamps and original bytes are left untouched.
+        # Receipt time also timestamps launcher messages lacking a runtime clock.
+        now = datetime.datetime.now().astimezone().isoformat(timespec='microseconds')
+        event = format_event(number, now, line)
         for name, output in [('server', server), ('model', model)]:
-            selected = [(n, when, raw) for n, when, raw, destination in lines if destination in (name, 'both')]
-            if not selected:
-                continue
-            event = record('diagnostic', 'diagnostic_batch',
-                raw=b''.join(raw for _, _, raw in selected),
-                data={'destination': name,
-                      'lines': [[n, when - start, len(raw)] for n, when, raw in selected]})
-            event['timestamp'] = timestamp(start)
-            output.write(encode(event))
-            output.flush()
-
-    last_time = None
-    for batch in raw_batches(source):
-        lines = []
-        for when, chunk in batch:
-            last_time = when
-            parts = (pending + chunk).split(b'\n')
-            pending = parts.pop()
-            for part in parts:
-                number += 1
-                raw = part + b'\n'
-                lines.append((number, when, raw, category(raw)))
-        write(lines)
-    if pending:
-        write([(number + 1, last_time, pending, category(pending))])
+            if destination in (name, 'both'):
+                output.write(event)
+                output.flush()
 
 
 def format_event(number, now, line):

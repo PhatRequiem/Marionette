@@ -17,13 +17,11 @@ from connection import LocalConnection
 from conversation import Conversation
 from identity import Profiles
 from inference import API
-from log_store import chat_event
-from log_reader import LogReader
 
 
 def observe(line, facts):
     patterns = {
-        'context_tokens': r'(?:llama_context: n_ctx_seq|\bn_ctx_slot)\s*=\s*(\d+)',
+        'context_tokens': r'llama_context: n_ctx_seq\s*=\s*(\d+)',
         'local_server': r'server_on_li: listening on (http://127\.0\.0\.1:\d+)',
     }
     for key, pattern in patterns.items():
@@ -40,12 +38,10 @@ def chat(api, capacity):
         selected = terminal.select_profile(profiles)
     except EOFError:
         return
-    chat_event('profile_selected', person_uuid=selected['uuid'], display_name=selected['name'], source='terminal')
     terminal.show_profile(selected)
     conversation = Conversation(api, capacity, profiles, selected)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
-    chat_event('ready', context_capacity=capacity, reply_allowance=conversation.reserve)
     terminal.show_ready(capacity, conversation.reserve)
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
@@ -73,14 +69,13 @@ def run(command):
             line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
             if not ready.is_set():
                 observe(line, facts)
-                if 'local_server' in facts:
+                if 'update_slots: all slots are idle' in line:
                     ready.set()
 
     reader = threading.Thread(target=read_diagnostics, daemon=True)
     reader.start()
     diagnostics.log(f'Local server started: pid={child.pid}.')
     try:
-        chat_event('session_started', server_pid=child.pid)
         terminal.color('meta')
         print('Loading model...', flush=True)
         terminal.color('data')
@@ -101,10 +96,6 @@ def run(command):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        api.capacity = capacity
-        if os.environ.get('MARIONETTE_CHAT_LOG') and os.environ.get('MARIONETTE_SESSION_SOCKET'):
-            api.log_reader = LogReader(os.environ['MARIONETTE_CHAT_LOG'],
-                                       os.environ['MARIONETTE_SESSION_SOCKET'])
         chat(api, capacity)
         return 0
     finally:
@@ -122,7 +113,6 @@ def run(command):
         reader.join(timeout=5)
         child.stdout.close()
         diagnostics.log('Local server stopped.')
-        chat_event('session_stopped')
 
 
 if __name__ == '__main__':

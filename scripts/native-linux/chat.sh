@@ -22,26 +22,10 @@ if [[ ! -x "$CLI" || ! -f "$MODEL" ]]; then
     echo 'Run python scripts/native-linux/setup.py first.' >&2
     exit 1
 fi
-# --debug belongs to this launcher; it never reaches llama-server.
-LOG_MODE=normal
-LOG_ARGS=(--log-verbosity 3)
-RUNTIME_ARGS=()
-for arg in "$@"; do
-    if [[ "$arg" == --debug ]]; then
-        LOG_MODE=debug
-        LOG_ARGS=(--verbose)
-    else
-        RUNTIME_ARGS+=("$arg")
-    fi
-done
-set -- "${RUNTIME_ARGS[@]}"
 if (( $# == 1 )); then
-    case "$1" in
-        --help) printf 'Marionette: chat.sh [--debug] [runtime options]\nNormal logs by default; --debug enables full per-token diagnostics.\n\n'; exec "$CLI" --help ;;
-        --version|--list-devices) exec "$CLI" "$1" ;;
-    esac
+    case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in log_reader.py log_store.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
+for source in commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -50,7 +34,7 @@ done
 # The client owns server lifetime and structured messages.
 for arg in "$@"; do
     case "${arg%%=*}" in
-        --host|--port|--parallel|-np|--api-key|--api-key-file|--tools|--agent|-ag|--path|--chat-template|--chat-template-file|--server-base|-p|--prompt|-f|--file|-sys|--system-prompt|-sysf|--system-prompt-file|--no-conversation|-no-cnv|--no-jinja|--verbose|--log-verbose|-v|--verbosity|--log-verbosity|-lv|--log-disable|--log-file|--prompt-cache|--prompt-cache-all|--prompt-cache-ro)
+        --host|--port|--parallel|-np|--api-key|--api-key-file|--tools|--agent|-ag|--path|--chat-template|--chat-template-file|--server-base|-p|--prompt|-f|--file|-sys|--system-prompt|-sysf|--system-prompt-file|--no-conversation|-no-cnv|--no-jinja|--log-disable|--log-file|--prompt-cache|--prompt-cache-all|--prompt-cache-ro)
             echo "This launcher requires a fresh interactive session; unsupported override: ${arg%%=*}" >&2
             exit 1 ;;
     esac
@@ -67,26 +51,16 @@ flock -n 9 || { echo 'A chat is already running. Stop it before starting another
 LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
-CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.jsonl")"
-SERVER_FILE="${CHAT_FILE%-chat.jsonl}-server.jsonl"
-MODEL_FILE="${CHAT_FILE%-chat.jsonl}-model.jsonl"
+CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.txt")"
+SERVER_FILE="${CHAT_FILE%-chat.txt}-server.txt"
+MODEL_FILE="${CHAT_FILE%-chat.txt}-model.txt"
 (set -o noclobber; : > "$SERVER_FILE"; : > "$MODEL_FILE")
-export MARIONETTE_SESSION_ID="$(basename "${CHAT_FILE%-chat.jsonl}")"
-export MARIONETTE_CHAT_LOG="$CHAT_FILE"
 # One writer assigns event IDs before routing; no raw debug file is created.
 exec 3> >(python "$ROOT/src/marionette/log_router.py" "$SERVER_FILE" "$MODEL_FILE")
 ROUTER_PID=$!
-# Keep the recorder's exact bytes inside JSONL; never create a raw .txt file.
-exec 4> >(python "$ROOT/src/marionette/log_store.py" terminal "$CHAT_FILE" 3>&-)
-RECORDER_PID=$!
 finish() {
     local status=$?
     printf '\nSession ended: %s\nExit status: %s\n' "$(date --iso-8601=seconds)" "$status" >&3
-    exec 4>&-
-    if ! wait "$RECORDER_PID"; then
-        echo 'Terminal log writer failed; saved logs may be incomplete.' >&2
-        status=1
-    fi
     exec 3>&-
     if ! wait "$ROUTER_PID"; then
         echo 'Diagnostic log writer failed; saved logs may be incomplete.' >&2
@@ -105,9 +79,8 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --presence-penalty 1.5 --repeat-penalty 1.0 --repeat-last-n 65536
     "$@"
     --host 127.0.0.1 --port 0 --parallel 1 --no-webui --no-context-shift
-    --log-colors off --no-log-jsonl "${LOG_ARGS[@]}" --log-prefix --log-timestamps)
+    --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)
 {
-    printf 'Logging mode: %s\n' "$LOG_MODE"
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
     printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
@@ -115,7 +88,6 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     script --version
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
-printf 'Logging mode: %s\n' "$LOG_MODE"
 printf 'Conversation log: %s\nConnections and requests: %s\nModel processing: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
 mkdir -p "$ROOT/data/session"
@@ -129,7 +101,7 @@ for view in server model; do
         model) title='Marionette — Model processing'; log_file="$MODEL_FILE" ;;
     esac
     (
-        exec 3>&- 4>&- 9>&-
+        exec 3>&- 9>&-
         if ! xdg-terminal-exec --title="$title" -- \
             bash "$ROOT/scripts/native-linux/view-log.sh" "$log_file" "$$" "$view"; then
             warning="Debug window could not open or exited with an error ($view). Logs are still saved: $log_file"
@@ -143,6 +115,6 @@ done
 # The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
 printf -v RECORD_COMMAND '%q ' python -u "$ROOT/src/marionette/session.py" \
     "${COMMAND[@]}"
-RECORD_COMMAND+=' 2>&3 3>&- 4>&-'
+RECORD_COMMAND+=' 2>&3 3>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
-    --command "$RECORD_COMMAND" /dev/fd/4 2>&3
+    --command "$RECORD_COMMAND" "$CHAT_FILE" 2>&3

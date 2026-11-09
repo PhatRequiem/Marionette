@@ -11,15 +11,7 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. Profiles persist between launches; see [identities](docs/identity.md). You can now chat in this terminal. She can request evidence from the active logs; try “Check your model logs for warnings.” See [active-log access](docs/log-reader.md).
-
-For full per-token diagnostics, use this **instead of** the normal launch command:
-
-```bash
-./scripts/native-linux/chat.sh --debug
-```
-
-Both modes keep reasoning, answers, and the same log windows. Debug mode produces much larger logs. Choose the mode at startup; stop the current session before launching another.
+This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. Profiles persist between launches; see [identities](docs/identity.md). You can now chat in this terminal.
 
 ## 2. Connect Discord — optional
 

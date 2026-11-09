@@ -4,10 +4,8 @@ import json
 import queue
 import threading
 import time
-import uuid
 
 import diagnostics
-from log_store import chat_event, turn_context
 from context import Preparation, fit_history
 from identity import message_with_identity
 from commands import execute_clear, recognize
@@ -45,33 +43,23 @@ class Conversation:
                 sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
                 identity = self.profiles.resolve(source, sender_id)
                 diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
-            with turn_context(**({'source': source} | (identity or {})), turn_id=str(uuid.uuid4())):
-                chat_event('message_received', role='user', content=message)
-                try:
-                    if recognize(message, source) == 'clear':
-                        result = execute_clear(self, identity)
-                        chat_event('command_result', command='/clear', content=result)
-                        return result, 'stop'
-                    if self.pending is not None:
-                        self.history = self.pending.result()
-                        self.pending = None
-                    candidate, removed, tokens = fit_history(
-                        self.history, message_with_identity(message, identity) if identity else message,
-                        self.api.count, self.capacity, self.reserve)
-                    diagnostics.log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
-                        f'{self.capacity}; removed_exchanges={removed}.')
-                    if removed:
-                        diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
-                    chat_event('context', prompt_tokens=tokens, context_capacity=self.capacity,
-                               reply_allowance=self.reserve, phase='before_initial_generation')
-                    # The caller decides how streamed reasoning and answers are displayed.
-                    answer, finish = self.api.reply(candidate, self.reserve, on_delta=on_delta)
-                    if not answer.strip():
-                        raise RuntimeError('Model produced no final answer.')
-                    diagnostics.log(f'Reply completed: finish_reason={finish}.')
-                    self.history = candidate + [{'role': 'assistant', 'content': answer}]
-                    self.pending = Preparation(self.api, self.history, self.capacity, self.reserve)
-                    return answer, finish
-                except Exception as error:
-                    chat_event('error', error_type=type(error).__name__, message=str(error))
-                    raise
+            if recognize(message, source) == 'clear':
+                return execute_clear(self, identity), 'stop'
+            if self.pending is not None:
+                self.history = self.pending.result()
+                self.pending = None
+            candidate, removed, tokens = fit_history(
+                self.history, message_with_identity(message, identity) if identity else message,
+                self.api.count, self.capacity, self.reserve)
+            diagnostics.log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
+                f'{self.capacity}; removed_exchanges={removed}.')
+            if removed:
+                diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
+            # The caller decides how streamed reasoning and answers are displayed.
+            answer, finish = self.api.reply(candidate, self.reserve, on_delta=on_delta)
+            if not answer.strip():
+                raise RuntimeError('Model produced no final answer.')
+            diagnostics.log(f'Reply completed: finish_reason={finish}.')
+            self.history = candidate + [{'role': 'assistant', 'content': answer}]
+            self.pending = Preparation(self.api, self.history, self.capacity, self.reserve)
+            return answer, finish

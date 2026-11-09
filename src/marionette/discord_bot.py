@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Optional, owner-only Discord DM transport for the local chat engine."""
-from contextlib import nullcontext
-import os
 import asyncio
 import datetime
+import json
 import math
 import time
 from pathlib import Path
@@ -13,15 +12,14 @@ import sys
 import discord
 
 from connection import request
-from log_store import record, encode
-from log_reader import discord_registration
 
 ROOT = Path(__file__).resolve().parents[2]
 ADDRESS = ROOT / 'data/session/chat.sock'
 
 
 def log(message, **fields):
-    print(encode(record('discord', 'status', data={'message': message, **fields})).decode(), end='', flush=True)
+    details = ' ' + json.dumps(fields, ensure_ascii=False, allow_nan=False) if fields else ''
+    print(f'{datetime.datetime.now().astimezone().isoformat()} {message}{details}', flush=True)
 
 
 def elapsed(start):
@@ -76,8 +74,9 @@ def chunks(text, limit=1900):
 
 
 def transcript(role, content, message_id, **fields):
-    print(encode(record('discord', 'message_received' if role == 'user' else 'answer',
-        data={'message_id': str(message_id), 'role': role, 'content': content, **fields})).decode(), end='', flush=True)
+    print(json.dumps({'time': datetime.datetime.now().astimezone().isoformat(),
+                      'message_id': str(message_id), 'role': role, 'content': content, **fields},
+                     ensure_ascii=False), flush=True)
 
 
 class DMChat(discord.Client):
@@ -223,10 +222,7 @@ def main():
             finally:
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
-    registration = (discord_registration(ADDRESS, os.environ['MARIONETTE_DISCORD_LOG'])
-                    if os.environ.get('MARIONETTE_DISCORD_LOG') else nullcontext())
-    with registration:
-        asyncio.run(serve())
+    asyncio.run(serve())
     return 0
 
 

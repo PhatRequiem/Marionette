@@ -6,7 +6,6 @@ import sys
 import time
 
 import diagnostics
-from log_store import chat_event
 from commands import HELP_TEXT, recognize
 from style import COLORS, enabled, paint
 
@@ -24,11 +23,6 @@ class ReplyDisplay:
         self.stream_color = None
 
     def __call__(self, phase, text):
-        if phase == 'tool':
-            print(paint('\n\n' + text + '\n', 'meta', enabled()), flush=True)
-            self.reasoning = self.answer = False
-            self.stream_color = None
-            return
         if phase == 'reasoning':
             if not self.reasoning:
                 color('reasoning_heading')
@@ -136,7 +130,6 @@ def run(conversation, *, external=False):
         if not message.strip():
             continue
         if command == 'exit':
-            chat_event('command_result', source='terminal', command='/exit', content='Session exit requested.')
             return
         print()
         if command == 'clear':

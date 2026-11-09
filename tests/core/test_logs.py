@@ -1,8 +1,6 @@
 """Check that routing preserves evidence and viewers finish with the chat."""
 import importlib.util
 import io
-import json
-import base64
 from pathlib import Path
 import re
 import subprocess
@@ -28,10 +26,21 @@ class LogTests(unittest.TestCase):
         router.route(io.BytesIO(b''.join(lines)), server, model)
         def events(output):
             result = {}
-            for line in output.getvalue().splitlines():
-                event = json.loads(line)
-                for number, when, raw in router.diagnostic_lines(event):
-                    result[number] = (when, raw)
+            blocks = re.split(rb'(?=^\[event )', output.getvalue(), flags=re.M)
+            for block in blocks:
+                if not block:
+                    continue
+                header, *rows = block.splitlines(keepends=True)
+                match = re.match(rb'\[event (\d+)\]', header)
+                self.assertIsNotNone(match)
+                if b'[blank line]' in header:
+                    original = b'\n'
+                else:
+                    visible = b''.join(row.removeprefix(b'    | ').removesuffix(b'\n') for row in rows)
+                    original = re.sub(rb'\\(\\|x[0-9a-f]{2})', lambda m: b'\\' if m[1] == b'\\' else bytes([int(m[1][1:], 16)]), visible)
+                    if b'[no final newline]' not in header:
+                        original += b'\n'
+                result[int(match[1])] = (block, original)
             return result
         a, b = events(server), events(model)
         self.assertEqual(set(a) | set(b), set(range(1, len(lines)+1)))

@@ -43,9 +43,9 @@ The main chat owns the model and conversation. A Unix socket at `data/session/ch
 
 ## Local logs and verification
 
-The three main session files are: `-chat.jsonl` records the terminal, and `-server.jsonl`/`-model.jsonl` record model diagnostics, including reasoning and accepted Discord turns. The terminal transcript now also includes the labeled Discord exchanges and their reasoning. Remote requests are queued for the main terminal thread to render between local turns, then the local input prompt is shown again.
+The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including reasoning and accepted Discord turns. The terminal transcript now also includes the labeled Discord exchanges and their reasoning. Remote requests are queued for the main terminal thread to render between local turns, then the local input prompt is shown again.
 
-Each Discord connection saves one additional dated `-discord.jsonl` file under `data/conversations/`. Its terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
+Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 
 The Discord log adds these diagnostics without additional Discord permissions:
 
@@ -58,7 +58,7 @@ The Discord log adds these diagnostics without additional Discord permissions:
 - Error class, HTTP status, and Discord error code when provided. Exception bodies, request headers, credentials, and raw network packets are not dumped.
 - `heartbeat_ms` snapshots on ready/resume/disconnect and accepted incoming messages. This is Gateway heartbeat round-trip latency, not message delivery latency. Unavailable readings are `null`; there is no continuous heartbeat log spam.
 
-All new saved logs use the version 1 JSONL envelope. Discord emits structured events; unexpected raw output is preserved in Base64. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
+Saved diagnostics use timestamped event names followed by JSON fields; saved transcripts remain timestamped JSON records. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
 
 Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 
@@ -81,11 +81,3 @@ uv pip compile --python python --generate-hashes scripts/native-linux/discord-re
 Review changed packages and licenses and rerun both test suites when updating.
 
 Shared-history commands are checked separately by [command permissions](identity.md#command-permissions): `/clear` requires the resolved owner UUID, not merely an existing profile.
-
-## Active-log access
-
-While attached, the adapter registers its current log path and socket identity in private data/session/discord-log.json. The read-only log tool checks that the adapter process is alive and belongs to the same main socket before opening its log. Disconnect removes registration; a stale marker is rejected. No search for the latest saved file is used.
-
-Use the same log directory for main chat and Discord (the default does this). A Discord connection with a different MARIONETTE_LOG_DIR still operates, but its log is unavailable to the reader. Only the currently attached connection is eligible; logs from earlier connections are excluded.
-
-She can request log evidence while answering a Discord message, using the same tool as terminal chat. Reasoning, the reading notice, tool requests, and results remain local; only her final answer (plus existing status/error notices) is sent to Discord. See [active-log access](log-reader.md).

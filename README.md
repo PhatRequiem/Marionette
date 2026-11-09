@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated JSONL chat and diagnostic files locally, preserving raw bytes in Base64. Normal launches use lighter runtime logging; add `--debug` for full per-token diagnostics. She can request bounded evidence from active logs through a read-only tool; previous sessions are not accessible or loaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated chat and diagnostic text files locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -42,16 +42,14 @@ Start with these files, in order:
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
-| [log_reader.py](src/marionette/log_reader.py) | Topic-based active-log guide, bounded retrieval, computed evidence fields, and active Discord registration |
-| [log_store.py](src/marionette/log_store.py) | Common JSONL records, timed raw batches, locked chat writes, Base64 capture and export |
-| [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and JSONL routing |
+| [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
 | [setup-discord.sh](scripts/native-linux/setup-discord.sh) | Install pinned Discord dependencies and create the local credential template if missing |
 | [tests/core](tests/core) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
-`session.py` connects the components. `terminal.py` renders streamed text through a per-reply callback; inference and conversation code do not import terminal UI code. Future interfaces can supply their own callback while reusing identity, permissions, and conversation handling. The current Discord connection still queues work for the main terminal thread, preserving one shared conversation and sequential generation. See [active log access](docs/log-reader.md) for the tool guide, boundaries, and tool-call flow. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
+`session.py` connects the components. `terminal.py` renders streamed text through a per-reply callback; inference and conversation code do not import terminal UI code. Future interfaces can supply their own callback while reusing identity, permissions, and conversation handling. The current Discord connection still queues work for the main terminal thread, preserving one shared conversation and sequential generation. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
 
 ## Folder map
 
@@ -64,7 +62,7 @@ Start with these files, in order:
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
-- `data/session/`: private socket and active Discord log registration for the running chat; ignored by Git.
+- `data/session/`: private socket for optional connections to the running chat; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: optional Discord transport tests—owner filtering, delivery, attachment to main chat, and reasoning isolation.
