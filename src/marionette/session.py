@@ -93,12 +93,14 @@ class API:
                                           'cache_prompt': True})
         log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
-    def reply(self, messages, reserve):
+    def reply(self, messages, reserve, *, display=True):
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
         pieces, thoughts, finish = [], [], None
         with self.open('/v1/chat/completions', body) as response:
             for line in response:
+                if self.closing.is_set():
+                    raise RuntimeError('Session is closing.')
                 if not line.startswith(b'data: '):
                     continue
                 payload = line[6:].strip()
@@ -115,19 +117,21 @@ class API:
                     delta = choice.get('delta', {})
                     reasoning = delta.get('reasoning_content') or ''
                     if reasoning:
-                        color('data')
-                        if not thoughts:
-                            print('Thinking:', flush=True)
+                        if display:
+                            color('data')
+                            if not thoughts:
+                                print('Thinking:', flush=True)
+                            print(reasoning, end='', flush=True)
                         thoughts.append(reasoning)
-                        print(reasoning, end='', flush=True)
                     text = delta.get('content') or ''
                     if text:
-                        if not pieces and thoughts:
+                        if display and not pieces and thoughts:
                             color('data')
                             print('\n\nAnswer:', flush=True)
-                        color('reply')
+                        if display:
+                            color('reply')
+                            print(text, end='', flush=True)
                         pieces.append(text)
-                        print(text, end='', flush=True)
                     finish = choice.get('finish_reason') or finish
                 if event.get('usage'):
                     log('Runtime usage: ' + json.dumps(event['usage']))
@@ -250,7 +254,7 @@ def chat(api, capacity):
             print(f'\n{error}\nConversation history is unchanged; you can retry.')
 
 
-def run(command):
+def run(command, chat_handler=chat):
     facts = {}
     api = None
     ready = threading.Event()
@@ -292,7 +296,7 @@ def run(command):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        chat(api, capacity)
+        chat_handler(api, capacity)
         return 0
     finally:
         if api is not None:

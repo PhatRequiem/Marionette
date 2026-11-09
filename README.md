@@ -13,6 +13,8 @@ python scripts/native-linux/setup.py
 
 Setup downloads and verifies the pinned runtime and model. Subsequent chat runs are offline. See the short [terminal chat guide](docs/native-linux/chat.md) for everyday launch and exit commands.
 
+Optional phone access: [Discord DM setup](docs/native-linux/discord.md). It uses a separate foreground launcher, allows only your configured user ID, sends only final answers, and keeps reasoning in local logs. Discord requires an account and internet access; the terminal mode remains offline.
+
 ## Status and architecture
 
 The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
@@ -27,6 +29,7 @@ Start with these files, in order:
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
 | [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
+| [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
@@ -36,12 +39,15 @@ In `session.py`, `run()` owns the server, `chat()` handles turns, `fit_history()
 
 ## Folder map
 
-- `src/marionette/`: application code—terminal chat, rollover, and diagnostic log processing.
-- `scripts/native-linux/`: installation, chat launcher, log-window launcher, and pinned download manifest.
+- `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
+- `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
 - `docs/native-linux/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts and server/model diagnostic logs; ignored by Git.
+- `data/discord/`: private bot credentials and dependency setup lock; ignored by Git.
+- `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
+- `tests/discord/`: synthetic owner filtering, delivery, and reasoning-isolation checks.
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.

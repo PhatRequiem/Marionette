@@ -1,5 +1,6 @@
 """Isolated synthetic checks; no real models, conversations, or desktop windows."""
 import hashlib
+import fcntl
 import importlib.util
 import io
 import json
@@ -127,6 +128,14 @@ class LauncherTests(unittest.TestCase):
                 restored = self.root / ('restored-' + path.name)
                 shutil.copy2(path, restored)
                 self.assertEqual(restored.read_bytes(), path.read_bytes())
+
+    def test_second_chat_is_rejected_before_creating_logs(self):
+        with (self.root / 'data/.chat.lock').open('w') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            result = self.run_chat()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('already running', result.stderr)
+        self.assertFalse(self.logs.exists())
 
     def test_child_failure_is_recorded_and_returned(self):
         result = self.run_chat('--test-fail')

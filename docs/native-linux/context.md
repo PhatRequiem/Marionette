@@ -22,6 +22,8 @@ The larger generation allowance used for thinking can trigger rollover earlier t
 
 ## Logs and checks
 
+The optional [Discord transport](discord.md) reuses this policy and server lifetime, with reasoning kept local and final answers delivered by DM.
+
 Each session saves only `-chat.txt`, `-server.txt`, and `-model.txt`. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
 Run `python -m unittest discover -s tests/native-linux -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.

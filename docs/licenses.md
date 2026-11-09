@@ -1,13 +1,13 @@
 # Active software and model licenses
 
-All selected software is free and open source. Local operation has no paid feature, subscription, vendor account, or license-server requirement. Downloads require internet access only during setup. Model licensing is reviewed separately below.
+The local runtime and application dependencies are free and open source. Terminal operation has no paid feature, subscription, vendor account, or license-server requirement; downloads require internet access during setup. Optional Discord access depends on Discord’s proprietary hosted service, an account, bot credentials, and internet access. No paid Discord feature is required for this text-DM integration. Model licensing is reviewed separately below.
 
 ## Runtime and setup
 
 | Component | Verified version | License / evidence |
 |---|---|---|
 | llama.cpp, ggml, bundled server libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
-| Python (setup, manifest loading, terminal client, and log routing; standard library only) | 3.14.8 | PSF-2.0 |
+| Python (setup, manifest loading, terminal client, and log routing; standard library for terminal mode) | 3.14.8 | PSF-2.0 |
 | util-linux (`script` terminal recorder) | 2.42.4 | util-linux package: BSD-2-Clause, BSD-3-Clause, BSD-4-Clause-UC, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-or-later, ISC, LGPL-2.1-or-later, public domain; installed license texts under `/usr/share/licenses/util-linux/` |
 | xdg-terminal-exec (default terminal launcher) | 0.14.3 | GPL-3.0-or-later, verified in `/usr/bin/xdg-terminal-exec` |
 | Kitty (configured log terminal) | 0.49.2 | GPL-3.0-only |
@@ -63,3 +63,26 @@ Transitive shared-library package owners resolved with `ldd` and `pacman` for th
 | xcb-util-keysyms | 0.4.1-5 | X11-distribute-modifications-variant |
 | zlib | 1:1.3.2-4 | Zlib |
 | zstd | 1.5.7-3 | BSD-3-Clause  GPL-2.0-only |
+
+## Optional Discord transport
+
+`discord.py` is MIT licensed ([upstream license](https://github.com/Rapptz/discord.py/blob/v2.7.1/LICENSE)). It provides Gateway connectivity and HTTP rate-limit handling. This does not make Discord's hosted service open source. The optional transport can be removed without changing local inference or terminal chat.
+
+Pinned dependencies and installed distribution license metadata/texts were checked in `runtime/discord/lib/python3.14/site-packages/`. The hash-locked installation list is `scripts/native-linux/discord-requirements.txt`.
+
+| Package | Version | License |
+|---|---|---|
+| discord.py | 2.7.1 | MIT |
+| aiohttp | 3.14.5 | Apache-2.0 AND MIT |
+| aiohappyeyeballs | 2.7.1 | PSF-2.0 |
+| aiosignal | 1.4.0 | Apache-2.0 |
+| attrs | 26.1.0 | MIT |
+| audioop-lts | 0.2.2 | PSF-2.0 |
+| frozenlist | 1.8.0 | Apache-2.0 |
+| idna | 3.20 | BSD-3-Clause |
+| multidict | 7.2.1 | Apache-2.0 |
+| propcache | 0.5.4 | Apache-2.0 |
+| yarl | 1.25.1 | Apache-2.0 |
+| uv (optional setup/lock maintenance) | 0.13.7 | MIT OR Apache-2.0; [upstream licenses](https://github.com/astral-sh/uv#license) |
+
+`flock` comes from the already listed util-linux package; `tee` comes from GNU coreutils. No voice dependencies are requested; audioop-lts is an upstream dependency on this Python version.
