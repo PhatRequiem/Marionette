@@ -2,16 +2,16 @@
 
 ## Requirements and repeatable installation
 
-Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer (with tarfile extraction filters). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands exist. The host already provided these; no system packages or services were installed.
+Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer with tarfile extraction filters (Python 3.12+ recommended). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands and extraction filters exist. The launcher also uses Python’s standard library to read runtime/model paths from the manifest. The host already provided these; no system packages or services were installed.
 
 ```bash
 python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
 
-The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-4B Q4_K_M GGUF, derived from Qwen/Qwen3.5-4B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and can recreate the runtime from its cached archive. It requires roughly 3 GB plus runtime/archive space and internet access on first installation. An interrupted model download is restarted on the next setup run.
+The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-4B Q4_K_M GGUF, derived from Qwen/Qwen3.5-4B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 3 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
 
-The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To reinstall, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine.
+The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of `runtime/llama.cpp/`, and rerun setup to restore it from the verified archive.
 
 ## Operation
 
@@ -24,8 +24,8 @@ The launcher resolves paths relative to itself and can be invoked from any direc
 - Chat uses `--offline`; no hosted API or login is needed.
 - Each session has a shared timestamp and unique suffix with `-chat.txt` and `-debug.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. `--simple-io` preserves terminal input; terminal color codes, carriage returns, and backspaces may remain. Log formatting is unchanged.
 - The debug file records session start/end times, exact launch arguments, runtime/recorder versions, and the exit status. llama.cpp runs with `--verbose --log-prefix --log-timestamps`, capturing all diagnostics exposed by this build, including model, device, memory, prompt, token, timing, and error details. Runtime timestamps are elapsed time; session headers give local time and UTC offset.
-- The CLI stderr stream goes directly to the debug file inside the recorder, keeping verbose diagnostics out of the chat transcript. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder; no new dependencies are added.
-- Files use owner-only permissions and unique timestamped names. The chat recorder flushes each write, and the viewer follows the debug file until the launcher exits. Debug visibility follows the runtime logging flush behavior. Closing the viewer does not stop recording.
+- The CLI stderr stream goes directly to the debug file inside the recorder, keeping verbose diagnostics out of the chat transcript. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder.
+- Files use owner-only permissions and unique timestamped names. The chat recorder flushes each write, and the viewer follows the debug file until the launcher exits. Debug visibility follows the runtime logging flush behavior. Closing the viewer does not stop recording. A viewer launch failure is reported in the terminal and debug file while chat recording continues.
 - `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy both matching text files to export or back them up; no special reader or database is required.
 - Debug files can include full prompts and replies, local paths, and very large amounts of output. They are private local files, excluded from Git. No automatic deletion or rotation is configured. This enables the runtime’s fullest logging, not automatic crash backtraces. A forced kill or power loss may leave no ending footer.
 
@@ -59,8 +59,4 @@ The download archive and its checksum are unchanged. The manifest identifies the
 
 ## Verification
 
-Verified using a separate temporary log directory and synthetic conversation: a request to remember “violet” returned “OK”, then a follow-up correctly returned “violet”. The actual input tokens contain the empty closed thinking block and no injected system message. Both replies were direct, with no reasoning text. Ctrl+D exited with status zero. Full GPU offload and an 8,192-token context were confirmed in the debug log.
-
-While the completion process was running, host socket inspection showed no listener owned by it. The previously open user session still used the older CLI and its own listener; it was not interrupted by the test.
-
-Paired chat/debug content, private permissions, log separation, and byte-identical copy/restore were checked. Same-format text restoration is verified; no database migration or persistent model memory is implemented. Setup was rerun using checksum-verified cached downloads, and shell syntax and the diff were checked.
+See [Baseline 1](baseline.md) for the authoritative checklist, repeatable test commands, and known limits.

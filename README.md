@@ -17,6 +17,8 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-completion` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. No custom system prompt is supplied. A text-only Qwen formatting template closes the empty thinking block; no HTTP listener is used.
 
+Baseline 1 is reviewed and tested. See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
+
 ## Folder map
 
 - `scripts/native-linux/`: setup, launch, and pinned download manifest.
@@ -27,6 +29,7 @@ Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repe
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.
-- `src/`, `public/`, `tests/`, `model/`: existing scaffolding; unused by this setup. `model/` is ignored to protect weights.
+- `tests/native-linux/`: isolated setup and logging regression checks.
+- `src/`, `public/`, `model/`: existing scaffolding; unused by this setup. `model/` is ignored to protect weights.
 
 See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).
