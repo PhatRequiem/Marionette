@@ -70,7 +70,7 @@ class LauncherTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         scripts = self.root / 'scripts/native-linux'
         scripts.mkdir(parents=True)
-        for name in ['chat.sh', 'view-log.sh', 'session.py']:
+        for name in ['chat.sh', 'view-log.sh', 'session.py', 'log-router.py']:
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -94,10 +94,10 @@ exit 0
         tools = self.root / 'tools'
         tools.mkdir()
         viewer = tools / 'xdg-terminal-exec'
-        viewer.write_text('#!/bin/sh\nexit 2\n')
+        viewer.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$VIEWER_CALLS"\nexit 2\n')
         viewer.chmod(0o755)
         self.logs = self.root / 'private logs'
-        self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb')
+        self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb', VIEWER_CALLS=str(self.root / 'viewer-calls.txt'))
         self.launcher = scripts / 'chat.sh'
 
     def run_chat(self, *args):
@@ -110,10 +110,13 @@ exit 0
             result = self.run_chat('--synthetic-argument', payload)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(marker.exists())
+        calls = (self.root / 'viewer-calls.txt').read_text()
+        self.assertEqual(calls.count('Connections and requests'), 2)
+        self.assertEqual(calls.count('Model processing'), 2)
         chats = list(self.logs.glob('*-chat.txt'))
         self.assertEqual(len(chats), 2)
         for chat in chats:
-            debug = chat.with_name(chat.name.replace('-chat.txt', '-debug.txt'))
+            debug = chat.with_name(chat.name.replace('-chat.txt', '-model.txt'))
             self.assertIn('Synthetic reply.', chat.read_text())
             self.assertIn(payload, chat.read_text())
             self.assertNotIn('synthetic diagnostic', chat.read_text())
@@ -122,8 +125,12 @@ exit 0
             snapshot = json.loads(chat.with_name(chat.name.replace('-chat.txt', '-setup.json')).read_text())
             self.assertEqual(snapshot['delivery'], 'pending_first_message')
             self.assertIn('unverified', snapshot['context'])
-            self.assertIn('Debug window could not open', debug.read_text())
-            for path in [chat, debug]:
+            self.assertIn('Debug window could not open', result.stderr)
+            server = chat.with_name(chat.name.replace('-chat.txt', '-server.txt'))
+            self.assertIn('synthetic diagnostic', server.read_text())
+            self.assertFalse(list(self.logs.glob('*-debug.txt')))
+            self.assertEqual(len(list(self.logs.iterdir())), 8)
+            for path in [chat, debug, server]:
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
                 restored = self.root / ('restored-' + path.name)
                 shutil.copy2(path, restored)
@@ -133,7 +140,7 @@ exit 0
         result = self.run_chat('--test-fail')
         self.assertEqual(result.returncode, 7)
         self.assertIn('Chat exited with status 7', result.stderr)
-        self.assertIn('Exit status: 7', next(self.logs.glob('*-debug.txt')).read_text())
+        self.assertIn('Exit status: 7', next(self.logs.glob('*-model.txt')).read_text())
 
     def test_inspection_does_not_create_a_session(self):
         result = self.run_chat('--version')

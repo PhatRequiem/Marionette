@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Supply a post-load setup snapshot to the first conversation turn."""
+import contextlib
 import datetime
 import json
 import os
@@ -55,8 +56,9 @@ def snapshot(command, facts, debug_path):
     lines += ['Configured: offline local-model operation, text conversation, reasoning disabled by an empty closed thinking block.',
               'Capabilities: receive your messages and generate replies. No tools for browsing, executing commands, or opening files.',
               'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. The user can explicitly attach text through CLI commands.',
-              f'Current debug log: {debug_path}.',
-              f'Current chat log: {str(debug_path).removesuffix("-debug.txt")}-chat.txt.',
+              f'Current model-processing log: {debug_path}.',
+              f'Current connections-and-requests log: {str(debug_path).removesuffix("-model.txt")}-server.txt.',
+              f'Current chat log: {str(debug_path).removesuffix("-model.txt")}-chat.txt.',
               'This is a startup snapshot, not continuous monitoring. Model-file checksums are verified by setup, not rechecked by this report.']
     # CLI input does not interpret escaped newlines. Keep the envelope one line.
     context = ' '.join(lines)
@@ -76,18 +78,18 @@ def save(path, data):
 
 
 def run(debug_path, command):
-    path = debug_path.with_name(debug_path.name.removesuffix('-debug.txt') + '-setup.json')
+    path = debug_path.with_name(debug_path.name.removesuffix('-model.txt') + '-setup.json')
     nonce = secrets.token_hex(12)
     start, end = f'[setup-{nonce}]', f'[/setup-{nonce}]'
     command = command + ['--chat-template', template(start, end)]
     facts = {}
-    for line in debug_path.read_text(errors='replace').splitlines():
+    for line in os.environ.get('MARIONETTE_RUNTIME_VERSION', '').splitlines():
         observe(line, facts)
     report = None
     pending = b''
     first = True
     started = time.monotonic()
-    with debug_path.open('ab', buffering=0) as debug:
+    with contextlib.nullcontext(sys.stderr.buffer) as debug:
         child = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
         os.set_blocking(child.stdin.fileno(), False)
         outgoing = bytearray()
@@ -178,11 +180,9 @@ def run(debug_path, command):
 
 if __name__ == '__main__':
     debug_path = Path(sys.argv[1])
-    with debug_path.open('a', buffering=1) as errors:
-        sys.stderr = errors
-        try:
-            status = run(debug_path, sys.argv[2:])
-        except (OSError, RuntimeError) as error:
-            print(f'Coordinator error: {error}', file=errors)
-            status = 1
-        raise SystemExit(status)
+    try:
+        status = run(debug_path, sys.argv[2:])
+    except (OSError, RuntimeError) as error:
+        print(f'Coordinator error: {error}', file=sys.stderr)
+        status = 1
+    raise SystemExit(status)

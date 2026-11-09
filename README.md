@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using llama.cpp’s `llama-cli`. Runs in the foreground with an embedded local HTTP server, no persistent background service, account, or personality file. Each launch opens a live debug terminal and saves dated chat/debug text files and a generated setup snapshot locally. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using llama.cpp’s `llama-cli`. Runs in the foreground with an embedded local HTTP server, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated chat and diagnostic text files and a generated setup snapshot locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -25,7 +25,7 @@ Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses local
 - `docs/native-linux/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
-- `data/conversations/`: dated chat transcripts, full debug logs, and setup snapshots; ignored by Git.
+- `data/conversations/`: dated chat transcripts, server/model diagnostic logs, and setup snapshots; ignored by Git.
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.

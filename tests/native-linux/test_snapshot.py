@@ -31,7 +31,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(facts['context_tokens']['evidence'], lines[4])
         self.assertEqual(facts['device']['value'], 'Vulkan0 (Synthetic GPU)')
         self.assertEqual(facts['local_server']['value'], 'http://127.0.0.1:54321')
-        report = session.snapshot(['synthetic-runtime'], facts, Path('/tmp/test-debug.txt'))
+        report = session.snapshot(['synthetic-runtime'], facts, Path('/tmp/test-model.txt'))
         self.assertIn('Synthetic GPU', report['context'])
         self.assertIn('No tools', report['context'])
         self.assertEqual(report['delivery'], 'pending_first_message')
@@ -54,7 +54,7 @@ class SnapshotTests(unittest.TestCase):
         self.assertFalse(delivered)
 
     def test_unknown_hardware_is_not_invented_and_snapshot_is_portable(self):
-        report = session.snapshot(['synthetic-runtime'], {}, Path('/tmp/test-debug.txt'))
+        report = session.snapshot(['synthetic-runtime'], {}, Path('/tmp/test-model.txt'))
         self.assertIn('not reported; unverified', report['context'])
         self.assertNotIn('Radeon', report['context'])
         with tempfile.TemporaryDirectory() as directory:
@@ -69,7 +69,7 @@ class SnapshotTests(unittest.TestCase):
             root = Path(directory)
             engine = root / 'engine.py'
             engine.write_text("import sys\nprint('0.0 I srv  update_slots: all slots are idle', file=sys.stderr, flush=True)\nfor line in sys.stdin: print(line, end='', flush=True)\n")
-            debug = root / 'test-debug.txt'
+            debug = root / 'test-model.txt'
             debug.touch()
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(debug), sys.executable, str(engine)], input='\nhello\n' + ('next message\n' * 20000), capture_output=True, text=True, timeout=10)
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -79,7 +79,7 @@ class SnapshotTests(unittest.TestCase):
             self.assertEqual(report['delivery'], 'supplied_with_first_message')
             self.assertIn('not reported; unverified', report['context'])
             engine.write_text('pass\n')
-            failure_debug = root / 'failed-debug.txt'
+            failure_debug = root / 'failed-model.txt'
             failure_debug.touch()
             failure = subprocess.run([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(failure_debug), sys.executable, str(engine)], input='', capture_output=True, text=True, timeout=10)
             self.assertEqual(failure.returncode, 1)

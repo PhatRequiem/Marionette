@@ -43,14 +43,25 @@ LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
 CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.txt")"
-DEBUG_FILE="${CHAT_FILE%-chat.txt}-debug.txt"
-(set -o noclobber; : > "$DEBUG_FILE")
+SERVER_FILE="${CHAT_FILE%-chat.txt}-server.txt"
+MODEL_FILE="${CHAT_FILE%-chat.txt}-model.txt"
+(set -o noclobber; : > "$SERVER_FILE"; : > "$MODEL_FILE")
+# One writer assigns event IDs before routing; no raw debug file is created.
+exec 3> >(python "$ROOT/scripts/native-linux/log-router.py" "$SERVER_FILE" "$MODEL_FILE")
+ROUTER_PID=$!
 finish() {
     local status=$?
-    printf '\nSession ended: %s\nExit status: %s\n' "$(date --iso-8601=seconds)" "$status" >> "$DEBUG_FILE"
-    if (( status != 0 )); then
-        printf 'Chat exited with status %s. Details: %s\n' "$status" "$DEBUG_FILE" >&2
+    printf '\nSession ended: %s\nExit status: %s\n' "$(date --iso-8601=seconds)" "$status" >&3
+    exec 3>&-
+    if ! wait "$ROUTER_PID"; then
+        echo 'Diagnostic log writer failed; saved logs may be incomplete.' >&2
+        status=1
     fi
+    if (( status != 0 )); then
+        printf 'Chat exited with status %s. Details: %s\n' "$status" "$MODEL_FILE" >&2
+    fi
+    trap - EXIT
+    exit "$status"
 }
 trap finish EXIT
 COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan0}"
@@ -59,29 +70,37 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     --simple-io --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)
 {
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
-    printf 'Chat file: %s\nDebug file: %s\n' "$CHAT_FILE" "$DEBUG_FILE"
+    printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
-    "$CLI" --version
+    export MARIONETTE_RUNTIME_VERSION="$("$CLI" --version 2>&1)"
+    printf '%s\n' "$MARIONETTE_RUNTIME_VERSION"
     script --version
-} >> "$DEBUG_FILE" 2>&1
-printf 'Conversation log: %s\nDebug log: %s\n' "$CHAT_FILE" "$DEBUG_FILE"
+} >&3 2>&1
+printf 'Conversation log: %s\nConnections and requests: %s\nModel processing: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
 printf 'Setup report: %s (generated after model loading)\n' "${CHAT_FILE%-chat.txt}-setup.json"
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
 
-# The viewer may be closed independently. Recording stays with the chat process.
-(
-    if ! xdg-terminal-exec --title='Marionette debug log' -- \
-        bash "$ROOT/scripts/native-linux/view-log.sh" "$DEBUG_FILE" "$$" 2>> "$DEBUG_FILE"; then
-        warning="Debug window could not open or exited with an error. Logs are still saved: $DEBUG_FILE"
-        printf '%s\n' "$warning" >&2
-        printf '%s\n' "$warning" >> "$DEBUG_FILE"
-    fi
-) &
+# Each viewer reads its saved log; neither owns the diagnostic writer.
+for view in server model; do
+    case "$view" in
+        server) title='Marionette — Connections and requests'; log_file="$SERVER_FILE" ;;
+        model) title='Marionette — Model processing'; log_file="$MODEL_FILE" ;;
+    esac
+    (
+        exec 3>&-
+        if ! xdg-terminal-exec --title="$title" -- \
+            bash "$ROOT/scripts/native-linux/view-log.sh" "$log_file" "$$" "$view"; then
+            warning="Debug window could not open or exited with an error ($view). Logs are still saved: $MODEL_FILE"
+            printf '%s\n' "$warning" >&2
+        fi
+    ) &
+done
 
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.
 # The coordinator keeps runtime diagnostics separate and supplies verified startup context.
-printf -v RECORD_COMMAND '%q ' python "$ROOT/scripts/native-linux/session.py" \
-    "$DEBUG_FILE" "${COMMAND[@]}"
+printf -v RECORD_COMMAND '%q ' python -u "$ROOT/scripts/native-linux/session.py" \
+    "$MODEL_FILE" "${COMMAND[@]}"
+RECORD_COMMAND+=' 2>&3 3>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
-    --command "$RECORD_COMMAND" "$CHAT_FILE" 2>> "$DEBUG_FILE"
+    --command "$RECORD_COMMAND" "$CHAT_FILE" 2>&3
