@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
 import discord_bot as bot
 import session
+from identity import Profiles
 
 
 @contextlib.asynccontextmanager
@@ -50,10 +51,14 @@ class FakeAPI:
 class DMTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.api = FakeAPI()
-        self.conversation = session.Conversation(self.api, 65536)
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        profiles = Profiles(Path(temporary.name) / 'profiles.json')
+        profiles.profiles[0]['discord_id'] = '123'
+        self.conversation = session.Conversation(self.api, 65536, profiles, profiles.profiles[0])
         async def request(address, text, sender_id):
             self.assertEqual(sender_id, 123)
-            answer, finish = self.conversation.turn(text)
+            answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id))
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)
@@ -88,10 +93,11 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
     async def test_concurrent_dms_stay_in_order_and_clear_discards_history(self):
         first, second = message(content='one'), message(number=2, content='two')
         await asyncio.gather(self.client.on_message(first), self.client.on_message(second))
-        self.assertEqual([m['content'] for m in self.api.requests[1]], ['one', 'Final answer.', 'two'])
+        self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[-1] for m in self.api.requests[1]], ['one', 'Final answer.', 'two'])
         await self.client.on_message(message(number=3, content='/clear'))
         await self.client.on_message(message(number=4, content='fresh'))
-        self.assertEqual(self.api.requests[-1], [{'role': 'user', 'content': 'fresh'}])
+        self.assertEqual(len(self.api.requests[-1]), 1)
+        self.assertTrue(self.api.requests[-1][0]['content'].endswith('Message:\nfresh'))
 
     async def test_attachments_never_reach_model(self):
         await self.client.on_message(message(attachments=[object()]))

@@ -31,6 +31,7 @@ Start with these files, in order:
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
 | [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
 | [identity.py](src/marionette/identity.py) | Saved profiles, terminal selection, linked accounts, and sender metadata |
+| [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |

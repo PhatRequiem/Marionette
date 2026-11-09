@@ -19,6 +19,7 @@ import urllib.request
 
 from style import COLORS, enabled, paint
 from identity import Profiles, message_with_identity
+from permissions import require_command
 
 LOG_LOCK = threading.Lock()
 
@@ -276,15 +277,23 @@ class Conversation:
         with self.lock:
             if self.api.closing.is_set():
                 raise RuntimeError('Session is closing.')
-            if self.pending is not None:
-                self.history = self.pending.result()
-                self.pending = None
             identity = None
             if self.profiles is not None:
                 sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
                 identity = self.profiles.resolve(source, sender_id)
                 log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
-            if message.strip() == '/clear':
+            command = message.strip()
+            if command == '/clear':
+                owner_uuid = self.profiles.data['owner_uuid'] if self.profiles else None
+                try:
+                    require_command(command, identity, owner_uuid)
+                except PermissionError as error:
+                    log(f'Command denied: {command}; {error}')
+                    return str(error), 'stop'
+            if self.pending is not None:
+                self.history = self.pending.result()
+                self.pending = None
+            if command == '/clear':
                 self.history = []
                 log('Chat history cleared.')
                 return 'Chat history cleared.', 'stop'
@@ -331,9 +340,9 @@ def terminal(conversation, *, external=False):
             return
         print()
         if command == '/clear':
-            conversation.turn('/clear')
+            answer, _ = conversation.turn('/clear')
             color('meta')
-            print('Chat history cleared.')
+            print(answer)
             color('data')
             continue
         if message.startswith('/'):

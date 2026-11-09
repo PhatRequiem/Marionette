@@ -79,3 +79,5 @@ uv pip compile --python python --generate-hashes scripts/native-linux/discord-re
 ```
 
 Review changed packages and licenses and rerun both test suites when updating.
+
+Shared-history commands are checked separately by [command permissions](identity.md#command-permissions): `/clear` requires the resolved owner UUID, not merely an existing profile.

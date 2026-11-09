@@ -22,6 +22,12 @@ The main diagnostic logs record **Sender identity** with these fields; the norma
 
 All profiles still share one history, budget, and rollover policy. This adds no relationship records, separate histories, persistent model memory, or file-reading access. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
 
+## Command permissions
+
+`permissions.py` separately authorizes commands using the resolved person UUID and saved `owner_uuid`. `/clear` is owner-only, whether sent from the Phat terminal profile or its linked Discord account. Another profile cannot clear shared history merely because it exists. Unlinked service senders fail identity lookup; linked non-owners receive a permission-denied reply, with history unchanged and no model generation. Missing identities and unknown commands are denied by the permission function. `session.py` calls this check before clearing or adopting pending history.
+
+This is deliberately limited to `/clear`, the current shared-history command. `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
+
 ## Backup and maintenance
 
 Stop main chat before editing or restoring this file. Back it up privately and restore it to the same location to retain UUIDs and account links. Do not delete it to clear a conversation: recreating it generates different identities. Invalid data fails visibly rather than resetting profiles. Names may be changed while preserving UUIDs; keep names unique. Profiles are not committed to Git and are not part of the older `baseline-v2` checkpoint.

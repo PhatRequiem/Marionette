@@ -28,7 +28,7 @@ Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. O
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
-- **Clear the conversation:** type `/clear`. Saved logs remain. Every new main-chat launch also starts fresh.
+- **Clear the conversation:** type `/clear` using the owner (Phat) profile or its linked Discord account. Saved logs remain. Every new main-chat launch also starts fresh.
 
 ## First-time setup
 

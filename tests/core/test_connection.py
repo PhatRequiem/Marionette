@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
+from identity import Profiles
 import connection
 import session
 
@@ -30,17 +31,21 @@ class ConnectionTests(unittest.TestCase):
         api = API()
         conversation = session.Conversation(api, 65536)
         with tempfile.TemporaryDirectory() as directory, patch.object(session, 'log'):
+            profiles = Profiles(Path(directory) / 'profiles.json')
+            profiles.profiles[0]['discord_id'] = '123'
+            conversation = session.Conversation(api, 65536, profiles, profiles.profiles[0])
             address = Path(directory) / 'chat.sock'
-            with connection.LocalConnection(address, lambda message, **_: conversation.turn(message), lambda _: None):
+            with connection.LocalConnection(address, lambda message, sender_id, **_: conversation.turn(message, source='discord', sender_id=sender_id), lambda _: None):
                 conversation.turn('terminal first', display=True)
                 result = asyncio.run(connection.request(address, 'discord second', 123))
                 self.assertEqual(result, {'answer': 'answer', 'finish': 'stop', 'timings': {}})
                 conversation.turn('terminal third', display=True)
-                self.assertEqual([m['content'] for m in api.sent[-1]],
+                self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[-1] for m in api.sent[-1]],
                     ['terminal first', 'answer', 'discord second', 'answer', 'terminal third'])
                 asyncio.run(connection.request(address, '/clear', 123))
                 conversation.turn('fresh terminal', display=True)
-                self.assertEqual(api.sent[-1], [{'role': 'user', 'content': 'fresh terminal'}])
+                self.assertEqual(len(api.sent[-1]), 1)
+                self.assertTrue(api.sent[-1][0]['content'].endswith('Message:\nfresh terminal'))
                 conversation.pending.result()
             self.assertFalse(address.exists())
             self.assertFalse(api.closing.is_set())
