@@ -2,6 +2,7 @@
 """Install pinned, verified local runtime and model. No services or root access."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import platform
 import shutil
@@ -47,6 +48,9 @@ def main():
     destination.mkdir(parents=True, exist_ok=True)
     with tarfile.open(archive) as bundle:
         bundle.extractall(destination, filter="data")
+    executable = destination / spec["executable"]
+    if not executable.is_file() or not os.access(executable, os.X_OK):
+        raise SystemExit(f"Runtime executable missing or not executable: {executable}")
     download(MANIFEST["model"], ROOT / "data/models" / MANIFEST["model"]["filename"])
     print("Setup complete. Run ./scripts/native-linux/chat.sh", flush=True)
 

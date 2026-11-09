@@ -13,12 +13,10 @@ A second terminal opens to show full debug output. In the chat terminal, wait fo
 
 ## While chatting
 
-Type these at the chat prompt:
+- **Exit:** press **Ctrl+D** at an empty chat prompt.
+- **Start fresh:** exit, then run the launch command again.
 
-| Command | What it does |
-|---|---|
-| `/clear` | Clears the current conversation so you can start fresh. |
-| `/exit` | Closes the chat and returns you to the terminal. |
+`/exit` and `/clear` are not commands in this runtime; typing them sends them as messages.
 
 Each session saves two matching files in `data/conversations/`:
 
@@ -27,7 +25,7 @@ Each session saves two matching files in `data/conversations/`:
 
 Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
 
-Closing the log window does not stop chat or recording. After `/exit`, press **Enter** in the log window to close it. `/clear` resets her context but does not erase the log.
+Closing the log window does not stop chat or recording. After chat exits, press **Enter** in the log window to close it. Restarting chat does not erase past logs.
 
 ## If setup is missing
 

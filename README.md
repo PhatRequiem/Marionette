@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using llama.cpp. Runs in the foreground with no background service, account, or personality file. Each launch opens a live debug terminal and saves paired dated chat and debug text files locally. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using llama.cpp’s `llama-completion`. Runs in the foreground with no background service, account, or personality file. Each launch opens a live debug terminal and saves paired dated chat and debug text files locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-cli` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. No custom system prompt is supplied.
+Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-completion` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. No custom system prompt is supplied. A text-only Qwen formatting template closes the empty thinking block; no HTTP listener is used.
 
 ## Folder map
 

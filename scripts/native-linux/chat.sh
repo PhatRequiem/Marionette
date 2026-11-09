@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-CLI="$ROOT/runtime/llama.cpp/b12211/llama-b12211/llama-cli"
+CLI="$ROOT/runtime/llama.cpp/b12211/llama-b12211/llama-completion"
 MODEL="$ROOT/data/models/Qwen3.5-4B-Q4_K_M.gguf"
 if [[ ! -x "$CLI" || ! -f "$MODEL" ]]; then
     echo 'Run python scripts/native-linux/setup.py first.' >&2
@@ -19,8 +19,13 @@ LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
 CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.txt")"
 DEBUG_FILE="${CHAT_FILE%-chat.txt}-debug.txt"
 (set -o noclobber; : > "$DEBUG_FILE")
+# This completion build ignores --reasoning off when applying the model template.
+# Preserve Qwen's text message markers and explicitly close the empty think block.
+# This formats roles only; it adds no system message or personality instructions.
+CHAT_TEMPLATE="{% for message in messages %}{{ '<|im_start|>' + message['role'] + '\\n' + message['content'] + '<|im_end|>\\n' }}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\\n<think>\\n\\n</think>\\n\\n' }}{% endif %}"
 COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan0}"
-    --gpu-layers all --ctx-size 8192 --reasoning off "$@"
+    --gpu-layers all --ctx-size 8192 --conversation --jinja --reasoning off
+    --chat-template "$CHAT_TEMPLATE" "$@"
     --simple-io --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)
 {
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
@@ -38,6 +43,7 @@ finish() {
 }
 trap finish EXIT
 printf 'Conversation log: %s\nDebug log: %s\n' "$CHAT_FILE" "$DEBUG_FILE"
+printf 'To exit, press Ctrl+D at an empty chat prompt. Restart for a fresh conversation.\n'
 
 # The viewer may be closed independently. Recording stays with the chat process.
 xdg-terminal-exec --title='Marionette debug log' -- \
