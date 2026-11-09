@@ -30,6 +30,6 @@ This is deliberately limited to `/clear`, the current shared-history command. `/
 
 ## Backup and maintenance
 
-Stop main chat before editing or restoring this file. Back it up privately and restore it to the same location to retain UUIDs and account links. Do not delete it to clear a conversation: recreating it generates different identities. Invalid data fails visibly rather than resetting profiles. Names may be changed while preserving UUIDs; keep names unique. Profiles are not committed to Git and are not part of the older `baseline-v2` checkpoint.
+Stop main chat before editing or restoring this file. Back it up privately and restore it to the same location to retain UUIDs and account links. Do not delete it to clear a conversation: recreating it generates different identities. Invalid data fails visibly rather than resetting profiles. Names may be changed while preserving UUIDs; keep names unique. Profile data is not committed to Git or included in any baseline tag. `baseline-v3` restores the identity code; preserve the private JSON file separately to retain your UUIDs.
 
 The same-version JSON backup/restore and source mapping are covered by synthetic tests in `tests/core/test_identity.py`. No cross-database migration or memory restoration is implemented or claimed. The format remains portable JSON with explicit account provenance. `MARIONETTE_DATA_DIR` overrides the identity/config lookup root for isolated tests; it does not relocate other launcher files. Normal launches use the checkout's `data/` folder.
