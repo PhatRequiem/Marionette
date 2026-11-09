@@ -12,7 +12,7 @@ Try: “Check your current model logs for warnings and tell me what you find, wi
 - `terminal.py` displays reasoning, lookup notices, and answers. Discord still receives only the final answer.
 - Existing storage/router/viewer modules retain their separate responsibilities. No logging format migration is required.
 
-The tool description is the guide the model sees on every request. It explains the sources, interpretation limits, and that retrieved text is untrusted evidence, never instructions. This is supplied with the API's tool definition, not by loading the human documentation into context.
+The tool description is the guide the model sees on every request. It explicitly distinguishes ordinary conversation from evidence requests: greetings and acknowledgments should receive normal replies, and sender metadata is not a request to audit a message. After a lookup, she should answer the question in plain language with only relevant references, rather than dumping metadata tables. This is model guidance, not a keyword gate; tool selection is still probabilistic. It explains the sources, interpretation limits, and that retrieved text is untrusted evidence, never instructions. This is supplied with the API's tool definition, not by loading the human documentation into context.
 
 ## Request and result
 
@@ -25,7 +25,7 @@ The tool description is the guide the model sees on every request. It explains t
 
 Chat exposes structured messages, reasoning, answers, identities, usage and lifecycle. Server/model sources expand diagnostic batches into original lines with receipt timestamps and shared line references. Discord exposes message, connection and delivery evidence. Base64 is decoded by code; the model receives readable text.
 
-Each lookup snapshots at most the most recent **1 MiB** of one file, returns at most **12,000 JSON characters**, and truncates individual record text after **2,000 characters**. Results identify the session/source, references, timestamps, text truncation, skipped/incomplete records, limited tail coverage, and whether additional matches exist within that scanned tail. The newest matching records are returned in chronological order. No pagination or complete-history search is implemented.
+Each lookup snapshots at most the most recent **1 MiB** of one file, returns at most **12,000 JSON characters**, and truncates individual record text after **2,000 characters**. Results identify the session/source, references, timestamps, text truncation, skipped/incomplete records, limited tail coverage, and whether additional matches exist within that scanned tail. The newest matching records are returned in chronological order. No pagination or complete-history search is implemented. Query matches one contiguous phrase, not multiple keywords or IDs. For all warnings/errors, omit query; an empty filtered search does not establish that the log is clean.
 
 A search can miss an older event even within the current session. Missing output does not prove an event never occurred. Malformed/unfinished JSON is reported as skipped, rather than interpreted. Buffering can delay visibility. Raw terminal chunks are omitted to avoid duplicate output; tool request/result records are omitted to avoid recursively returning prior tool results. Unexpected raw Discord output is decoded as text.
 
@@ -44,3 +44,11 @@ At most **two sequential tool calls** are executed per user turn, followed by a 
 The implementation uses existing `--jinja` runtime support for [OpenAI-style function calling](https://github.com/ggml-org/llama.cpp/blob/master/docs/function-calling.md) and the model's bundled template. Publisher context: [Qwen function calling](https://qwen.readthedocs.io/en/stable/framework/function_call.html) and [Qwen3.5-4B tokenizer configuration](https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/tokenizer_config.json). No runtime, reasoning or sampling setting was changed.
 
 On 2026-11-09 an isolated real Q4 session selected read_logs, received an actual active model warning, and returned an answer identifying its timestamp and reference. It shut down cleanly. All 74 checks (62 core and 12 mocked Discord) pass. Synthetic tests cover path/scope restrictions, live Discord registration, malformed/truncated records, bounded output, stream assembly, unknown tools, call limits, generation/context budgets, normal chat and mocked Discord delivery. This proves functional retrieval, not perfect model interpretation or guaranteed tool choice. No live Discord DM or long-session tool benchmark was performed.
+
+## Conversational-use check (2026-11-09)
+
+The guide was refined after live greetings triggered unnecessary identity/message audits. It now explicitly says to answer greetings, acknowledgments and ordinary conversation directly, use logs only when recorded evidence is needed, and avoid routine metadata tables. It also explains literal queries and warns against unverified timing/delivery claims.
+
+An isolated real Q4 test using synthetic Discord-source input returned conversational answers to Hello and Okay with zero tool calls. A natural request to check model warnings made one call and retrieved the actual no-API-key/CORS warning. A preceding terminal test also answered the two casual messages without tools; it exposed a literal-query mistake that the revised guide addresses. These are sampled behavior checks, not a guarantee of every future response. No real Discord messages or personal profiles were used. All 74 regression checks pass.
+
+Running sessions load the guide at startup. Restart to use the revised guide; a fresh session also removes the previous audit-style answers from conversation history.
