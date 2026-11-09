@@ -17,7 +17,7 @@ Optional phone access: [Discord DM setup](docs/native-linux/discord.md). Launch 
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B BF16 on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
 See [context policy and verified behavior](docs/native-linux/context.md) for allowances, trimming, cache preparation, and limitations. See the [current baseline and verification](docs/native-linux/baseline.md) and [log guide](docs/native-linux/logs.md). Historical experiments live under `docs/native-linux/experiments/`.
 
