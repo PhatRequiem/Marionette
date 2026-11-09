@@ -34,7 +34,7 @@ class ConnectionTests(unittest.TestCase):
             with connection.LocalConnection(address, lambda message, **_: conversation.turn(message), lambda _: None):
                 conversation.turn('terminal first', display=True)
                 result = asyncio.run(connection.request(address, 'discord second', 123))
-                self.assertEqual(result, ('answer', 'stop'))
+                self.assertEqual(result, {'answer': 'answer', 'finish': 'stop', 'timings': {}})
                 conversation.turn('terminal third', display=True)
                 self.assertEqual([m['content'] for m in api.sent[-1]],
                     ['terminal first', 'answer', 'discord second', 'answer', 'terminal third'])
@@ -106,3 +106,24 @@ class ConnectionTests(unittest.TestCase):
         self.assertIn(session.COLORS['reasoning_heading'] + 'Reasoning:\n' + session.COLORS['data'] + 'Private thinking.', rendered)
         self.assertIn(session.COLORS['reply'] + 'Final answer.', rendered)
         self.assertEqual(conversation.history[0]['content'], 'Hello from Discord')
+
+    def test_discord_handoff_returns_immediately_and_propagates_failure(self):
+        from concurrent.futures import Future
+        api = session.API('http://127.0.0.1:1')
+        conversation = session.Conversation(api, 65536)
+        for failure in (None, TimeoutError('generation timed out')):
+            future = Future()
+            if failure:
+                future.set_exception(failure)
+            else:
+                future.set_result(('answer', 'stop'))
+            with patch.object(session, 'Future', return_value=future), \
+                 patch.object(api.closing, 'wait', side_effect=AssertionError('unnecessary polling delay')):
+                if failure:
+                    with self.assertRaisesRegex(TimeoutError, 'generation timed out'):
+                        conversation.submit_discord('test', sender_id='123')
+                else:
+                    self.assertEqual(conversation.submit_discord('test', sender_id='123'), ('answer', 'stop'))
+        api.closing.set()
+        with self.assertRaisesRegex(RuntimeError, 'Session is closing'):
+            conversation.submit_discord('test', sender_id='123')

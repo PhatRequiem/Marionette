@@ -22,7 +22,7 @@ LOG_LOCK = threading.Lock()
 
 
 def color(kind):
-    if sys.stdout.isatty() and os.environ.get('TERM') != 'dumb':
+    if enabled():
         print(COLORS[kind], end='', flush=True)
 
 
@@ -100,6 +100,7 @@ class API:
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
         pieces, thoughts, finish = [], [], None
+        stream_color = None
         with self.open('/v1/chat/completions', body) as response:
             for line in response:
                 if self.closing.is_set():
@@ -124,7 +125,9 @@ class API:
                             if not thoughts:
                                 color('reasoning_heading')
                                 print('Reasoning:', flush=True)
-                            color('data')
+                            if stream_color != 'data':
+                                color('data')
+                                stream_color = 'data'
                             print(reasoning, end='', flush=True)
                         thoughts.append(reasoning)
                     text = delta.get('content') or ''
@@ -133,7 +136,9 @@ class API:
                             color('answer_heading')
                             print('\n\nAnswer:', flush=True)
                         if display:
-                            color('reply')
+                            if stream_color != 'reply':
+                                color('reply')
+                                stream_color = 'reply'
                             print(text, end='', flush=True)
                         pieces.append(text)
                     finish = choice.get('finish_reason') or finish
@@ -217,9 +222,12 @@ class Conversation:
         # The terminal thread owns rendering, including while awaiting local input.
         future = Future()
         self.incoming.put((message, sender_id, future, time.monotonic(), timings))
-        while not self.api.closing.wait(.1):
-            if future.done():
-                return future.result()
+        while not self.api.closing.is_set():
+            try:
+                return future.result(timeout=.1)
+            except TimeoutError:
+                if future.done():
+                    return future.result()  # Also handle completion at the timeout boundary.
         raise RuntimeError('Session is closing.')
 
     def display_discord(self):
@@ -279,10 +287,7 @@ class Conversation:
             if removed:
                 log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
             # The terminal renders both local and queued Discord turns.
-            if display:
-                answer, finish = self.api.reply(candidate, self.reserve)
-            else:
-                answer, finish = self.api.reply(candidate, self.reserve, display=False)
+            answer, finish = self.api.reply(candidate, self.reserve, display=display)
             if not answer.strip():
                 raise RuntimeError('Model produced no final answer.')
             log(f'Reply completed: finish_reason={finish}.')

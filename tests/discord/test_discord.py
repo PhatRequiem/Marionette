@@ -51,7 +51,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.api = FakeAPI()
         self.conversation = session.Conversation(self.api, 65536)
-        async def request(address, text, sender_id, *, details=False):
+        async def request(address, text, sender_id):
             self.assertEqual(sender_id, 123)
             answer, finish = self.conversation.turn(text)
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}

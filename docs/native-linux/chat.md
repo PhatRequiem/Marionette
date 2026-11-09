@@ -1,54 +1,39 @@
 # Chat in the terminal
 
-## Start
-
-Open a terminal and paste:
+## Start her
 
 ```bash
 cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-Two log terminals open: **Connections and requests** and **Model processing**. In the chat terminal, wait for the `>` prompt, then type your message and press **Enter**.
+Two log windows open: **Connections and requests** and **Model processing**. Wait for `>` in the main terminal, then type and press Enter. Your input is neon green, her reasoning white, and her answers pink. Headings, IDs, status, and timing values use the shared [log colors](logs.md).
 
-Your prompt and typed input are neon green (`#39FF14`), status information and her reasoning are white, and her final answers are pink. Blank lines separate input, replies, and turns. Colors reset when chat exits; plain-output terminals remain uncolored. The chat transcript retains terminal color codes, while diagnostic logs keep their existing readable format.
+## Optionally connect Discord
+
+After [one-time Discord setup](discord.md), open a fourth terminal:
+
+```bash
+cd /home/phatkitty/Projects/Marionette
+./scripts/native-linux/discord.sh
+```
+
+This terminal is the Discord log window. Your DMs appear in main chat with your numeric sender ID, followed by her reasoning and answer. Only her answer is sent to Discord. Both inputs share the same conversation. Ctrl+C in the Discord terminal disconnects it while main chat stays running.
 
 ## While chatting
 
-- **Exit:** type `/exit`, or press **Ctrl+D** at an empty chat prompt.
-- **Start fresh:** type `/clear`, or exit and launch again.
+- `/clear` starts a fresh conversation.
+- `/exit`, Ctrl+C, or Ctrl+D at an empty prompt closes main chat and its local server.
+- Closing a log window does not stop chat or recording. After chat exits, press Enter in each diagnostic window to close it.
 
-The local server is local to this computer and stops when the chat process exits. Its temporary address appears in the connections-and-requests log.
+The context limit is 65,536 tokens; reasoning and answers share a 32,768-token allowance. Older exchanges are removed as needed, with preparation after replies. See [context policy](context.md) for timing and limits.
 
-No setup report is generated or sent to her. She cannot open files or read logs herself.
-
-Each session saves three matching files in `data/conversations/`:
-
-- `…-chat.txt`: your messages, her reasoning, and her final answers.
-- `…-server.txt`: connections and requests, shown in its own terminal.
-- `…-model.txt`: model processing, shown in its own terminal.
-
-After replies, the client checks space for the next turn. When needed, it leaves out oldest complete exchanges and prepares the shortened history while you read or type. Preparation and removed-exchange counts appear in the diagnostic logs, without interrupting the chat display. Older messages remain in the saved transcript but are no longer visible to her.
-
-The total context is 65,536 tokens, including a 2,048-token next-message allowance and a 32,768-token combined reasoning-and-answer allowance. Sending before preparation finishes, or sending a larger message, can still cause a wait. The client checks every actual message; oversized input is rejected without truncating it. There is no separate reasoning cap: reasoning and the answer share the allowance, so reasoning can use it up before an answer appears. A notice appears if generation reaches its allowance. Reasoning can increase the wait before the final answer; only final answers are kept in conversation history, while reasoning remains in the logs.
-
-Only `/clear` and `/exit` are supported commands. Ctrl+C also exits. No file attachments, tools, summaries, or saved-memory loading are implemented.
-
-Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
-
-Unknown entries, warnings, and errors appear in both diagnostic files with the same event number. Original timestamps are retained. Long entries are wrapped into readable blocks; terminal control codes are shown as escaped text without being discarded. There is no new raw debug file; older logs remain untouched.
-
-Closing either log window does not stop chat or recording. After chat exits, press **Enter** in each log window to close it. Restarting chat does not erase past logs.
+Dated transcripts and diagnostics stay in `data/conversations/`; [the log guide](logs.md) explains each file. Each launch starts fresh. She cannot read files or logs herself, and no setup report or personality file is supplied.
 
 ## If setup is missing
 
-From the same project folder, run:
-
 ```bash
 python scripts/native-linux/setup.py
-./scripts/native-linux/chat.sh
 ```
 
-Setup needs internet access to download missing files. You do not need to run it before every chat.
-
-For installation details and advanced settings, see [Setup](setup.md).
+Run this from the project folder, then launch normally. Setup needs internet access for missing downloads; ordinary terminal chat runs offline. See [setup](setup.md) for requirements and advanced settings.

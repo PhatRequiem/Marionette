@@ -39,7 +39,7 @@ for arg in "$@"; do
             exit 1 ;;
     esac
 done
-REQUIRED=(mktemp date mkdir bash flock script xdg-terminal-exec tail)
+REQUIRED=(mktemp date mkdir chmod bash flock script xdg-terminal-exec tail)
 for tool in "${REQUIRED[@]}"; do
     command -v "$tool" >/dev/null || { echo "Missing required command: $tool" >&2; exit 1; }
 done

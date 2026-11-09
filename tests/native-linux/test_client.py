@@ -35,7 +35,7 @@ class ClientTests(unittest.TestCase):
         self.assertEqual((answer, finish), ('Four.', 'stop'))
         self.assertTrue(request.call_args.args[1]['chat_template_kwargs']['enable_thinking'])
         self.assertEqual(output.getvalue(), client.COLORS['reasoning_heading'] + 'Reasoning:\n' + client.COLORS['data'] + 'Check '
-                         + client.COLORS['data'] + 'the sum.' + client.COLORS['answer_heading']
+                         + 'the sum.' + client.COLORS['answer_heading']
                          + '\n\nAnswer:\n' + client.COLORS['reply'] + 'Four.')
         logged.assert_called_once_with('Reasoning: "Check the sum."')
 
@@ -45,7 +45,7 @@ class ClientTests(unittest.TestCase):
                 closing = threading.Event()
                 def count(self, messages):
                     return 10
-                def reply(self, messages, reserve):
+                def reply(self, messages, reserve, *, display=True):
                     self.reserve = reserve
                     return 'answer', 'stop'
             api = FakeAPI()
@@ -84,7 +84,7 @@ class ClientTests(unittest.TestCase):
                 self.sent = []
             def count(self, _):
                 return 30
-            def reply(self, messages, reserve):
+            def reply(self, messages, reserve, *, display=True):
                 self.sent.append(messages.copy())
                 if len(self.sent) == 1:
                     raise RuntimeError('stream interrupted')

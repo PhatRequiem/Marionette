@@ -18,13 +18,13 @@ Input remains available during preparation. Before submitting the next message, 
 
 Every actual input is formatted with `/apply-template` and counted with `/tokenize`, including special tokens. If the message exceeds the reserved input space, it is still accepted when it fits: oldest complete exchanges are removed as needed to leave the reply allowance and one spare token. A message that cannot fit by itself is rejected without truncation. Failed streams do not add partial replies or the failed input to history.
 
-The larger generation allowance used for reasoning can trigger rollover earlier than the previous 512-token allowance. The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
+The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
 
 ## Logs and checks
 
 The optional [Discord transport](discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
 
-Each session saves only `-chat.txt`, `-server.txt`, and `-model.txt`. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
+Each chat session saves `-chat.txt`, `-server.txt`, and `-model.txt`; each optional Discord connection also saves its own `-discord.txt`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
 Run `python -m unittest discover -s tests/native-linux -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 

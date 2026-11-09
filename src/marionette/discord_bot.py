@@ -169,7 +169,7 @@ class DMChat(discord.Client):
                 async with message.channel.typing():
                     phase = 'local_response'
                     local_start = time.monotonic()
-                    result = await request(self.address, text, message.author.id, details=True)
+                    result = await request(self.address, text, message.author.id)
                     answer, finish = result['answer'], result['finish']
                     timings = result.get('timings', {})
                     log('Local response completed.', **context, local_response_ms=elapsed(local_start),

@@ -138,7 +138,7 @@ class DiagnosticView:
             self.kind = 'meta'
         elif text.startswith(('Client: Prepared cache timings:', 'Client: Preparation wait after input:')):
             self.kind = 'timing'
-        elif text.startswith(('Client: Reply completed:', 'Client: Local server started:')):
+        elif text.startswith('Client: Reply completed:'):
             self.kind = 'success'
         return self.kind
 

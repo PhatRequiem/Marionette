@@ -73,7 +73,7 @@ def install_runtime(archive, destination, executable_name):
 def main():
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("This pinned runtime requires x86_64 Linux.")
-    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date")
+    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date", "flock", "mkdir", "chmod")
     missing = [command for command in required if shutil.which(command) is None]
     if missing:
         raise SystemExit("Install required system commands first: " + ", ".join(missing))

@@ -31,8 +31,7 @@ class LocalConnection:
                         raise ValueError('A numeric Discord sender ID is required.')
                     log(f'Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
                     timings = {}
-                    options = {'timings': timings} if request.get('details') else {}
-                    answer, finish = turn(message, sender_id=sender_id, **options)
+                    answer, finish = turn(message, sender_id=sender_id, timings=timings)
                     log('Discord answer: ' + json.dumps(answer, ensure_ascii=False))
                     result = {'answer': answer, 'finish': finish, 'timings': timings}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
@@ -61,11 +60,11 @@ class LocalConnection:
         self.path.unlink(missing_ok=True)
 
 
-async def request(address, message, sender_id, *, details=False):
+async def request(address, message, sender_id):
     """No generation timeout: a 32K thinking response can legitimately take minutes."""
     reader, writer = await asyncio.open_unix_connection(str(address), limit=4 * MAX_REQUEST)
     try:
-        payload = (json.dumps({'message': message, 'sender_id': str(sender_id), 'details': details}) + '\n').encode()
+        payload = (json.dumps({'message': message, 'sender_id': str(sender_id)}) + '\n').encode()
         if len(payload) > MAX_REQUEST:
             raise ValueError('Message is too large for the local connection.')
         writer.write(payload)
@@ -76,7 +75,7 @@ async def request(address, message, sender_id, *, details=False):
         result = json.loads(raw)
         if 'error' in result:
             raise RuntimeError(result['error'])
-        return result if details else (result['answer'], result['finish'])
+        return result
     finally:
         writer.close()
         await writer.wait_closed()

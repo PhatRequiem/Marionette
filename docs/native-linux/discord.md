@@ -16,11 +16,11 @@ cd /home/phatkitty/Projects/Marionette
 This uses [uv](https://docs.astral.sh/uv/getting-started/installation/) (already installed on the current computer), an isolated environment in `runtime/discord/`, and the pinned, hash-checked `discord-requirements.txt`. It does not alter system Python. Network access is needed for dependency installation.
 
 1. Open the [Discord developer portal](https://discord.com/developers/applications), create an application, and open its **Bot** settings. Keep the bot private (Public Bot off).
-2. Generate/reset its **bot token**. Store it only in `data/discord/.env`, never in chat, screenshots, or Git. The format is shown in `.env.example`; use plain values without quotes. The owner ID has already been filled in locally for this checkout.
+2. Generate/reset its **bot token**. Store it only in `data/discord/.env`, never in chat, screenshots, or Git. The format is shown in `.env.example`; use plain values without quotes. Set `DISCORD_ALLOWED_USER_ID` to your numeric user ID (enable Developer Mode in Discord to copy it). Existing local configuration is preserved by setup.
 3. Invite the bot to a private server you control, using the application's installation/OAuth2 link with the `bot` scope and no administrator permissions. This gives you a shared server from which to open the bot's profile and send it a DM. If needed, allow DMs from that server in Discord's privacy settings.
 4. No privileged Message Content, Server Members, or Presence intent is needed: this client subscribes only to direct messages. It never answers in the server.
 
-The local configuration requires both `DISCORD_ALLOWED_USER_ID` and `DISCORD_BOT_TOKEN` and file permissions `600`. Missing or invalid configuration stops launch before loading the model. To edit it:
+The local configuration requires both `DISCORD_ALLOWED_USER_ID` and `DISCORD_BOT_TOKEN` and file permissions `600`. Missing or invalid configuration stops the Discord connection before login; the already running main chat is unaffected. To edit it:
 
 ```bash
 nvim data/discord/.env
@@ -71,7 +71,7 @@ The Discord log adds these diagnostics without additional Discord permissions:
 - Error class, HTTP status, and Discord error code when provided. Exception bodies, request headers, credentials, and raw network packets are not dumped.
 - `heartbeat_ms` snapshots on ready/resume/disconnect and accepted incoming messages. This is Gateway heartbeat round-trip latency, not message delivery latency. Unavailable readings are `null`; there is no continuous heartbeat log spam.
 
-Saved diagnostics use timestamped event names followed by JSON fields; saved transcripts remain timestamped JSON records. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](setup.md#reading-the-two-diagnostic-logs). An older running main session may return `null` for new local timing fields: restart main chat and reconnect Discord to enable those fields. Main chat and model logs still contain reasoning; the Discord log does not.
+Saved diagnostics use timestamped event names followed by JSON fields; saved transcripts remain timestamped JSON records. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
 
 Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 
