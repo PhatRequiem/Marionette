@@ -49,7 +49,7 @@ Discord runs in that same terminal and attaches to the running conversation; it 
 - `/clear` from either input clears the shared model history, not saved logs or Discord messages.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
-- Messages missed while the bot is offline are not fetched or replayed. In-process duplicate message events are ignored.
+- After a temporary disconnect, a successful Discord Gateway resume replays missed events. This differs from stopping the bot or reconnecting without a resumable session: the application does not fetch missed message history in those cases, so you may need to resend. In-process duplicate message events are ignored. See [Discord's resume behavior](https://github.com/discord/discord-api-docs/blob/main/developers/events/gateway.mdx#resuming).
 - A failed generation does not commit a new turn. A completed generation stays in shared history even if Discord disconnects or delivery fails. Delivery can be partial; no automatic resend occurs. Check the Discord log before retrying.
 
 The main chat owns the model and conversation. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no separate history or model-launch code. See [context policy](context.md).

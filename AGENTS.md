@@ -2,6 +2,12 @@
 
 These instructions apply throughout this repository.
 
+## Direction and change scope
+
+- Future scaling is intended. Prioritize a reliable, understandable base and incremental additions; simplicity must not be mistaken for abandoning scalability.
+- Consult README.md, docs/native-linux/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
+- When the user requests discussion or confirmation first, investigate and present a concrete proposal without editing. Once implementation is authorized, complete the agreed scope without adding unrelated features.
+
 ## Complete and sync changes
 
 - Work in small, focused changes. Run appropriate checks, update relevant documentation, and review the diff.
@@ -27,9 +33,14 @@ These instructions apply throughout this repository.
 - Record dependency versions, setup steps, and significant tradeoffs in project documentation so another maintainer can rebuild and operate PhatKitty.
 - When dependencies, download versions, paths, or setup requirements change, update the affected component's setup/bootstrap scripts, lockfiles, download manifests (including checksums), and rebuild instructions in the same change. Change the core bootstrap only when affected; verify the changed rebuild steps.
 
-## Model sampling settings
+## Model configuration and sampling
 
-When switching models, consult the model publisher's official documentation and use the recommended sampling settings for the selected model, mode (thinking or non-thinking), and task. Do not silently inherit runtime defaults or the previous model's settings. Verify the effective settings in the runtime logs, document the source and any deliberate deviations, and test generation before calling the switch complete. If official recommendations are unavailable, state that explicitly and document the chosen settings.
+On initial setup or changes to the model, weight precision, reasoning mode, or runtime, review the model publisher's official guidance for sampling, chat templates, token limits, and reasoning handling. Use the recommended sampling settings for the selected model, mode (thinking or non-thinking), and task. Do not silently inherit runtime defaults or the previous model's settings. Explain material quality, speed, and memory tradeoffs before selecting a default. Do not choose quantization solely because it is common or smaller. Verify the effective settings in the runtime logs, document the source and any deliberate deviations, and test generation before calling the change complete. If official recommendations are unavailable, state that explicitly and document the chosen settings.
+
+## Evidence and evaluation
+
+- Distinguish successful loading, functional tests, answer quality, performance, and long-session reliability. A passing smoke test does not establish all five. When comparing configurations, keep other variables consistent where practical and record what changed.
+- Use configuration, model metadata, runtime logs, and process observations to establish how the system works. The model's statements about its identity, hardware, hosting, or capabilities are not verification.
 
 ## Organize for human maintainers
 
