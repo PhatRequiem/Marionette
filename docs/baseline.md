@@ -1,8 +1,10 @@
-# Baseline 2 — 2026-11-09
+# Last saved stable baseline — baseline-v2 (2026-11-09)
 
 Recovery checkpoint: **`baseline-v2`** in GitHub repository `PhatRequiem/Marionette`. This tag identifies the exact code and documentation for this baseline. Keep it fixed; create a new tag for a future baseline instead of moving this one.
 
-This is a working foundation for future scaling. Return to this checkpoint to resume development without rebuilding the application from scratch. The [previous baseline document](archive/baseline-2026-11-09.md) is archived; the older `baseline-v1` tag describes a different, direct-inference setup.
+This is the last deliberately saved stable checkpoint: a simple, working foundation for future scaling, kept as a recovery point if later development becomes cluttered or unreliable. The configuration and verification below describe the program when this checkpoint was saved, not the current setup. New features and reorganizations are not automatically included. This does not imply that newer code is unstable; it means a newer baseline has not yet been deliberately designated.
+
+Return to this checkpoint to resume development without rebuilding the application from scratch. See [README.md](../README.md) for the current program. The [previous baseline document](archive/baseline-2026-11-09.md) is archived; the older `baseline-v1` tag describes a different, direct-inference setup.
 
 ## Fixed configuration
 
