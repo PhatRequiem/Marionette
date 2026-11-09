@@ -25,12 +25,15 @@ Start with these files, in order:
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
 | [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
+| [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
-| [tests/native-linux](tests/native-linux) | Synthetic regression checks; no personal conversations or model downloads |
+| [setup-discord.sh](scripts/native-linux/setup-discord.sh) | Install pinned Discord dependencies and create the local credential template if missing |
+| [tests/native-linux](tests/native-linux) | Core regression checks using synthetic data; no personal conversations or model downloads |
+| [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
 In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `terminal()` handles input and `chat()` connects optional transports, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/native-linux/setup.md).
 
@@ -46,10 +49,10 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `data/session/`: private socket for optional connections to the running chat; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
-- `tests/discord/`: synthetic owner filtering, delivery, and reasoning-isolation checks.
+- `tests/discord/`: optional Discord transport tests—owner filtering, delivery, attachment to main chat, and reasoning isolation.
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
-- `tests/native-linux/`: isolated setup, chat, rollover, logging, and lifecycle checks.
+- `tests/native-linux/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
 See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).

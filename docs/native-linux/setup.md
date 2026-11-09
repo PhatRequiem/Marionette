@@ -17,7 +17,7 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 Application code lives in `src/marionette/`: `session.py` owns chat and the local server, and `log_router.py` formats and routes diagnostics. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
 
-`scripts/native-linux/` contains operational entry points: `setup.py`, `chat.sh`, and `view-log.sh`. The pinned `downloads.json` stays beside setup. Tests live in `tests/native-linux/`; runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
+`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/native-linux/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
 
 ## Operation
 

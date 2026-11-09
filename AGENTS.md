@@ -30,7 +30,7 @@ These instructions apply throughout this repository.
 - Keep core operation local, without required subscriptions, hosted APIs, vendor accounts, or license-server access.
 - Keep conversations, identities, and memories exportable in documented, portable formats with provenance. Test backup restoration and migration before relying on a storage system for real memories. Report same-version restoration and cross-database migration separately; keep unverified requirements visible.
 - Keep storage and memory integrations replaceable through small interfaces. Weigh project maintenance, upgrade paths, and custom-code burden alongside features; open source alone does not guarantee future support.
-- Record dependency versions, setup steps, and significant tradeoffs in project documentation so another maintainer can rebuild and operate PhatKitty.
+- Record dependency versions, setup steps, and significant tradeoffs in project documentation so another maintainer can rebuild and operate Marionette.
 - When dependencies, download versions, paths, or setup requirements change, update the affected component's setup/bootstrap scripts, lockfiles, download manifests (including checksums), and rebuild instructions in the same change. Change the core bootstrap only when affected; verify the changed rebuild steps.
 
 ## Model configuration and sampling
@@ -46,7 +46,7 @@ On initial setup or changes to the model, weight precision, reasoning mode, or r
 
 Keep the project understandable without reading development chats.
 
-1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Use matching component names across `docs/`, `scripts/`, and `logs/`; keep actual tool names under `runtime/`.
+1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Use matching component names across `docs/` and `scripts/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep actual tool names under `runtime/`.
 2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/<component>/experiments/`.
 3. **Repeatable scripts:** Save documented setup, start, and stop commands in `scripts/`, including supported background operation and logging.
 4. **Documented decisions:** Record significant architecture choices and their reasons in `docs/`, linked from the README.
