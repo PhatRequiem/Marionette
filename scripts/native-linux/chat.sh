@@ -74,13 +74,12 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
     printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
-    export MARIONETTE_RUNTIME_VERSION="$("$CLI" --version 2>&1)"
-    printf '%s\n' "$MARIONETTE_RUNTIME_VERSION"
+    RUNTIME_VERSION="$("$CLI" --version 2>&1)"
+    printf '%s\n' "$RUNTIME_VERSION"
     script --version
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
 printf 'Conversation log: %s\nConnections and requests: %s\nModel processing: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
-printf 'Setup report: %s (generated after model loading)\n' "${CHAT_FILE%-chat.txt}-setup.json"
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
 
 # Each viewer reads its saved log; neither owns the diagnostic writer.
@@ -101,9 +100,9 @@ done
 
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.
-# The coordinator keeps runtime diagnostics separate and supplies verified startup context.
+# The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
 printf -v RECORD_COMMAND '%q ' python -u "$ROOT/scripts/native-linux/session.py" \
-    "$MODEL_FILE" "${COMMAND[@]}"
+    "${COMMAND[@]}"
 RECORD_COMMAND+=' 2>&3 3>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
     --command "$RECORD_COMMAND" "$CHAT_FILE" 2>&3

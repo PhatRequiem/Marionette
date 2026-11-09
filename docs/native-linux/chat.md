@@ -18,18 +18,19 @@ Your prompt and typed input are neon green (`#39FF14`), status information is wh
 - **Exit:** type `/exit`, or press **Ctrl+D** at an empty chat prompt.
 - **Start fresh:** type `/clear`, or exit and launch again.
 
-The local server is local to this computer and stops when the chat process exits. Its temporary address appears in the connections-and-requests log and setup snapshot.
+The local server is local to this computer and stops when the chat process exits. Its temporary address appears in the connections-and-requests log.
 
-After loading, she receives a generated report of the observed setup with your first message, and keeps it through rollover and `/clear`. She still cannot open files or read logs herself.
+No setup report is generated or sent to her. She cannot open files or read logs herself.
 
-Each session saves four matching files in `data/conversations/`:
+Each session saves three matching files in `data/conversations/`:
 
 - `…-chat.txt`: your messages and her replies.
 - `…-server.txt`: connections and requests, shown in its own terminal.
 - `…-model.txt`: model processing, shown in its own terminal.
-- `…-setup.json`: generated setup facts and the context supplied to her.
 
-When context fills, the client announces a rollover and leaves out the oldest complete exchanges. The setup report remains; older messages stay in the saved transcript but are no longer visible to her. The default reply allowance is 512 tokens; a notice appears if a reply reaches it. If your new message cannot fit even without history, shorten it and try again.
+After replies, the client checks space for the next turn. When needed, it leaves out oldest complete exchanges and prepares the shortened history while you read or type. Preparation and removed-exchange counts appear in the diagnostic logs, without interrupting the chat display. Older messages remain in the saved transcript but are no longer visible to her.
+
+The total context remains 8,192 tokens, including a 1,024-token next-message allowance and a 512-token reply allowance. Sending before preparation finishes, or sending a larger message, can still cause a wait. The client checks every actual message; oversized input is rejected without truncating it. A notice appears if a reply reaches its allowance.
 
 Only `/clear` and `/exit` are supported commands. Ctrl+C also exits. No file attachments, tools, summaries, or saved-memory loading are implemented.
 

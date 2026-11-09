@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated chat and diagnostic text files and a generated setup snapshot locally. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated chat and diagnostic text files locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -15,9 +15,9 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The client starts the Q4_K_M model with an 8,192-token context and reasoning disabled. It counts the formatted prompt before each reply, reserves 512 tokens for the response, and removes the oldest complete exchanges when needed. The generated setup report stays in every request as a system message. The server listens on `127.0.0.1` at a temporary port and stops when the client exits.
+Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The client starts the Q4_K_M model with an 8,192-token context and reasoning disabled. It counts the formatted prompt before each reply, reserves 512 tokens for the response, and removes the oldest complete exchanges when needed. After a reply, it prepares shortened history in the background when space runs low, reserving room for the next turn. No setup report is generated or sent. The server listens on `127.0.0.1` at a temporary port and stops when the client exits.
 
-Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses automatic context rollover and [generated startup context](docs/native-linux/startup-context.md). See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
+Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses automatic context rollover and [between-turn preparation](docs/native-linux/context.md). See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
 
 ## Folder map
 
@@ -25,7 +25,7 @@ Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses autom
 - `docs/native-linux/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
-- `data/conversations/`: dated chat transcripts, server/model diagnostic logs, and setup snapshots; ignored by Git.
+- `data/conversations/`: dated chat transcripts and server/model diagnostic logs; ignored by Git.
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.

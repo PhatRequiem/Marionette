@@ -17,16 +17,16 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
 
-The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with a Python terminal client and `llama-server` in the foreground. Two separate desktop terminals follow the saved connections/requests and model-processing logs. The client starts its own HTTP server process on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the connections/requests log and setup snapshot.
+The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with a Python terminal client and `llama-server` in the foreground. Two separate desktop terminals follow the saved connections/requests and model-processing logs. The client starts its own HTTP server process on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the connections/requests log.
 
-- No personality file is used. The client builds a factual setup snapshot after loading and includes it as a system message in every request, including after rollover and `/clear`. See [startup context](startup-context.md) for evidence, timing, and limitations.
+- No personality file or generated setup report is used. See [context rollover](context.md) for preparation, budgeting, and failure behavior.
 - Model context lasts only for this process. Dated transcripts are saved for the user; they are not automatically fed back into the model. No memory database or cross-database migration exists.
 - Chat uses `--offline` for model loading; the loopback HTTP connection still operates. No hosted API or login is needed.
-- Each session has a shared timestamp and unique suffix with `-chat.txt`, `-server.txt`, `-model.txt`, and (after successful loading) `-setup.json` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. `--simple-io` preserves terminal input; terminal color codes, carriage returns, and backspaces may remain. The chat transcript format is unchanged.
+- Each session has a shared timestamp and unique suffix with `-chat.txt`, `-server.txt`, and `-model.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. terminal color codes, carriage returns, and backspaces may remain. The chat transcript format is unchanged.
 - Both diagnostic files record session start/end times, exact launch arguments, runtime/recorder versions, and the exit status. llama.cpp runs with `--verbose --log-prefix --log-timestamps`, capturing all diagnostics exposed by this build, including model, device, memory, prompt, token, timing, and error details. Runtime timestamps are elapsed time; session headers give local time and UTC offset.
 - The client forwards the runtime stderr stream to one log router outside the recorder, keeping diagnostics out of the chat transcript. The router assigns a session-wide event number to each received line before routing it. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder.
 - Files use owner-only permissions and unique timestamped names. The chat recorder flushes each write, and each viewer follows its own saved file until the launcher exits. Debug visibility follows the runtime logging flush behavior. Closing the viewer does not stop recording. A viewer launch failure is reported in the launching terminal while chat recording continues.
-- `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy all matching text and JSON files to export or back them up; no special reader or database is required.
+- `MARIONETTE_LOG_DIR` can select a separate directory for synthetic tests. The default directory is ignored by Git. Copy all matching text files to export or back them up; no special reader or database is required.
 - Diagnostic files can include full prompts and replies, local paths, and very large amounts of output. They are private local files, excluded from Git. No automatic deletion or rotation is configured. This enables the runtime’s fullest logging, not automatic crash backtraces. A forced kill or power loss may leave no ending footer.
 
 ### Reading the two diagnostic logs
@@ -37,7 +37,7 @@ Every received line gets `[event 00000001]` followed by an ISO timestamp with mi
 
 Messages appear below their event header on `    | ` continuation rows, wrapped at 140 characters. JSON punctuation outside strings starts a new row; values are not parsed, rounded, truncated, or deduplicated. Blank input lines are explicitly marked `[blank line]`. Control bytes are displayed as `\xHH` (for example `\x1b` for Escape and `\x08` for backspace), and literal backslashes are doubled. This retains the codes without allowing them to alter the terminal display. To recover an original message, concatenate its continuation rows without their prefixes or added line breaks, decode those escapes, and restore its final newline unless the header says `[no final newline]`. Shared events use identical formatting in both files. Existing session files are not rewritten; the new format applies on the next launch.
 
-There is no third raw debug file or filtered temporary log. The launcher waits for the router to finish writing before exiting. Older `-debug.txt` files remain untouched. Export all four matching session files together; nothing automatically deletes or rotates them.
+There is no third raw debug file or filtered temporary log. The launcher waits for the router to finish writing before exiting. Older `-debug.txt` files remain untouched. Export all three matching session files together; nothing automatically deletes or rotates them.
 
 The default device is Vulkan0, verified as the RX 7900 XT on this machine. Check device ordering after driver/hardware changes:
 
@@ -49,7 +49,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Log storage and recovery
 
-Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy the backed-up `.txt` and `-setup.json` files for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
+Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy the backed-up `.txt` files (and any historical `-setup.json` files) for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
 
 ## Choices and updates
 
@@ -61,7 +61,7 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `session.py`. No new dependency or persistent service is required. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
-The model's native template is used with reasoning disabled. The startup report is a normal system message; the previous first-message envelope and custom template have been removed. See [startup report and rollover](startup-context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover works by submitting a shorter structured conversation, preserving the setup report and keeping the model loaded.
+The model's native template is used with reasoning disabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
 The context remains 8,192 tokens with a 512-token reply allowance. The archive, model, and checksums are unchanged. The manifest now selects `llama-server`. Rebuild using the same setup command. Existing chats continue using the old client until exited and relaunched.
 
@@ -69,4 +69,4 @@ The context remains 8,192 tokens with a 512-token reply allowance. The archive, 
 
 Run `python -m unittest discover -s tests/native-linux -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. Baseline 1 remains a historical direct-inference checkpoint.
 
-The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, and: synthetic word recall, setup context after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
+The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, and: synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.

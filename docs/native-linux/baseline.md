@@ -1,6 +1,6 @@
 # Baseline 1
 
-Historical checkpoint: `baseline-v1`. The current setup uses a small terminal client with an owned loopback `llama-server` process and [generated startup context](startup-context.md). This entire document describes the older direct-inference checkpoint; use [current operation](setup.md) for present behavior and checks.
+Historical checkpoint: `baseline-v1`. The current setup uses a small terminal client with an owned loopback `llama-server` process and [between-turn context preparation](context.md). This entire document describes the older direct-inference checkpoint; use [current operation](setup.md) for present behavior and checks.
 
 A local, text-only terminal chat with reproducible installation and diagnostic logs. This is the base for future work, reviewed on November 8, 2026.
 

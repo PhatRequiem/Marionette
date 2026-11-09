@@ -1,7 +1,6 @@
-"""Conversation policy: system preservation, exact budgets, and failed turns."""
+"""Conversation policy: idle preparation, exact budgets, and failed turns."""
 import importlib.util
 import io
-import json
 import os
 import signal
 import subprocess
@@ -19,22 +18,20 @@ spec.loader.exec_module(client)
 
 
 class ClientTests(unittest.TestCase):
-    def test_rollover_removes_whole_exchanges_and_keeps_system(self):
-        system = {'role': 'system', 'content': 'setup'}
-        history = [system]
+    def test_rollover_removes_whole_exchanges(self):
+        history = []
         for i in range(8):
             history += [{'role': 'user', 'content': str(i)}, {'role': 'assistant', 'content': str(i)}]
         original = history.copy()
         fitted, removed, tokens = client.fit_history(history, 'new', lambda messages: len(messages)*10, 85, 20)
         self.assertEqual(history, original)
         self.assertEqual(removed, 6)
-        self.assertIs(fitted[0], system)
-        self.assertEqual([m['role'] for m in fitted], ['system', 'user', 'assistant', 'user', 'assistant', 'user'])
-        self.assertEqual(fitted[1]['content'], '6')
+        self.assertEqual([m['role'] for m in fitted], ['user', 'assistant', 'user', 'assistant', 'user'])
+        self.assertEqual(fitted[0]['content'], '6')
         self.assertLess(tokens + 20, 85)
 
     def test_oversized_message_does_not_mutate_history(self):
-        history = [{'role': 'system', 'content': 'setup'}, {'role': 'user', 'content': 'old'}, {'role': 'assistant', 'content': 'answer'}]
+        history = [{'role': 'user', 'content': 'old'}, {'role': 'assistant', 'content': 'answer'}]
         original = history.copy()
         with self.assertRaisesRegex(ValueError, 'Shorten'):
             client.fit_history(history, 'huge', lambda _: 100, 100, 20)
@@ -42,9 +39,9 @@ class ClientTests(unittest.TestCase):
 
     def test_exact_boundary_reserves_spare_token(self):
         with self.assertRaises(ValueError):
-            client.fit_history([{'role': 'system', 'content': 'setup'}], 'new', lambda _: 80, 100, 20)
+            client.fit_history([], 'new', lambda _: 80, 100, 20)
 
-    def test_failed_stream_not_kept_and_clear_retains_system(self):
+    def test_failed_stream_not_kept_and_clear_starts_empty(self):
         class FakeAPI:
             def __init__(self):
                 self.sent = []
@@ -56,25 +53,24 @@ class ClientTests(unittest.TestCase):
                     raise RuntimeError('stream interrupted')
                 return 'answer', 'stop'
         api = FakeAPI()
-        report = {'context': 'setup', 'delivery': 'pending_first_message'}
         with tempfile.TemporaryDirectory() as directory, patch('builtins.input', side_effect=['failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
-            client.chat(api, report, Path(directory)/'snapshot.json', 8192)
-        self.assertEqual([m['content'] for m in api.sent[1]], ['setup', 'good'])
-        self.assertEqual([m['content'] for m in api.sent[2]], ['setup', 'fresh'])
-        self.assertEqual(report['delivery'], 'supplied_with_first_message')
+            client.chat(api, 8192)
+        self.assertEqual([m['content'] for m in api.sent[1]], ['good'])
+        self.assertEqual([m['content'] for m in api.sent[2]], ['fresh'])
 
     def test_eof_and_termination_stop_owned_server(self):
         for action in ('eof', 'terminate'):
             with self.subTest(action=action), tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / 'test-model.txt'
-                process = subprocess.Popen([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(path), sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                process = subprocess.Popen([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 try:
-                    snapshot = path.with_name('test-setup.json')
-                    deadline = time.monotonic() + 10
-                    while not snapshot.exists() and process.poll() is None and time.monotonic() < deadline:
-                        time.sleep(.05)
-                    self.assertTrue(snapshot.exists())
-                    pid = json.loads(snapshot.read_text())['runtime_pid']
+                    # Read the explicit readiness line, without needing a report file.
+                    while 'Ready.' not in process.stdout.readline():
+                        self.assertIsNone(process.poll())
+                    children = Path(f'/proc/{process.pid}/task/{process.pid}/children').read_text().split()
+                    self.assertEqual(len(children), 1)
+                    pid = int(children[0])
+                    self.assertFalse(list(Path(directory).glob('*setup*')))
                     if action == 'terminate':
                         process.send_signal(signal.SIGTERM)
                     stdout, stderr = process.communicate('', timeout=10)
@@ -85,3 +81,65 @@ class ClientTests(unittest.TestCase):
                     if process.poll() is None:
                         process.terminate()
                         process.communicate(timeout=10)
+
+
+class PreparationTests(unittest.TestCase):
+    def history(self):
+        return [{'role': role, 'content': str(i)} for i in range(8)
+                for role in ('user', 'assistant')]
+
+    def test_idle_rollover_prepares_before_committing_and_waits_for_early_input(self):
+        import threading
+        started, release = threading.Event(), threading.Event()
+        history = self.history()
+        class FakeAPI:
+            def count(self, messages):
+                return len(messages) * 10
+            def prepare(self, messages):
+                self.prepared = messages.copy()
+                started.set()
+                release.wait(3)
+        api = FakeAPI()
+        with patch.object(client, 'log'):
+            pending = client.Preparation(api, history, 200, 50)
+            self.assertTrue(started.wait(2))
+            self.assertIs(pending.history, history)
+            self.assertTrue(pending.thread.is_alive())
+            release.set()
+            result = pending.result()
+        self.assertEqual(len(history), 16)
+        self.assertEqual(len(result), 10)
+        self.assertEqual(result, api.prepared)
+        self.assertEqual(result[0]['role'], 'user')
+        self.assertEqual(result[-1]['role'], 'assistant')
+
+    def test_preparation_failure_retains_original_history(self):
+        class FakeAPI:
+            def count(self, messages):
+                return len(messages) * 10
+            def prepare(self, messages):
+                raise RuntimeError('synthetic cache failure')
+        history = self.history()
+        with patch.object(client, 'log'):
+            pending = client.Preparation(FakeAPI(), history, 200, 50)
+            self.assertIs(pending.result(), history)
+            self.assertIsInstance(pending.error, RuntimeError)
+
+    def test_no_prefill_when_next_turn_has_room(self):
+        class FakeAPI:
+            def count(self, messages):
+                return 20
+            def prepare(self, messages):
+                raise AssertionError('unnecessary prefill')
+        history = self.history()
+        with patch.object(client, 'log'):
+            pending = client.Preparation(FakeAPI(), history, 8192, 512)
+            self.assertIs(pending.result(), history)
+
+    def test_prepare_excludes_marker_and_leaves_token_boundary(self):
+        api = client.API('http://127.0.0.1:1')
+        with patch.object(client.secrets, 'token_hex', return_value='test'), patch.object(api, 'json', side_effect=[{'prompt': 'historyMARIONETTE_NEXT_INPUT_testend'}, {'tokens': [1, 2, 3]}, {'timings': {}}]) as request, patch.object(client, 'log'):
+            api.prepare(self.history())
+        self.assertEqual(request.call_args_list[1].args[1]['content'], 'history')
+        self.assertEqual(request.call_args_list[2].args,
+                         ('/completion', {'prompt': [1, 2], 'n_predict': 0, 'cache_prompt': True}))

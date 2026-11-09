@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Minimal terminal chat: own one local server, retain system context, trim history."""
-import datetime
+"""Terminal chat with an owned local server and between-turn cache preparation."""
 import http.client
 import json
 import os
-from pathlib import Path
 import re
+import secrets
 import signal
 import subprocess
 import sys
@@ -32,11 +31,7 @@ def log(message):
 
 def observe(line, facts):
     patterns = {
-        'runtime_version': r'^version: (.+)',
-        'model_name': r'general\.name\s+str\s*=\s*(.+)',
         'context_tokens': r'llama_context: n_ctx_seq\s*=\s*(\d+)',
-        'gpu_offload': r'offloaded (\d+/\d+) layers to GPU',
-        'device': r'using device (.+?) \(\d{4}:',
         'local_server': r'server_on_li: listening on (http://127\.0\.0\.1:\d+)',
     }
     for key, pattern in patterns.items():
@@ -45,45 +40,17 @@ def observe(line, facts):
             facts[key] = {'value': match.group(1).strip(), 'evidence': line.strip()}
 
 
-def snapshot(command, facts, debug_path):
-    now = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
-    lines = [f'Local runtime setup report generated {now}.',
-             'This conversation runs in a local terminal client connected to its own loopback llama-server process, not a hosted chat API.']
-    for key, label in [('runtime_version', 'Runtime version'), ('model_name', 'Loaded model name'), ('device', 'Runtime-selected device'),
-                       ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Context capacity limit (tokens, not current usage)'),
-                       ('local_server', 'Local server address')]:
-        lines.append(f'{label}: {facts.get(key, {}).get("value", "not reported; unverified")}.')
-    lines += ['The context limit is the maximum capacity, not the number of tokens currently used. Current token usage is not measured by this startup report. Do not claim the context is full from its capacity; live usage requires runtime measurements.',
-              'Configured: offline local-model operation, text conversation, reasoning disabled.',
-              'Capabilities: receive your messages and generate replies. No tools for browsing, executing commands, or opening files.',
-              'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. Older complete exchanges are removed from active context when needed; the setup report is kept. Saved conversations are not reloaded as memory.',
-              f'Current model-processing log: {debug_path}.',
-              f'Current connections-and-requests log: {str(debug_path).removesuffix("-model.txt")}-server.txt.',
-              f'Current chat log: {str(debug_path).removesuffix("-model.txt")}-chat.txt.',
-              'This is a startup snapshot, not continuous monitoring. Model-file checksums are verified by setup, not rechecked by this report.']
-    context = ' '.join(lines)
-    data = {'schema_version': 2, 'generated_at': now, 'runtime_pid': None,
-            'runtime_command': command, 'observed': facts.copy(), 'context': context,
-            'delivery': 'pending_first_message'}
-    return data
-
-
-def save(path, data):
-    temporary = path.with_suffix('.json.part')
-    with temporary.open('w', encoding='utf-8') as out:
-        json.dump(data, out, indent=2, ensure_ascii=False)
-        out.write('\n')
-    os.chmod(temporary, 0o600)
-    temporary.replace(path)
-
-
 class API:
     def __init__(self, address):
         self.address = address
+        self.closing = threading.Event()
+        self.worker = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def open(self, path, body=None):
+        if self.closing.is_set():
+            raise RuntimeError('Session is closing.')
         data = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(self.address + path, data=data,
                                          headers={'Content-Type': 'application/json'})
@@ -107,6 +74,22 @@ class API:
         prompt = self.json('/apply-template', self.body(messages))['prompt']
         result = self.json('/tokenize', {'content': prompt, 'add_special': True, 'parse_special': True})
         return len(result['tokens'])
+
+    def prepare(self, messages):
+        # Render with a following user turn so the template treats the last reply
+        # as history (Qwen formats its final assistant turn differently).
+        marker = 'MARIONETTE_NEXT_INPUT_' + secrets.token_hex(16)
+        prompt = self.json('/apply-template', self.body(messages +
+                           [{'role': 'user', 'content': marker}]))['prompt']
+        if prompt.count(marker) != 1:
+            raise RuntimeError('Cannot locate next-message boundary in chat template.')
+        prefix = prompt.split(marker)[0]
+        tokens = self.json('/tokenize', {'content': prefix, 'add_special': True,
+                                        'parse_special': True})['tokens']
+        # Leave the boundary token for the real input in case tokenization merges it.
+        result = self.json('/completion', {'prompt': tokens[:-1], 'n_predict': 0,
+                                          'cache_prompt': True})
+        log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve):
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
@@ -144,19 +127,66 @@ def fit_history(history, message, count, capacity, reserve):
         # One spare token also keeps the prompt below the server's strict limit.
         if tokens + reserve < capacity:
             return candidate, removed, tokens
-        if len(candidate) <= 2:
-            raise ValueError('This message plus the setup report is too large. Shorten the message; history is unchanged.')
-        del candidate[1:3]  # oldest complete user/assistant exchange
+        if len(candidate) <= 1:
+            raise ValueError('This message is too large. Shorten the message; history is unchanged.')
+        del candidate[:2]  # oldest complete user/assistant exchange
         removed += 1
 
 
-def chat(api, report, path, capacity):
+class Preparation:
+    """One worker; only the chat thread commits history after joining it."""
+    def __init__(self, api, history, capacity, reserve):
+        self.history = history
+        self.error = None
+        self.thread = threading.Thread(target=self.work,
+                                       args=(api, capacity, reserve), daemon=True)
+        api.worker = self.thread
+        self.thread.start()
+
+    def work(self, api, capacity, reserve):
+        started = time.monotonic()
+        try:
+            incoming = min(1024, capacity // 8)
+            probe = [{'role': 'user', 'content': ''}]
+            candidate = self.history.copy()
+            tokens = api.count(candidate + probe)
+            if tokens + incoming + reserve < capacity:
+                return
+            target = min(capacity * 3 // 4, capacity - incoming - reserve - 1)
+            removed = 0
+            while candidate and tokens > target:
+                del candidate[:2]
+                removed += 1
+                tokens = api.count(candidate + probe)
+            log(f'Rollover preparation started: removed_exchanges={removed}; '
+                f'next_prompt_tokens={tokens}; next_message_allowance={incoming}; reply_allowance={reserve}.')
+            if candidate:
+                api.prepare(candidate)
+            # Publish only after successful preparation. An empty history needs no cache.
+            self.history = candidate
+            log(f'Rollover preparation completed: removed_exchanges={removed}; '
+                f'elapsed_ms={(time.monotonic() - started) * 1000:.2f}.')
+        except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
+            self.error = error
+            if getattr(api, 'closing', threading.Event()).is_set():
+                log('Rollover preparation stopped with session shutdown.')
+            else:
+                log(f'Rollover preparation failed; history retained: {error}')
+
+    def result(self):
+        if self.thread.is_alive():
+            started = time.monotonic()
+            self.thread.join()
+            log(f'Preparation wait after input: {(time.monotonic() - started) * 1000:.2f} ms.')
+        return self.history
+
+
+def chat(api, capacity):
     reserve = min(512, capacity // 4)
-    system = {'role': 'system', 'content': report['context']}
-    history = [system]
-    if api.count(history + [{'role': 'user', 'content': ''}]) + reserve >= capacity:
-        raise RuntimeError('Context is too small for the setup report and reply allowance.')
-    log(f'Context policy: capacity={capacity}, reply_budget={reserve}, system report always retained.')
+    history = []
+    pending = None
+    log(f'Context policy: capacity={capacity}, reply_budget={reserve}, '
+        f'next_message_allowance={min(1024, capacity // 8)}; no setup report.')
     print(f'Ready. Context limit: {capacity}; reply allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
     while True:
         try:
@@ -174,10 +204,13 @@ def chat(api, report, path, capacity):
         if message.strip() == '/exit':
             return
         print()
+        if pending is not None:
+            history = pending.result()
+            pending = None
         if message.strip() == '/clear':
-            history = [system]
-            log('Chat history cleared; setup report retained.')
-            print('Chat history cleared; setup report retained.')
+            history = []
+            log('Chat history cleared.')
+            print('Chat history cleared.')
             continue
         if message.startswith('/'):
             print('Available commands: /clear and /exit.')
@@ -186,7 +219,7 @@ def chat(api, report, path, capacity):
             candidate, removed, tokens = fit_history(history, message, api.count, capacity, reserve)
             log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < {capacity}; removed_exchanges={removed}.')
             if removed:
-                print(f'[Context rollover: leaving out {removed} oldest exchange(s); setup report retained.]')
+                log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
             color('reply')
             try:
                 answer, finish = api.reply(candidate, reserve)
@@ -194,11 +227,8 @@ def chat(api, report, path, capacity):
                 color('data')
             print()
             log(f'Reply completed: finish_reason={finish}.')
-            if report['delivery'] != 'supplied_with_first_message':
-                delivered = report | {'delivery': 'supplied_with_first_message'}
-                save(path, delivered)
-                report.update(delivered)
             history = candidate + [{'role': 'assistant', 'content': answer}]
+            pending = Preparation(api, history, capacity, reserve)
             if finish == 'length':
                 print('[Reply reached its token allowance.]')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
@@ -206,11 +236,9 @@ def chat(api, report, path, capacity):
             print(f'\n{error}\nConversation history is unchanged; you can retry.')
 
 
-def run(model_path, command):
-    path = model_path.with_name(model_path.name.removesuffix('-model.txt') + '-setup.json')
+def run(command):
     facts = {}
-    for line in os.environ.get('MARIONETTE_RUNTIME_VERSION', '').splitlines():
-        observe(line, facts)
+    api = None
     ready = threading.Event()
     # Own the server's lifetime; terminal Ctrl+C is handled by this client.
     child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -229,6 +257,7 @@ def run(model_path, command):
 
     reader = threading.Thread(target=diagnostics, daemon=True)
     reader.start()
+    log(f'Local server started: pid={child.pid}.')
     try:
         color('data')
         print('Loading model...', flush=True)
@@ -249,14 +278,11 @@ def run(model_path, command):
         observed = facts.get('context_tokens', {}).get('value')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        report = snapshot(command, facts, model_path)
-        report['runtime_pid'] = child.pid
-        report['reply_budget_tokens'] = min(512, capacity // 4)
-        save(path, report)
-        log(f'Setup snapshot ready: {path}')
-        chat(api, report, path, capacity)
+        chat(api, capacity)
         return 0
     finally:
+        if api is not None:
+            api.closing.set()
         if child.poll() is None:
             child.terminate()
             try:
@@ -264,6 +290,8 @@ def run(model_path, command):
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait()
+        if api is not None and api.worker is not None:
+            api.worker.join(timeout=5)
         reader.join(timeout=5)
         child.stdout.close()
         log('Local server stopped.')
@@ -275,7 +303,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGTERM, interrupt)
     signal.signal(signal.SIGHUP, interrupt)
     try:
-        status = run(Path(sys.argv[1]), sys.argv[2:])
+        status = run(sys.argv[1:])
     except KeyboardInterrupt:
         print('\nExiting...')
         status = 0
