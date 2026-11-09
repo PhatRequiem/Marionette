@@ -62,6 +62,8 @@ class Conversation:
                         f'{self.capacity}; removed_exchanges={removed}.')
                     if removed:
                         diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
+                    chat_event('context', prompt_tokens=tokens, context_capacity=self.capacity,
+                               reply_allowance=self.reserve, phase='before_initial_generation')
                     # The caller decides how streamed reasoning and answers are displayed.
                     answer, finish = self.api.reply(candidate, self.reserve, on_delta=on_delta)
                     if not answer.strip():

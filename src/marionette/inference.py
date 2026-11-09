@@ -71,9 +71,17 @@ class API:
         working = messages.copy()
         remaining = reserve
         for round_number in range(3):
+            if round_number == 2:
+                working = [{'role': 'system', 'content':
+                    'The read_logs lookup limit for this turn has been reached. '
+                    'Answer the user now using the evidence already returned, stating any uncertainty. '
+                    'Do not request another tool or print tool-call syntax.'}] + working
             allowance = remaining
             if round_number:
-                allowance = min(allowance, self.capacity - self.count(working) - 1)
+                prompt_tokens = self.count(working)
+                allowance = min(allowance, self.capacity - prompt_tokens - 1)
+                chat_event('context', prompt_tokens=prompt_tokens, context_capacity=self.capacity,
+                           reply_allowance=max(0, allowance), phase='before_tool_continuation')
             if allowance <= 0:
                 raise RuntimeError('Log review reached the context or generation allowance.')
             message, finish, used = self._stream(working, allowance, on_delta=on_delta,
@@ -141,6 +149,11 @@ class API:
                             message['reasoning_content'] = ''.join(thoughts)
                         elif finish == 'tool_calls':
                             raise RuntimeError('Missing tool-call data.')
+                        if not allow_tools and '<tool_call>' in message['content']:
+                            completed = False
+                            raise RuntimeError('Model requested another lookup after the limit; no final answer was accepted.')
+                        if not allow_tools and on_delta is not None and message['content']:
+                            on_delta('answer', message['content'])
                         return message, finish, used
                     event = json.loads(payload)
                     if 'error' in event:
@@ -166,13 +179,13 @@ class API:
                             thoughts.append(reasoning)
                         text = delta.get('content') or ''
                         if text:
-                            if on_delta is not None:
+                            if on_delta is not None and allow_tools:
                                 on_delta('answer', text)
                             pieces.append(text)
                         finish = choice.get('finish_reason') or finish
                     if event.get('usage'):
                         diagnostics.log('Runtime usage: ' + json.dumps(event['usage']))
-                        chat_event('usage', **event['usage'])
+                        chat_event('usage', generation_kind='tool_call' if calls else 'answer', **event['usage'])
                         used = event['usage'].get('completion_tokens')
             raise RuntimeError('Response stream closed early; partial reply was not kept.')
         finally:

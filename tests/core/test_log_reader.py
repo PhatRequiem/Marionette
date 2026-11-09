@@ -25,7 +25,7 @@ def delta(value, finish=None):
     return {'choices': [{'delta': value, 'finish_reason': finish}]}
 
 
-def tool_stream(name='read_logs', arguments='{"source":"model","view":"errors"}'):
+def tool_stream(name='read_logs', arguments='{"topic":"errors"}'):
     return stream([
         delta({'reasoning_content': 'I will check.'}),
         delta({'tool_calls': [{'index': 0, 'id': 'call-1', 'type': 'function',
@@ -47,23 +47,24 @@ class ReaderTests(unittest.TestCase):
     def test_active_chat_only_and_arguments_cannot_select_files(self):
         append(self.chat, record('terminal', 'message_received', data={'content': 'current evidence'}))
         append(self.root / 'old-chat.jsonl', record('terminal', 'message_received', data={'content': 'old secret'}))
-        result = self.reader.read({'source': 'chat', 'view': 'recent'})
+        result = self.reader.read({'topic': 'messages'})
         self.assertIn('current evidence', json.dumps(result))
         self.assertNotIn('old secret', json.dumps(result))
         for arguments in [{'source': '../old', 'view': 'recent'},
-                          {'source': 'chat', 'view': 'recent', 'path': '/etc/passwd'},
-                          {'source': 'chat', 'view': 'recent', 'limit': True}]:
+                          {'topic': 'reasoning', 'query': 'invented phrase'},
+                          {'topic': 'messages', 'path': '/etc/passwd'},
+                          {'topic': 'messages', 'limit': True}]:
             with self.assertRaises(ValueError):
                 self.reader.read(arguments)
         self.chat.unlink()
         self.chat.symlink_to(self.root / 'old-chat.jsonl')
-        self.assertFalse(self.reader.read({'source': 'chat', 'view': 'recent'})['available'])
+        self.assertFalse(self.reader.read({'topic': 'messages'})['available'])
 
     def test_diagnostic_batch_errors_have_original_references(self):
         server, model = io.BytesIO(), io.BytesIO()
         route(io.BytesIO(b'0.01 I srv decode: ordinary\n0.02 W future: warning\n0.03 E future: error\xff\n'), server, model)
         self.chat.with_name('current-model.jsonl').write_bytes(model.getvalue())
-        result = self.reader.read({'source': 'model', 'view': 'errors'})
+        result = self.reader.read({'topic': 'errors'})
         self.assertEqual([r['reference'] for r in result['records']], ['2', '3'])
         self.assertIn('warning', result['records'][0]['text'])
         self.assertTrue(result['untrusted_log_data'])
@@ -73,25 +74,63 @@ class ReaderTests(unittest.TestCase):
             append(self.chat, record('terminal', 'answer', data={'content': str(n) + 'x' * 4000}))
         with self.chat.open('ab') as output:
             output.write(b'{"partial":')
-        result = self.reader.read({'source': 'chat', 'view': 'recent', 'limit': 20})
+        result = self.reader.read({'topic': 'messages', 'limit': 20})
         self.assertLessEqual(len(json.dumps(result, ensure_ascii=False)), 12000)
         self.assertTrue(result['more_matches'])
         self.assertTrue(all(r['truncated'] for r in result['records']))
-        self.assertEqual(result['skipped_records'], 1)
+        self.assertEqual(result['coverage'][0]['skipped_records'], 1)
         with patch('log_reader.TAIL_BYTES', 5000):
-            result = self.reader.read({'source': 'chat', 'view': 'recent'})
-            self.assertTrue(result['tail_limited'])
+            result = self.reader.read({'topic': 'messages'})
+            self.assertTrue(result['coverage'][0]['tail_limited'])
 
     def test_discord_registration_excludes_detached_and_other_session(self):
         path = self.root / 'active-discord.jsonl'
         append(path, record('discord', 'status', data={'message': 'Discord answer delivered.'}))
-        request = {'source': 'discord', 'view': 'recent'}
+        request = {'topic': 'delivery'}
         self.assertFalse(self.reader.read(request)['available'])
         with discord_registration(self.address, path):
             self.assertTrue(self.reader.read(request)['available'])
             with patch('log_reader.socket_key', return_value=[-1, -1, -1]):
                 self.assertFalse(self.reader.read(request)['available'])
         self.assertFalse(self.reader.read(request)['available'])
+
+    def test_reasoning_topic_uses_chat_and_matches_original_question(self):
+        append(self.chat, record('terminal', 'message_received', data={'content': 'blue bird', 'turn_id': 'turn'}))
+        append(self.chat, record('terminal', 'reasoning', data={'content': 'Recorded thought.', 'turn_id': 'turn'}))
+        append(self.chat, record('terminal', 'answer', data={'content': 'Different final answer.', 'turn_id': 'turn'}))
+        result = self.reader.read({'topic': 'reasoning'})
+        self.assertEqual(len(result['records']), 1)
+        self.assertEqual(result['records'][0]['source'], 'chat')
+        self.assertIn('Recorded thought.', result['records'][0]['text'])
+        self.assertEqual(result['records'][0]['in_reply_to'], 'blue bird')
+        self.assertNotIn('Different final answer.', result['records'][0]['text'])
+        self.assertIn('Recorded generated reasoning', result['records'][0]['meaning'])
+
+    def test_tokens_distinguish_prompt_snapshot_from_generation_usage(self):
+        append(self.chat, record('terminal', 'usage', data={'prompt_tokens': 1381, 'completion_tokens': 272, 'total_tokens': 1653}))
+        event = record('terminal', 'context', data={'prompt_tokens': 1656, 'context_capacity': 65536, 'reply_allowance': 32768})
+        event['timestamp'] = '2026-11-09T15:12:48.000000-05:00'
+        append(self.chat, event)
+        result = self.reader.read({'topic': 'tokens'})
+        summary = result['summary']
+        self.assertIn('not a live meter', summary['measurement_scope'])
+        self.assertEqual(summary['latest_completed_generation']['values']['total_tokens'], 1653)
+        prompt = summary['latest_prompt_snapshot']
+        self.assertEqual(prompt['values']['prompt_tokens'], 1656)
+        self.assertEqual(prompt['values']['prompt_percent_of_capacity'], 2.53)
+        self.assertEqual(prompt['values']['spare_after_reply_reserve_tokens'], 31111)
+        self.assertEqual(prompt['timestamp_utc'], '2026-11-09T20:12:48+00:00')
+        self.assertIn('before generation', prompt['meaning'])
+
+    def test_errors_deduplicate_shared_diagnostics(self):
+        server, model = io.BytesIO(), io.BytesIO()
+        route(io.BytesIO(b'0.01 W test: warning\n'), server, model)
+        self.chat.with_name('current-model.jsonl').write_bytes(model.getvalue())
+        self.chat.with_name('current-server.jsonl').write_bytes(server.getvalue())
+        result = self.reader.read({'topic': 'errors'})
+        self.assertEqual(len(result['records']), 1)
+        self.assertEqual(result['records'][0]['also_in'], ['model'])
+        self.assertEqual(len(result['coverage']), 4)
 
 
 class ToolTests(unittest.TestCase):
@@ -107,7 +146,7 @@ class ToolTests(unittest.TestCase):
         with patch.object(api, 'open', side_effect=[tool_stream(), final]) as requests, patch.object(api, 'count', return_value=200), patch('diagnostics.log'):
             result = api.reply([{'role': 'user', 'content': 'Check logs'}], 100, on_delta=lambda *x: visible.append(x))
         self.assertEqual(result, ('Warning at 17.', 'stop'))
-        self.assertEqual(reader.arguments, {'source': 'model', 'view': 'errors'})
+        self.assertEqual(reader.arguments, {'topic': 'errors'})
         body = requests.call_args_list[1].args[1]
         self.assertEqual(body['max_tokens'], 80)
         self.assertEqual(body['messages'][-1]['role'], 'tool')
@@ -173,3 +212,29 @@ class ToolTests(unittest.TestCase):
             api.worker.join()
         self.assertEqual(conversation.history, [{'role': 'user', 'content': 'Check logs'},
                                                {'role': 'assistant', 'content': 'Checked.'}])
+
+    def test_two_lookups_have_a_counted_final_answer_instruction(self):
+        from unittest.mock import Mock
+        reader = Mock()
+        reader.read.return_value = {'records': []}
+        api = API('http://127.0.0.1:1', reader, 8192)
+        final = stream([delta({'content': 'Here are the findings.'}, 'stop')])
+        with patch.object(api, 'open', side_effect=[tool_stream(), tool_stream(), final]) as requests, patch.object(api, 'count', return_value=200) as count, patch('diagnostics.log'):
+            self.assertEqual(api.reply([], 100), ('Here are the findings.', 'stop'))
+        body = requests.call_args.args[1]
+        self.assertEqual(body['messages'][0]['role'], 'system')
+        self.assertIn('lookup limit', body['messages'][0]['content'])
+        self.assertEqual(count.call_args.args[0], body['messages'])
+        self.assertEqual(body['max_tokens'], 60)
+
+    def test_unparsed_tool_syntax_cannot_be_delivered_as_final_answer(self):
+        from unittest.mock import Mock
+        reader = Mock()
+        reader.read.return_value = {'records': []}
+        api = API('http://127.0.0.1:1', reader, 8192)
+        final = stream([delta({'content': '<tool_call>wrong</tool_call>'}, 'stop')])
+        visible = []
+        with patch.object(api, 'open', side_effect=[tool_stream(), tool_stream(), final]), patch.object(api, 'count', return_value=200), patch('diagnostics.log'):
+            with self.assertRaisesRegex(RuntimeError, 'no final answer was accepted'):
+                api.reply([], 100, on_delta=lambda *x: visible.append(x))
+        self.assertFalse(any('<tool_call>' in text for _, text in visible))
