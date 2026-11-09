@@ -1,0 +1,5 @@
+Possible architecture
+Date: 2026-11-09
+Status: idea only — not approved or implemented
+
+Discussion notes only. Nothing in this document authorizes implementation.
