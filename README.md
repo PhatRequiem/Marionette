@@ -12,7 +12,9 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B BF16 on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+
+Q4 is selected for faster infrastructure testing; BF16 is retained locally in `data/models/archive/`. See [Q4 return verification](docs/experiments/q4-return.md).
 
 The recoverable Git checkpoint is **`baseline-v2` (2026-11-09)**; recovery steps are in [the baseline guide](docs/baseline.md).
 
@@ -70,7 +72,7 @@ Keep inactive material separate from current files:
 
 | Folder | Contents |
 |---|---|
-| `data/models/archive/` | Unused model weights, including the previous Q4_K_M model |
+| `data/models/archive/` | Unused model weights, including the full-precision BF16 model |
 | `data/conversations/archive/` | Completed sessions moved out of the current log listing |
 | `docs/archive/` | Retired guides; current guides remain directly under `docs/` |
 | `visual design/archive/` | Superseded visual references |
