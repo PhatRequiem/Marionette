@@ -24,7 +24,8 @@ class ViewTests(unittest.TestCase):
                       'message_id': '789'}
             result = self.render(json.dumps(record) + '\n', 'discord')
             label = 'incoming sender_id' if role == 'assistant' else 'sender_id'
-            self.assertIn(COLORS['ids'] + f'  {label}: "123"', result)
+            self.assertIn(COLORS['data'] + f'  {label}: ', result)
+            self.assertIn(COLORS['ids'] + '"123"', result)
             if role == 'assistant':
                 self.assertIn(COLORS['answer_heading'] + 'ASSISTANT · Discord', result)
             self.assertIn(COLORS[kind] + 'first\nsecond\\x1b[31m', result)
@@ -41,7 +42,9 @@ class ViewTests(unittest.TestCase):
         text = '2026-11-09T01:00:00-05:00 Discord chunk failed. ' + json.dumps(fields) + '\n'
         result = self.render(text, 'discord')
         self.assertIn(COLORS['error'] + 'Discord chunk failed.', result)
-        self.assertIn(COLORS['timing'] + '  send_ms: 12.34', result)
+        self.assertIn(COLORS['data'] + '  send_ms: ', result)
+        self.assertIn(COLORS['timing'] + '12.34 ms', result)
+        self.assertIn(COLORS['success'] + '1', result)
         self.assertIn(COLORS['muted'] + '\n2026-11-09', result)
         plain = self.render(text, 'discord', False)
         for key, value in fields.items():

@@ -61,6 +61,8 @@ The live windows use `log_view.py` and the shared palette in `style.py`:
 | Warnings, disconnects, retries | Orange |
 | Errors | Bright red |
 
+Diagnostic field labels are white; their values carry the colors above. IDs, delivery progress, timings, and other details are separated into spaced groups in the Discord view. Session start/end and history-clear headings are cyan. Delivery starts are orange, confirmed parts turquoise, and failed parts red; confirmed earlier parts stay turquoise even after a later failure. Rollover starts are orange, completion turquoise, and failure red, with spacing around those events. Timing values show milliseconds where recorded. These are presentation changes only.
+
 Diagnostic colors follow recognizable fields and client records; unknown rows remain white. Message words such as “error” inside a normal reply do not change its color. Source control codes stay visible as escaped text. This is a display layer: saved server/model files retain their complete reversible format and shared event numbers. Main chat keeps its normal terminal transcript, including its color codes. No extra files or windows are created.
 
 To read an existing saved file with the same presentation, run from the project directory (replace `PATH_TO_LOG` with its path):

@@ -243,6 +243,7 @@ class Conversation:
         try:
             answer, finish = self.turn(message, display=True)
             if message.strip() == '/clear':
+                color('meta')
                 print(answer)
             if finish == 'length':
                 color('warning')
@@ -317,7 +318,9 @@ def terminal(conversation, *, external=False):
         print()
         if command == '/clear':
             conversation.turn('/clear')
+            color('meta')
             print('Chat history cleared.')
+            color('data')
             continue
         if message.startswith('/'):
             print('Available commands: /clear and /exit.')
@@ -343,8 +346,8 @@ def chat(api, capacity):
     conversation = Conversation(api, capacity)
     log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
-    print('Ready. Context limit: ' + paint(str(capacity), 'tokens', enabled())
-          + '; thinking + answer allowance: ' + paint(str(conversation.reserve), 'tokens', enabled())
+    print(paint('Ready.', 'meta', enabled()) + paint(' Context limit: ', 'data', enabled()) + paint(str(capacity), 'tokens', enabled())
+          + paint('; thinking + answer allowance: ', 'data', enabled()) + paint(str(conversation.reserve), 'tokens', enabled())
           + ' tokens. /clear starts fresh; /exit quits.')
     from contextlib import nullcontext
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
@@ -383,8 +386,9 @@ def run(command):
     reader.start()
     log(f'Local server started: pid={child.pid}.')
     try:
-        color('data')
+        color('meta')
         print('Loading model...', flush=True)
+        color('data')
         deadline = time.monotonic() + 180
         while not ready.wait(.1):
             status = child.poll()
@@ -429,6 +433,7 @@ if __name__ == '__main__':
     try:
         status = run(sys.argv[1:])
     except KeyboardInterrupt:
+        color('meta')
         print('\nExiting...')
         status = 0
     except (OSError, ValueError, RuntimeError, http.client.HTTPException) as error:
