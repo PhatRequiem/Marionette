@@ -102,7 +102,7 @@ class ClientTests(unittest.TestCase):
                 with output_path.open('w') as output:
                     process = subprocess.Popen(
                         [sys.executable, str(ROOT / 'src/marionette/session.py'),
-                         sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')],
+                         sys.executable, str(ROOT / 'tests/core/fake_server.py')],
                         stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
                         text=True, cwd=directory)
                     try:

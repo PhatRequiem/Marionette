@@ -17,7 +17,7 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 Application code lives in `src/marionette/`: `session.py` owns chat and the local server, and `log_router.py` formats and routes diagnostics. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
 
-`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/native-linux/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
+`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/core/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
 
 ## Operation
 
@@ -63,7 +63,7 @@ Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co
 
 ## Verification
 
-Run `python -m unittest discover -s tests/native-linux -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. See the [current baseline](baseline.md) for both test suites and verification boundaries.
+Run `python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. See the [current baseline](baseline.md) for both test suites and verification boundaries.
 
 The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 

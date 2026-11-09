@@ -26,6 +26,6 @@ The optional [Discord transport](discord.md) attaches to the running conversatio
 
 Each chat session saves `-chat.txt`, `-server.txt`, and `-model.txt`; each optional Discord connection also saves its own `-discord.txt`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
-Run `python -m unittest discover -s tests/native-linux -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
+Run `python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
 Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](experiments/idle-rollover.md). The current BF16 weights passed [loading and generation verification](experiments/bf16-switch.md); those earlier rollover timings have not been remeasured for BF16.

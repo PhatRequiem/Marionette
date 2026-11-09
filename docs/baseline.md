@@ -15,7 +15,7 @@ Reviewed November 9, 2026. This is the current supported base; the [original dir
 Run from the checkout:
 
 ```bash
-python -m unittest discover -s tests/native-linux -v
+python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
 bash -n scripts/native-linux/*.sh
 ```

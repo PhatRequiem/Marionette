@@ -81,7 +81,7 @@ class LauncherTests(unittest.TestCase):
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
         runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
         runtime.parent.mkdir(parents=True)
-        runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/native-linux/fake_server.py').read_text())
+        runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/core/fake_server.py').read_text())
         runtime.chmod(0o755)
         model = self.root / 'data/models/test.gguf'
         model.parent.mkdir(parents=True)

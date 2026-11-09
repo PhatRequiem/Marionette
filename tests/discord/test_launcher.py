@@ -8,7 +8,7 @@ import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('launcher_fixtures', ROOT / 'tests/native-linux/test_setup.py')
+spec = importlib.util.spec_from_file_location('launcher_fixtures', ROOT / 'tests/core/test_setup.py')
 fixtures = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixtures)
 

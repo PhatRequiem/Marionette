@@ -32,7 +32,7 @@ Start with these files, in order:
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
 | [setup-discord.sh](scripts/native-linux/setup-discord.sh) | Install pinned Discord dependencies and create the local credential template if missing |
-| [tests/native-linux](tests/native-linux) | Core regression checks using synthetic data; no personal conversations or model downloads |
+| [tests/core](tests/core) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
 In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `terminal()` handles input and `chat()` connects optional transports, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
@@ -53,6 +53,6 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
-- `tests/native-linux/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
+- `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
 See [native Linux setup and operation](docs/setup.md) and [licenses](docs/licenses.md).

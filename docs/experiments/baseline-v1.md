@@ -38,7 +38,7 @@ Runtime and model paths come from one manifest. Download checksums are checked d
 From the checkout:
 
 ```bash
-python -m unittest discover -s tests/native-linux -v
+python -m unittest discover -s tests/core -v
 bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh
 python scripts/native-linux/setup.py
 ```
