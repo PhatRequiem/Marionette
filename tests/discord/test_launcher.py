@@ -1,8 +1,10 @@
-"""Exercise Discord launch/log plumbing with synthetic HTTP and no Discord login."""
+"""Attach/detach Discord to a synthetic running terminal session; no Discord login."""
 import importlib.util
 from pathlib import Path
 import shutil
+import subprocess
 import sys
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -12,7 +14,7 @@ spec.loader.exec_module(fixtures)
 
 
 class DiscordLauncherTests(unittest.TestCase):
-    def test_foreground_launch_routes_reasoning_locally_and_releases_lock(self):
+    def test_attach_detach_reuses_session_and_fourth_terminal(self):
         fixture = fixtures.LauncherTests()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
@@ -23,9 +25,9 @@ class DiscordLauncherTests(unittest.TestCase):
         config.write_text('DISCORD_ALLOWED_USER_ID=123\nDISCORD_BOT_TOKEN=synthetic-token\n')
         config.chmod(0o600)
         source = root / 'src/marionette'
+        shutil.copy2(ROOT / 'scripts/native-linux/discord.sh', root / 'scripts/native-linux/discord.sh')
         shutil.copy2(ROOT / 'src/marionette/discord_bot.py', source / 'adapter.py')
-        (source / 'discord_bot.py').write_text('''import asyncio
-import contextlib
+        (source / 'discord_bot.py').write_text('''import contextlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 import adapter
@@ -40,10 +42,8 @@ async def synthetic_start(self, token):
     channel.send = AsyncMock()
     channel.typing = typing
     await self.on_message(SimpleNamespace(id=1, author=SimpleNamespace(id=123, bot=False),
-        guild=None, channel=channel, content='Synthetic hello', attachments=[], stickers=[]))
+        guild=None, channel=channel, content='Synthetic Discord hello', attachments=[], stickers=[]))
     assert channel.send.call_args.args == ('Synthetic reply.',)
-    if self.pending:
-        await asyncio.to_thread(self.pending.result)
 
 adapter.DMChat.start = synthetic_start
 raise SystemExit(adapter.main())
@@ -51,18 +51,44 @@ raise SystemExit(adapter.main())
         runtime = root / 'runtime/llama.cpp/test/bin/completion'
         runtime.write_text(runtime.read_text().replace("{'content': 'Synthetic reply.'}",
             "{'reasoning_content': 'PRIVATE_THOUGHT', 'content': 'Synthetic reply.'}"))
-        fixture.env['MARIONETTE_MODE'] = 'discord'
-        # A second run also proves normal shutdown releases the singleton lock.
-        for _ in range(2):
-            result = fixture.run_chat()
-            self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertFalse((root / 'viewer-calls.txt').exists())
-        self.assertEqual(len(list(fixture.logs.iterdir())), 6)
-        for chat in fixture.logs.glob('*-chat.txt'):
-            self.assertIn('discord_', chat.name)
-            self.assertIn('Synthetic reply.', chat.read_text())
-            self.assertNotIn('PRIVATE_THOUGHT', chat.read_text())
-            model = chat.with_name(chat.name.replace('-chat.txt', '-model.txt')).read_text()
-            self.assertIn('PRIVATE_THOUGHT', model)
-            self.assertIn('Discord answer delivered', model)
-            self.assertIn('Exit status: 0', model)
+        address = root / 'data/session/chat.sock'
+        address.parent.mkdir(mode=0o700)
+        env = fixture.env | {'MARIONETTE_SESSION_SOCKET': str(address)}
+        output_path = root / 'terminal.txt'
+        with output_path.open('w') as output:
+            main = subprocess.Popen([sys.executable, str(source / 'session.py'), str(runtime)],
+                stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT, env=env, text=True)
+            try:
+                deadline = time.monotonic() + 10
+                while not address.exists():
+                    self.assertIsNone(main.poll(), output_path.read_text())
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(.02)
+                self.assertEqual(address.stat().st_mode & 0o777, 0o600)
+                children = Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text()
+                # Fake desktop launcher records that the optional connection opens its own window.
+                subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')], env=env,
+                               capture_output=True, timeout=10)
+                self.assertIn('Discord connection', (root / 'viewer-calls.txt').read_text())
+                for _ in range(2):
+                    result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh'), '--run'],
+                        env=env, capture_output=True, text=True, timeout=15)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIsNone(main.poll())
+                    self.assertEqual(Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text(), children)
+                logs = list(fixture.logs.glob('*-discord.txt'))
+                self.assertEqual(len(logs), 2)
+                for log in logs:
+                    self.assertIn('Synthetic reply.', log.read_text())
+                    self.assertNotIn('PRIVATE_THOUGHT', log.read_text())
+                main.communicate('terminal still works\n/exit\n', timeout=10)
+                self.assertEqual(main.returncode, 0)
+                self.assertIn('PRIVATE_THOUGHT', output_path.read_text())
+                self.assertFalse(address.exists())
+                result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')],
+                                        env=env, capture_output=True, text=True, timeout=10)
+                self.assertIn('Launch her', result.stderr)
+            finally:
+                if main.poll() is None:
+                    main.terminate()
+                    main.communicate(timeout=10)

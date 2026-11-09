@@ -1,19 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-MODE="${MARIONETTE_MODE:-terminal}"
-PYTHON=python
-ENTRY=session.py
-case "$MODE" in
-    terminal) ;;
-    discord)
-        PYTHON="$ROOT/runtime/discord/bin/python"
-        ENTRY=discord_bot.py
-        [[ -x "$PYTHON" ]] || { echo 'Run ./scripts/native-linux/setup-discord.sh first.' >&2; exit 1; }
-        "$PYTHON" "$ROOT/src/marionette/discord_bot.py" --check-config
-        ;;
-    *) echo 'Unknown chat mode.' >&2; exit 1 ;;
-esac
 command -v python >/dev/null || { echo 'Python 3.11+ is required; see the setup guide.' >&2; exit 1; }
 mapfile -t PATHS < <(python - "$ROOT" <<'PY'
 import json, sys
@@ -38,7 +25,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in session.py log_router.py "$ENTRY"; do
+for source in session.py log_router.py connection.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -52,8 +39,7 @@ for arg in "$@"; do
             exit 1 ;;
     esac
 done
-REQUIRED=(mktemp date mkdir bash flock)
-if [[ "$MODE" == terminal ]]; then REQUIRED+=(script xdg-terminal-exec tail); else REQUIRED+=(tee); fi
+REQUIRED=(mktemp date mkdir bash flock script xdg-terminal-exec tail)
 for tool in "${REQUIRED[@]}"; do
     command -v "$tool" >/dev/null || { echo "Missing required command: $tool" >&2; exit 1; }
 done
@@ -65,9 +51,7 @@ flock -n 9 || { echo 'A chat is already running. Stop it before starting another
 LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
-SESSION_TAG=""
-[[ "$MODE" == discord ]] && SESSION_TAG="discord_"
-CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_${SESSION_TAG}XXXXXX-chat.txt")"
+CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.txt")"
 SERVER_FILE="${CHAT_FILE%-chat.txt}-server.txt"
 MODEL_FILE="${CHAT_FILE%-chat.txt}-model.txt"
 (set -o noclobber; : > "$SERVER_FILE"; : > "$MODEL_FILE")
@@ -101,18 +85,16 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
     "$CLI" --version
-    if [[ "$MODE" == terminal ]]; then script --version; fi
+    script --version
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
 printf 'Conversation log: %s\nConnections and requests: %s\nModel processing: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
-if [[ "$MODE" == terminal ]]; then
-    printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
-else
-    printf 'Discord mode: Ctrl+C stops the bot and local server. DM /clear to start fresh.\n'
-fi
+printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
+mkdir -p "$ROOT/data/session"
+chmod 700 "$ROOT/data/session"
+export MARIONETTE_SESSION_SOCKET="$ROOT/data/session/chat.sock"
 
 # Each viewer reads its saved log; neither owns the diagnostic writer.
-if [[ "$MODE" == terminal ]]; then
 for view in server model; do
     case "$view" in
         server) title='Marionette — Connections and requests'; log_file="$SERVER_FILE" ;;
@@ -127,12 +109,6 @@ for view in server model; do
         fi
     ) &
 done
-fi
-
-if [[ "$MODE" == discord ]]; then
-    "$PYTHON" -u "$ROOT/src/marionette/$ENTRY" "${COMMAND[@]}" 2>&3 3>&- | tee -a "$CHAT_FILE"
-    exit "${PIPESTATUS[0]}"
-fi
 
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.

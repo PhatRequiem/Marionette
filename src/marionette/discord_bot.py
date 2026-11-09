@@ -2,7 +2,6 @@
 """Optional, owner-only Discord DM transport for the local chat engine."""
 import asyncio
 import datetime
-import http.client
 import json
 from pathlib import Path
 import signal
@@ -10,9 +9,14 @@ import sys
 
 import discord
 
-import session
+from connection import request
 
 ROOT = Path(__file__).resolve().parents[2]
+ADDRESS = ROOT / 'data/session/chat.sock'
+
+
+def log(message):
+    print(f'{datetime.datetime.now().astimezone().isoformat()} {message}', flush=True)
 
 
 def read_config(path):
@@ -59,41 +63,22 @@ def transcript(role, content, message_id):
 
 
 class DMChat(discord.Client):
-    def __init__(self, api, capacity, owner):
+    def __init__(self, address, owner):
         intents = discord.Intents.none()
         intents.dm_messages = True
         super().__init__(intents=intents, allowed_mentions=discord.AllowedMentions.none(),
                          max_messages=None)
-        self.api, self.capacity, self.owner = api, capacity, owner
-        self.reserve = min(32768, capacity // 2)
-        self.history = []
-        self.pending = None
+        self.address, self.owner = address, owner
         self.turn_lock = asyncio.Lock()
         self.last_message_id = 0
 
     async def on_ready(self):
-        session.log('Discord connected; accepting only configured owner DMs.')
-        print('Discord ready. Send the bot a DM. Ctrl+C stops this session.', flush=True)
+        log('Discord connected; accepting only configured owner DMs.')
+        print('Discord ready. Send the bot a DM. Ctrl+C disconnects Discord; main chat keeps running.', flush=True)
 
     async def on_error(self, event, *args, **kwargs):
         # Do not dump Gateway payloads or credentials through generic tracebacks.
-        session.log(f'Discord event failed: {event}; {type(sys.exception()).__name__}.')
-
-    def generate(self, text):
-        if self.pending is not None:
-            self.history = self.pending.result()
-            self.pending = None
-        candidate, removed, tokens = session.fit_history(
-            self.history, text, self.api.count, self.capacity, self.reserve)
-        session.log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
-                    f'{self.capacity}; removed_exchanges={removed}.')
-        if removed:
-            session.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
-        answer, finish = self.api.reply(candidate, self.reserve, display=False)
-        session.log(f'Reply completed: finish_reason={finish}.')
-        if not answer.strip():
-            raise RuntimeError('Model produced no final answer.')
-        return candidate, answer, finish
+        log(f'Discord event failed: {event}; {type(sys.exception()).__name__}.')
 
     async def on_message(self, message):
         # Filter before reading/logging content or touching conversation history.
@@ -111,35 +96,23 @@ class DMChat(discord.Client):
             if not text:
                 return
             transcript('user', text, message.id)
-            if text == '/clear':
-                if self.pending is not None:
-                    await asyncio.to_thread(self.pending.result)
-                    self.pending = None
-                self.history = []
-                session.log('Chat history cleared.')
-                transcript('status', 'Chat history cleared.', message.id)
-                await message.channel.send('Chat history cleared.')
-                return
             try:
                 async with message.channel.typing():
-                    candidate, answer, finish = await asyncio.to_thread(self.generate, text)
+                    answer, finish = await request(self.address, text)
                     transcript('assistant', answer, message.id)
                     for part in chunks(answer):
                         await message.channel.send(part, suppress_embeds=True,
                                                    allowed_mentions=discord.AllowedMentions.none())
-                # Retain only final answers, and only after successful delivery.
-                self.history = candidate + [{'role': 'assistant', 'content': answer}]
-                self.pending = session.Preparation(self.api, self.history, self.capacity, self.reserve)
-                session.log(f'Discord answer delivered: message_id={message.id}.')
+                log(f'Discord answer delivered: message_id={message.id}.')
                 if finish == 'length':
                     await message.channel.send('[Thinking and answer reached their shared token allowance.]')
-            except (OSError, ValueError, RuntimeError, http.client.HTTPException, discord.HTTPException) as error:
-                session.log(f'Discord turn failed: message_id={message.id}; {type(error).__name__}. '
+            except (OSError, ValueError, RuntimeError, discord.HTTPException) as error:
+                log(f'Discord turn failed: message_id={message.id}; {type(error).__name__}. '
                             'Delivery may be partial; no automatic resend.')
                 try:
                     await message.channel.send('This turn could not finish. Please try again; details are in the local logs.')
                 except discord.HTTPException:
-                    session.log('Discord error notice could not be delivered.')
+                    log('Discord error notice could not be delivered.')
 
 
 def main():
@@ -147,18 +120,29 @@ def main():
     if sys.argv[1:] == ['--check-config']:
         return 0
 
-    def chat(api, capacity):
-        session.log(f'Context policy: capacity={capacity}, reply_budget={min(32768, capacity // 2)}, '
-                    f'next_message_allowance={min(2048, capacity // 8)}; Discord owner-only DMs.')
-        async def serve():
-            try:
-                async with DMChat(api, capacity, owner) as bot:
-                    await bot.start(token)
-            finally:
-                api.closing.set()
-        asyncio.run(serve())
+    identity = ADDRESS.stat().st_ino
 
-    return session.run(sys.argv[1:], chat_handler=chat)
+    async def serve():
+        async with DMChat(ADDRESS, owner) as bot:
+            async def watch_session():
+                while True:
+                    await asyncio.sleep(1)
+                    try:
+                        alive = ADDRESS.stat().st_ino == identity
+                    except FileNotFoundError:
+                        alive = False
+                    if not alive:
+                        log('Main chat ended. Disconnecting Discord.')
+                        await bot.close()
+                        return
+            watcher = asyncio.create_task(watch_session())
+            try:
+                await bot.start(token)
+            finally:
+                watcher.cancel()
+                await asyncio.gather(watcher, return_exceptions=True)
+    asyncio.run(serve())
+    return 0
 
 
 if __name__ == '__main__':

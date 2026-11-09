@@ -22,7 +22,7 @@ The larger generation allowance used for thinking can trigger rollover earlier t
 
 ## Logs and checks
 
-The optional [Discord transport](discord.md) reuses this policy and server lifetime, with reasoning kept local and final answers delivered by DM.
+The optional [Discord transport](discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
 
 Each session saves only `-chat.txt`, `-server.txt`, and `-model.txt`. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 

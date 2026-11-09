@@ -13,7 +13,7 @@ python scripts/native-linux/setup.py
 
 Setup downloads and verifies the pinned runtime and model. Subsequent chat runs are offline. See the short [terminal chat guide](docs/native-linux/chat.md) for everyday launch and exit commands.
 
-Optional phone access: [Discord DM setup](docs/native-linux/discord.md). It uses a separate foreground launcher, allows only your configured user ID, sends only final answers, and keeps reasoning in local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/native-linux/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It allows only your configured user ID, sends only final answers, and keeps reasoning in local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
@@ -29,13 +29,14 @@ Start with these files, in order:
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
 | [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
+| [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
 | [tests/native-linux](tests/native-linux) | Synthetic regression checks; no personal conversations or model downloads |
 
-In `session.py`, `run()` owns the server, `chat()` handles turns, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/native-linux/setup.md).
+In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `chat()` handles terminal input, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/native-linux/setup.md).
 
 ## Folder map
 
@@ -45,7 +46,8 @@ In `session.py`, `run()` owns the server, `chat()` handles turns, `fit_history()
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts and server/model diagnostic logs; ignored by Git.
-- `data/discord/`: private bot credentials and dependency setup lock; ignored by Git.
+- `data/session/`: private socket for optional connections to the running chat; ignored by Git.
+- `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: synthetic owner filtering, delivery, and reasoning-isolation checks.
 - `data/models/`: local model weights; ignored by Git.

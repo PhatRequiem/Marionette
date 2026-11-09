@@ -199,13 +199,46 @@ class Preparation:
         return self.history
 
 
-def chat(api, capacity):
-    reserve = min(32768, capacity // 2)
-    history = []
-    pending = None
-    log(f'Context policy: capacity={capacity}, reply_budget={reserve}, '
-        f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
-    print(f'Ready. Context limit: {capacity}; thinking + answer allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
+class Conversation:
+    """One history and one generation at a time, shared by every input."""
+    def __init__(self, api, capacity):
+        self.api, self.capacity = api, capacity
+        self.reserve = min(32768, capacity // 2)
+        self.history = []
+        self.pending = None
+        self.lock = threading.Lock()
+
+    def turn(self, message, *, display=False):
+        with self.lock:
+            if self.api.closing.is_set():
+                raise RuntimeError('Session is closing.')
+            if self.pending is not None:
+                self.history = self.pending.result()
+                self.pending = None
+            if message.strip() == '/clear':
+                self.history = []
+                log('Chat history cleared.')
+                return 'Chat history cleared.', 'stop'
+            candidate, removed, tokens = fit_history(
+                self.history, message, self.api.count, self.capacity, self.reserve)
+            log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
+                f'{self.capacity}; removed_exchanges={removed}.')
+            if removed:
+                log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
+            # Preserve the terminal streaming interface; external inputs stay quiet.
+            if display:
+                answer, finish = self.api.reply(candidate, self.reserve)
+            else:
+                answer, finish = self.api.reply(candidate, self.reserve, display=False)
+            if not answer.strip():
+                raise RuntimeError('Model produced no final answer.')
+            log(f'Reply completed: finish_reason={finish}.')
+            self.history = candidate + [{'role': 'assistant', 'content': answer}]
+            self.pending = Preparation(self.api, self.history, self.capacity, self.reserve)
+            return answer, finish
+
+
+def terminal(conversation):
     while True:
         try:
             print()
@@ -223,30 +256,19 @@ def chat(api, capacity):
         if command == '/exit':
             return
         print()
-        if pending is not None:
-            history = pending.result()
-            pending = None
         if command == '/clear':
-            history = []
-            log('Chat history cleared.')
+            conversation.turn('/clear')
             print('Chat history cleared.')
             continue
         if message.startswith('/'):
             print('Available commands: /clear and /exit.')
             continue
         try:
-            candidate, removed, tokens = fit_history(history, message, api.count, capacity, reserve)
-            log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < {capacity}; removed_exchanges={removed}.')
-            if removed:
-                log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
             try:
-                answer, finish = api.reply(candidate, reserve)
+                answer, finish = conversation.turn(message, display=True)
             finally:
                 color('data')
             print()
-            log(f'Reply completed: finish_reason={finish}.')
-            history = candidate + [{'role': 'assistant', 'content': answer}]
-            pending = Preparation(api, history, capacity, reserve)
             if finish == 'length':
                 print('[Thinking and answer reached their shared token allowance.]')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
@@ -254,7 +276,23 @@ def chat(api, capacity):
             print(f'\n{error}\nConversation history is unchanged; you can retry.')
 
 
-def run(command, chat_handler=chat):
+def chat(api, capacity):
+    conversation = Conversation(api, capacity)
+    log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
+        f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
+    print(f'Ready. Context limit: {capacity}; thinking + answer allowance: {conversation.reserve} tokens. /clear starts fresh; /exit quits.')
+    from contextlib import nullcontext
+    address = os.environ.get('MARIONETTE_SESSION_SOCKET')
+    if address:
+        from connection import LocalConnection
+        connection = LocalConnection(address, conversation.turn, log)
+    else:
+        connection = nullcontext()
+    with connection:
+        terminal(conversation)
+
+
+def run(command):
     facts = {}
     api = None
     ready = threading.Event()
@@ -296,7 +334,7 @@ def run(command, chat_handler=chat):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        chat_handler(api, capacity)
+        chat(api, capacity)
         return 0
     finally:
         if api is not None:

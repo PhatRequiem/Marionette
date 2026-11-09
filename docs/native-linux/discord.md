@@ -28,32 +28,39 @@ nano data/discord/.env
 
 ## Start and stop
 
-Stop any existing terminal chat first. Then:
+Launch her normally. This opens terminal chat and its two existing log windows:
 
 ```bash
 cd /home/phatkitty/Projects/Marionette
-./scripts/native-linux/discord.sh
+./scripts/native-linux/chat.sh
 ```
 
-Wait for **Discord ready**, then DM the bot from your allowed account. Your computer must stay awake and connected. This is a foreground process, not an installed background service. **Ctrl+C** in its terminal stops the bot and its owned local model server. A lock prevents two updated launchers from running simultaneously.
+After she is ready, run this from another shell or your desktop command runner:
 
-- `/clear` in the DM clears the model's conversation history, not saved local logs or Discord messages.
+```bash
+/home/phatkitty/Projects/Marionette/scripts/native-linux/discord.sh
+```
+
+It opens a fourth terminal, **Marionette — Discord connection**, and attaches to the running conversation. Wait for **Discord ready**, then DM the bot from your allowed account. The shell used to issue the command can be closed afterward. Your computer must stay awake and connected.
+
+**Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
+
+- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating; terminal replies stay in the terminal, and DM replies go to Discord only.
+- `/clear` from either input clears the shared model history, not saved logs or Discord messages.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
-- Messages are handled sequentially. New DMs wait while the current reply is being generated or sent.
-- Replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
-- Reconnection keeps in-memory history while the process remains alive; restarting starts fresh. Messages missed while the bot is offline are not fetched or replayed. In-process duplicate message events are ignored.
-- A failed generation does not commit a new turn. A failed send may leave part of an answer on Discord; it is logged and is not automatically resent. Only fully delivered answers are committed to history.
+- Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
+- Messages missed while the bot is offline are not fetched or replayed. In-process duplicate message events are ignored.
+- A failed generation does not commit a new turn. A completed generation stays in shared history even if Discord disconnects or delivery fails. Delivery can be partial; no automatic resend occurs. Check the Discord log before retrying.
 
-The model uses the same sampling, context limits, token counting, and rollover preparation as terminal chat. See [context policy](context.md).
+The main chat owns the model and conversation. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no separate history or model-launch code. See [context policy](context.md).
 
 ## Local logs and verification
 
-Three dated files with `discord_` in their names are saved under `data/conversations/`. Discord mode does not open separate desktop windows:
+The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including thinking and accepted Discord turns. Discord turns are recorded in these diagnostics without interrupting the terminal prompt.
 
-- `-chat.txt`: timestamped JSON records of accepted user text, final answers, and clear notices, plus launch/status text. An answer record describes generation; check diagnostics to confirm delivery.
-- `-server.txt` and `-model.txt`: the same numbered, readable diagnostics as terminal mode, including locally recorded reasoning. Unknown/shared events appear in both.
+Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its own terminal displays connection status, timestamped user/final-answer records, and delivery outcomes. It contains no model thinking. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 
-Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed. No credentials are passed to the model or placed in the server launch command.
+Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 
 Run the core and optional transport checks separately:
 
