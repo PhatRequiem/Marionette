@@ -25,10 +25,10 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-# The post-load report is delivered with the first interactive message.
+# The client owns server lifetime and structured messages.
 for arg in "$@"; do
     case "${arg%%=*}" in
-        --server-base|-p|--prompt|-f|--file|-sys|--system-prompt|-sysf|--system-prompt-file|--no-conversation|-no-cnv|--no-jinja|--log-disable|--log-file|--prompt-cache|--prompt-cache-all|--prompt-cache-ro)
+        --host|--port|--parallel|-np|--api-key|--api-key-file|--tools|--agent|-ag|--path|--chat-template|--chat-template-file|--server-base|-p|--prompt|-f|--file|-sys|--system-prompt|-sysf|--system-prompt-file|--no-conversation|-no-cnv|--no-jinja|--log-disable|--log-file|--prompt-cache|--prompt-cache-all|--prompt-cache-ro)
             echo "This launcher requires a fresh interactive session; unsupported override: ${arg%%=*}" >&2
             exit 1 ;;
     esac
@@ -67,7 +67,8 @@ trap finish EXIT
 COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan0}"
     --gpu-layers all --ctx-size 8192 --jinja --reasoning off
     "$@"
-    --simple-io --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)
+    --host 127.0.0.1 --port 0 --parallel 1 --no-webui --no-context-shift
+    --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)
 {
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
     printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"

@@ -76,17 +76,7 @@ class LauncherTests(unittest.TestCase):
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
         runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
         runtime.parent.mkdir(parents=True)
-        runtime.write_text('''#!/bin/bash
-if [[ "$1" == --version ]]; then echo 'synthetic runtime'; exit; fi
-printf 'synthetic diagnostic\\n' >&2
-printf '0.00.001.000 I srv  update_slots: all slots are idle\\n' >&2
-printf 'Synthetic reply.\\n'
-for arg in "$@"; do
-    [[ "$arg" == --test-fail ]] && exit 7
-    printf '%s\\n' "$arg"
-done
-exit 0
-''')
+        runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/native-linux/fake_server.py').read_text())
         runtime.chmod(0o755)
         model = self.root / 'data/models/test.gguf'
         model.parent.mkdir(parents=True)
@@ -101,7 +91,7 @@ exit 0
         self.launcher = scripts / 'chat.sh'
 
     def run_chat(self, *args):
-        return subprocess.run(['bash', str(self.launcher), *args], input='', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
+        return subprocess.run(['bash', str(self.launcher), *args], input='hello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
 
     def test_private_pairs_separation_quoting_and_viewer_failure(self):
         marker = self.root / 'must-not-exist'
@@ -118,12 +108,12 @@ exit 0
         for chat in chats:
             debug = chat.with_name(chat.name.replace('-chat.txt', '-model.txt'))
             self.assertIn('Synthetic reply.', chat.read_text())
-            self.assertIn(payload, chat.read_text())
+            self.assertIn(payload, debug.read_text())
             self.assertNotIn('synthetic diagnostic', chat.read_text())
             self.assertIn('synthetic diagnostic', debug.read_text())
             self.assertIn('Exit status: 0', debug.read_text())
             snapshot = json.loads(chat.with_name(chat.name.replace('-chat.txt', '-setup.json')).read_text())
-            self.assertEqual(snapshot['delivery'], 'pending_first_message')
+            self.assertEqual(snapshot['delivery'], 'supplied_with_first_message')
             self.assertIn('unverified', snapshot['context'])
             self.assertIn('Debug window could not open', result.stderr)
             server = chat.with_name(chat.name.replace('-chat.txt', '-server.txt'))
@@ -138,9 +128,9 @@ exit 0
 
     def test_child_failure_is_recorded_and_returned(self):
         result = self.run_chat('--test-fail')
-        self.assertEqual(result.returncode, 7)
-        self.assertIn('Chat exited with status 7', result.stderr)
-        self.assertIn('Exit status: 7', next(self.logs.glob('*-model.txt')).read_text())
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Chat exited with status 1', result.stderr)
+        self.assertIn('status 7', next(self.logs.glob('*-model.txt')).read_text())
 
     def test_inspection_does_not_create_a_session(self):
         result = self.run_chat('--version')

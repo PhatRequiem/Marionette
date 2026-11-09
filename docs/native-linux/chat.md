@@ -16,9 +16,9 @@ Two log terminals open: **Connections and requests** and **Model processing**. I
 - **Exit:** type `/exit`, or press **Ctrl+D** at an empty chat prompt.
 - **Start fresh:** type `/clear`, or exit and launch again.
 
-The embedded server is local to this computer and stops when the chat process exits. Its temporary address appears in the connections-and-requests log and setup snapshot.
+The local server is local to this computer and stops when the chat process exits. Its temporary address appears in the connections-and-requests log and setup snapshot.
 
-After loading, she receives a generated report of the observed setup with your first message, and again with the first message after `/clear`. She still cannot open files or read logs herself.
+After loading, she receives a generated report of the observed setup with your first message, and keeps it through rollover and `/clear`. She still cannot open files or read logs herself.
 
 Each session saves four matching files in `data/conversations/`:
 
@@ -26,6 +26,10 @@ Each session saves four matching files in `data/conversations/`:
 - `…-server.txt`: connections and requests, shown in its own terminal.
 - `…-model.txt`: model processing, shown in its own terminal.
 - `…-setup.json`: generated setup facts and the context supplied to her.
+
+When context fills, the client announces a rollover and leaves out the oldest complete exchanges. The setup report remains; older messages stay in the saved transcript but are no longer visible to her. The default reply allowance is 512 tokens; a notice appears if a reply reaches it. If your new message cannot fit even without history, shorten it and try again.
+
+Only `/clear` and `/exit` are supported commands. Ctrl+C also exits. No file attachments, tools, summaries, or saved-memory loading are implemented.
 
 Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
 

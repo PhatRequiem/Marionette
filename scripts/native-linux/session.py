@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
-"""Supply a post-load setup snapshot to the first conversation turn."""
-import contextlib
+"""Minimal terminal chat: own one local server, retain system context, trim history."""
 import datetime
+import http.client
 import json
 import os
 from pathlib import Path
 import re
-import secrets
-import selectors
 import signal
 import subprocess
 import sys
+import threading
 import time
+import urllib.error
+import urllib.request
+
+LOG_LOCK = threading.Lock()
+
+
+def log(message):
+    with LOG_LOCK:
+        sys.stderr.buffer.write(('Client: ' + message + '\n').encode())
+        sys.stderr.buffer.flush()
 
 
 def observe(line, facts):
@@ -29,41 +38,24 @@ def observe(line, facts):
             facts[key] = {'value': match.group(1).strip(), 'evidence': line.strip()}
 
 
-def template(start, end):
-    # Only the first message can carry the coordinator's unpredictable envelope.
-    return """{% for message in messages %}{% if loop.first and message['role'] == 'user' and 'START' in message['content'] %}{% set parts = message['content'].split('END', 1) %}{% set prefix = parts[0].split('START', 1) %}{{ '<|im_start|>system\n' + prefix[1] + '<|im_end|>\n<|im_start|>user\n' + prefix[0] + parts[1] + '<|im_end|>\n' }}{% else %}{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n<think>\n\n</think>\n\n' }}{% endif %}""".replace('START', start).replace('END', end)
-
-
-def prepare_line(line, first, context, start, end):
-    """Preserve native commands; supply context again after /clear."""
-    if line.startswith(b'/clear'):
-        return line + b'\n', True, False
-    if not line.strip() or line.startswith((b'/exit', b'/regen', b'/read ', b'/glob ')):
-        return line + b'\n', first, False
-    if first:
-        return (start + context + end).encode() + line + b'\n', False, True
-    return line + b'\n', False, False
-
-
 def snapshot(command, facts, debug_path):
     now = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
     lines = [f'Local runtime setup report generated {now}.',
-             'This conversation runs in local llama-cli with an embedded loopback HTTP server, not a hosted chat API.']
+             'This conversation runs in a local terminal client connected to its own loopback llama-server process, not a hosted chat API.']
     for key, label in [('runtime_version', 'Runtime version'), ('model_name', 'Loaded model name'), ('device', 'Runtime-selected device'),
                        ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Context capacity limit (tokens, not current usage)'),
                        ('local_server', 'Local server address')]:
         lines.append(f'{label}: {facts.get(key, {}).get("value", "not reported; unverified")}.')
     lines += ['The context limit is the maximum capacity, not the number of tokens currently used. Current token usage is not measured by this startup report. Do not claim the context is full from its capacity; live usage requires runtime measurements.',
-              'Configured: offline local-model operation, text conversation, reasoning disabled by an empty closed thinking block.',
+              'Configured: offline local-model operation, text conversation, reasoning disabled.',
               'Capabilities: receive your messages and generate replies. No tools for browsing, executing commands, or opening files.',
-              'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. The user can explicitly attach text through CLI commands.',
+              'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. Older complete exchanges are removed from active context when needed; the setup report is kept. Saved conversations are not reloaded as memory.',
               f'Current model-processing log: {debug_path}.',
               f'Current connections-and-requests log: {str(debug_path).removesuffix("-model.txt")}-server.txt.',
               f'Current chat log: {str(debug_path).removesuffix("-model.txt")}-chat.txt.',
               'This is a startup snapshot, not continuous monitoring. Model-file checksums are verified by setup, not rechecked by this report.']
-    # CLI input does not interpret escaped newlines. Keep the envelope one line.
     context = ' '.join(lines)
-    data = {'schema_version': 1, 'generated_at': now, 'runtime_pid': None,
+    data = {'schema_version': 2, 'generated_at': now, 'runtime_pid': None,
             'runtime_command': command, 'observed': facts.copy(), 'context': context,
             'delivery': 'pending_first_message'}
     return data
@@ -78,112 +70,199 @@ def save(path, data):
     temporary.replace(path)
 
 
-def run(debug_path, command):
-    path = debug_path.with_name(debug_path.name.removesuffix('-model.txt') + '-setup.json')
-    nonce = secrets.token_hex(12)
-    start, end = f'[setup-{nonce}]', f'[/setup-{nonce}]'
-    command = command + ['--chat-template', template(start, end)]
+class API:
+    def __init__(self, address):
+        self.address = address
+        # Local traffic must not use an inherited HTTP proxy.
+        self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def open(self, path, body=None):
+        data = None if body is None else json.dumps(body).encode()
+        request = urllib.request.Request(self.address + path, data=data,
+                                         headers={'Content-Type': 'application/json'})
+        try:
+            return self.opener.open(request, timeout=120)
+        except urllib.error.HTTPError as error:
+            raise RuntimeError(f'HTTP {error.code}: {error.read().decode(errors="replace")}') from error
+
+    def json(self, path, body=None):
+        with self.open(path, body) as response:
+            result = json.load(response)
+        if 'error' in result:
+            raise RuntimeError(str(result['error']))
+        return result
+
+    @staticmethod
+    def body(messages):
+        return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': False}}
+
+    def count(self, messages):
+        prompt = self.json('/apply-template', self.body(messages))['prompt']
+        result = self.json('/tokenize', {'content': prompt, 'add_special': True, 'parse_special': True})
+        return len(result['tokens'])
+
+    def reply(self, messages, reserve):
+        body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
+                                      'stream_options': {'include_usage': True}}
+        pieces, finish = [], None
+        with self.open('/v1/chat/completions', body) as response:
+            for line in response:
+                if not line.startswith(b'data: '):
+                    continue
+                payload = line[6:].strip()
+                if payload == b'[DONE]':
+                    if finish is None:
+                        raise RuntimeError('Response ended without a completion status.')
+                    return ''.join(pieces), finish
+                event = json.loads(payload)
+                if 'error' in event:
+                    raise RuntimeError(str(event['error']))
+                for choice in event.get('choices', []):
+                    text = choice.get('delta', {}).get('content') or ''
+                    if text:
+                        pieces.append(text)
+                        print(text, end='', flush=True)
+                    finish = choice.get('finish_reason') or finish
+                if event.get('usage'):
+                    log('Runtime usage: ' + json.dumps(event['usage']))
+        raise RuntimeError('Response stream closed early; partial reply was not kept.')
+
+
+def fit_history(history, message, count, capacity, reserve):
+    """Return a fitted copy; never mutate history on oversized input or failure."""
+    candidate = history + [{'role': 'user', 'content': message}]
+    removed = 0
+    while True:
+        tokens = count(candidate)
+        # One spare token also keeps the prompt below the server's strict limit.
+        if tokens + reserve < capacity:
+            return candidate, removed, tokens
+        if len(candidate) <= 2:
+            raise ValueError('This message plus the setup report is too large. Shorten the message; history is unchanged.')
+        del candidate[1:3]  # oldest complete user/assistant exchange
+        removed += 1
+
+
+def chat(api, report, path, capacity):
+    reserve = min(512, capacity // 4)
+    system = {'role': 'system', 'content': report['context']}
+    history = [system]
+    if api.count(history + [{'role': 'user', 'content': ''}]) + reserve >= capacity:
+        raise RuntimeError('Context is too small for the setup report and reply allowance.')
+    log(f'Context policy: capacity={capacity}, reply_budget={reserve}, system report always retained.')
+    print(f'Ready. Context limit: {capacity}; reply allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
+    while True:
+        try:
+            print('> ', end='', flush=True)
+            message = input()
+        except EOFError:
+            return
+        if not message.strip():
+            continue
+        if message.strip() == '/exit':
+            return
+        if message.strip() == '/clear':
+            history = [system]
+            log('Chat history cleared; setup report retained.')
+            print('Chat history cleared; setup report retained.')
+            continue
+        if message.startswith('/'):
+            print('Available commands: /clear and /exit.')
+            continue
+        try:
+            candidate, removed, tokens = fit_history(history, message, api.count, capacity, reserve)
+            log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < {capacity}; removed_exchanges={removed}.')
+            if removed:
+                print(f'[Context rollover: leaving out {removed} oldest exchange(s); setup report retained.]')
+            answer, finish = api.reply(candidate, reserve)
+            print()
+            log(f'Reply completed: finish_reason={finish}.')
+            if report['delivery'] != 'supplied_with_first_message':
+                delivered = report | {'delivery': 'supplied_with_first_message'}
+                save(path, delivered)
+                report.update(delivered)
+            history = candidate + [{'role': 'assistant', 'content': answer}]
+            if finish == 'length':
+                print('[Reply reached its token allowance.]')
+        except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
+            log(f'Request failed: {error}')
+            print(f'\n{error}\nConversation history is unchanged; you can retry.')
+
+
+def run(model_path, command):
+    path = model_path.with_name(model_path.name.removesuffix('-model.txt') + '-setup.json')
     facts = {}
     for line in os.environ.get('MARIONETTE_RUNTIME_VERSION', '').splitlines():
         observe(line, facts)
-    report = None
-    pending = b''
-    first = True
-    started = time.monotonic()
-    with contextlib.nullcontext(sys.stderr.buffer) as debug:
-        child = subprocess.Popen(command, stdin=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-        os.set_blocking(child.stdin.fileno(), False)
-        outgoing = bytearray()
-        input_closed = False
-        delivery_pending = False
-        # The child shares our foreground process group and receives terminal signals.
-        previous = signal.signal(signal.SIGINT, lambda *_: None)
-        selector = selectors.DefaultSelector()
-        selector.register(child.stderr, selectors.EVENT_READ, 'diagnostics')
-        diagnostic_buffer = b''
-        try:
-            while selector.get_map():
-                if report is None and time.monotonic() - started > 180:
-                    raise RuntimeError('Model readiness was not reported within 180 seconds; no setup context delivered.')
-                for key, _ in selector.select(timeout=0.2):
-                    if key.data == 'write':
-                        try:
-                            count = os.write(key.fd, outgoing)
-                        except BlockingIOError:
-                            continue
-                        except BrokenPipeError:
-                            outgoing.clear()
-                            selector.unregister(key.fileobj)
-                            continue
-                        del outgoing[:count]
-                        if not outgoing:
-                            selector.unregister(key.fileobj)
-                            if delivery_pending:
-                                report['delivery'] = 'supplied_with_first_message'
-                                save(path, report)
-                                debug.write(b'Coordinator: setup context supplied with first message.\n')
-                                delivery_pending = False
-                            if input_closed:
-                                child.stdin.close()
-                        continue
-                    chunk = os.read(key.fd, 65536)
-                    if key.data == 'diagnostics':
-                        if not chunk:
-                            selector.unregister(key.fileobj)
-                            if report is None:
-                                print('Model did not reach chat readiness; see the debug log.', file=sys.stderr)
-                            continue
-                        debug.write(chunk)
-                        diagnostic_buffer += chunk
-                        while b'\n' in diagnostic_buffer:
-                            line, diagnostic_buffer = diagnostic_buffer.split(b'\n', 1)
-                            line = line.decode('utf-8', errors='replace')
-                            observe(line, facts)
-                            if report is None and re.search(r'update_slots: all slots are idle$', line):
-                                report = snapshot(command, facts, debug_path)
-                                report['runtime_pid'] = child.pid
-                                save(path, report)
-                                debug.write(f'Coordinator: setup snapshot ready: {path}\n'.encode())
-                                selector.register(sys.stdin, selectors.EVENT_READ, 'input')
-                    else:
-                        if not chunk:
-                            selector.unregister(key.fileobj)
-                            input_closed = True
-                            if not outgoing:
-                                child.stdin.close()
-                            continue
-                        pending += chunk
-                        while b'\n' in pending:
-                            line, pending = pending.split(b'\n', 1)
-                            packet, first, delivered = prepare_line(line, first, report['context'], start, end)
-                            outgoing.extend(packet)
-                            delivery_pending |= delivered
-                        if outgoing and child.stdin.fileno() not in selector.get_map():
-                            selector.register(child.stdin, selectors.EVENT_WRITE, 'write')
-                if child.poll() is not None:
-                    # Drain the remaining diagnostics, but never wait for more terminal input.
-                    for key in list(selector.get_map().values()):
-                        if key.data in ('input', 'write'):
-                            selector.unregister(key.fileobj)
-            status = child.wait()
-            return status if status else (0 if report is not None else 1)
-        finally:
-            selector.close()
-            signal.signal(signal.SIGINT, previous)
-            if child.poll() is None:
-                child.terminate()
-                try:
-                    child.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    child.kill()
-                    child.wait()
+    ready = threading.Event()
+    # Own the server's lifetime; terminal Ctrl+C is handled by this client.
+    child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT, start_new_session=True)
+
+    def diagnostics():
+        for raw in child.stdout:
+            with LOG_LOCK:
+                sys.stderr.buffer.write(raw)
+                sys.stderr.buffer.flush()
+            line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
+            if not ready.is_set():
+                observe(line, facts)
+                if 'update_slots: all slots are idle' in line:
+                    ready.set()
+
+    reader = threading.Thread(target=diagnostics, daemon=True)
+    reader.start()
+    try:
+        print('Loading model...', flush=True)
+        deadline = time.monotonic() + 180
+        while not ready.wait(.1):
+            status = child.poll()
+            if status is not None:
+                reader.join(timeout=5)
+                raise RuntimeError(f'Server exited before readiness (status {status}).')
+            if time.monotonic() > deadline:
+                raise RuntimeError('Server did not become ready within 180 seconds.')
+        address = facts.get('local_server', {}).get('value')
+        if not address:
+            raise RuntimeError('No loopback server address was reported.')
+        api = API(address)
+        api.json('/health')
+        capacity = int(api.json('/props')['default_generation_settings']['n_ctx'])
+        observed = facts.get('context_tokens', {}).get('value')
+        if str(capacity) != observed:
+            raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
+        report = snapshot(command, facts, model_path)
+        report['runtime_pid'] = child.pid
+        report['reply_budget_tokens'] = min(512, capacity // 4)
+        save(path, report)
+        log(f'Setup snapshot ready: {path}')
+        chat(api, report, path, capacity)
+        return 0
+    finally:
+        if child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+        reader.join(timeout=5)
+        child.stdout.close()
+        log('Local server stopped.')
 
 
 if __name__ == '__main__':
-    debug_path = Path(sys.argv[1])
+    def interrupt(*_):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, interrupt)
+    signal.signal(signal.SIGHUP, interrupt)
     try:
-        status = run(debug_path, sys.argv[2:])
-    except (OSError, RuntimeError) as error:
-        print(f'Coordinator error: {error}', file=sys.stderr)
+        status = run(Path(sys.argv[1]), sys.argv[2:])
+    except KeyboardInterrupt:
+        print('\nExiting...')
+        status = 0
+    except (OSError, ValueError, RuntimeError, http.client.HTTPException) as error:
+        log(f'Client error: {error}')
+        print(f'Chat could not continue: {error}', file=sys.stdout)
         status = 1
     raise SystemExit(status)

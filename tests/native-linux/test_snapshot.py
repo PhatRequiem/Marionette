@@ -3,8 +3,6 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
-import subprocess
-import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,23 +36,6 @@ class SnapshotTests(unittest.TestCase):
         self.assertIn('Current token usage is not measured', report['context'])
         self.assertEqual(report['delivery'], 'pending_first_message')
 
-    def test_commands_and_clear_preserve_report_delivery(self):
-        first = True
-        for command in [b'', b'/read example.txt', b'/glob *.txt', b'/regen']:
-            packet, first, delivered = session.prepare_line(command, first, 'SETUP', '[start]', '[end]')
-            self.assertEqual(packet, command + b'\n')
-            self.assertTrue(first)
-            self.assertFalse(delivered)
-        packet, first, delivered = session.prepare_line(b'hello', first, 'SETUP', '[start]', '[end]')
-        self.assertEqual(packet, b'[start]SETUP[end]hello\n')
-        self.assertTrue(delivered)
-        packet, first, _ = session.prepare_line(b'/clear', first, 'SETUP', '[start]', '[end]')
-        self.assertEqual(packet, b'/clear\n')
-        self.assertTrue(first)
-        packet, first, delivered = session.prepare_line(b'/exit', first, 'SETUP', '[start]', '[end]')
-        self.assertEqual(packet, b'/exit\n')
-        self.assertFalse(delivered)
-
     def test_unknown_hardware_is_not_invented_and_snapshot_is_portable(self):
         report = session.snapshot(['synthetic-runtime'], {}, Path('/tmp/test-model.txt'))
         self.assertIn('not reported; unverified', report['context'])
@@ -66,26 +47,6 @@ class SnapshotTests(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o600)
             self.assertFalse(path.with_suffix('.json.part').exists())
 
-    def test_report_delivery_once_and_no_readiness_failure(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            engine = root / 'engine.py'
-            engine.write_text("import sys\nprint('0.0 I srv  update_slots: all slots are idle', file=sys.stderr, flush=True)\nfor line in sys.stdin: print(line, end='', flush=True)\n")
-            debug = root / 'test-model.txt'
-            debug.touch()
-            result = subprocess.run([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(debug), sys.executable, str(engine)], input='\nhello\n' + ('next message\n' * 20000), capture_output=True, text=True, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout.count('Local runtime setup report'), 1)
-            self.assertTrue(result.stdout.endswith('next message\n'))
-            report = json.loads((root / 'test-setup.json').read_text())
-            self.assertEqual(report['delivery'], 'supplied_with_first_message')
-            self.assertIn('not reported; unverified', report['context'])
-            engine.write_text('pass\n')
-            failure_debug = root / 'failed-model.txt'
-            failure_debug.touch()
-            failure = subprocess.run([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(failure_debug), sys.executable, str(engine)], input='', capture_output=True, text=True, timeout=10)
-            self.assertEqual(failure.returncode, 1)
-            self.assertFalse((root / 'failed-setup.json').exists())
 
 
 if __name__ == '__main__':

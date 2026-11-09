@@ -1,30 +1,29 @@
-# Generated startup context
+# Startup report and context rollover
 
-The launch command stays the same. After the model loads, a small local Python coordinator generates a session report from actual diagnostics and supplies it as factual system context with the first typed message. It adds no personality instructions or model-operated tools. The runtime now includes a loopback HTTP server for the terminal client.
+`session.py` is the terminal client. It starts one pinned `llama-server` on a temporary loopback port, waits for loading, and generates the setup report from diagnostics. No personality file or custom first-message envelope is used.
 
-## Sequence
+## Startup report
 
-1. The launcher creates the chat and two diagnostic logs and starts their two viewer terminals.
-2. `session.py` starts the pinned `llama-cli` process, forwards diagnostics to the shared event-numbering log router, and waits for its first `update_slots: all slots are idle` event. It does not forward typed input before that event.
-3. It records the last reported model name, selected device, GPU layer offload, loaded per-sequence context size, and loopback server address. The runtime version comes from the launcher's executable version query. Missing observations are explicitly unverified.
-4. It saves `-setup.json` with a timestamp, process ID, command, observed values and their original evidence lines, and the exact context text.
-5. On the first nonempty user message (native commands pass through unchanged), it prefixes a private per-session envelope. The report uses a single line because CLI input does not interpret escaped newlines. The Jinja template converts the envelope into a system message followed by the user's actual message. The envelope is not shown as typed input in the chat transcript; the resulting prompt is recorded in the diagnostic logs.
-6. Later input passes through normally. `/clear` clears chat history; the helper supplies the same startup report with the next user message. It does not remeasure the hardware or regenerate the report each turn. `/exit` passes through without becoming a model message.
+The report records the observed runtime version, model, selected GPU, layer offload, context capacity, server address, log paths, and capability limits. Original diagnostic evidence is retained in the private `-setup.json` file. The client verifies the context capacity against `/props`; a mismatch stops startup. Missing optional facts remain explicitly unverified. This is not a full requested-versus-loaded configuration audit.
 
-This sequencing avoids a second model load and does not require changing the runtime binary. `llama-cli` has no API for revising a system message after startup, so the first-turn formatting carries the report. The existing text-only template and empty closed thinking block are retained.
+The context limit is capacity, not usage. The report explicitly says it does not measure live token usage. It is a startup snapshot, not continuous monitoring, and cannot guarantee that the model answers accurately. Model-file checksums are verified by setup, not each chat launch.
 
-## Evidence and boundaries
+The report is an ordinary `system` message. User messages and completed assistant replies are kept separately in memory. Every request includes the system message, including after `/clear` and automatic rollover. The snapshot starts with `pending_first_message`; `supplied_with_first_message` is recorded after the first response completes successfully. This confirms a completed request, not model comprehension.
 
-`observed` values are copied from this process's startup diagnostics. `context` also states configured operation and the coordinator's capability boundaries: local-model inference, text conversation, no model-operated browsing/file/command tools, and no automatic access to previous logs. The user may explicitly attach text using the CLI’s `/read` and `/glob` commands. These capability statements describe the application, not additional hardware probes. Setup hashes are not reverified during this report. Selecting a device and reporting GPU offload are separate observations; unknown values are not replaced with guessed hardware.
+## Automatic rollover
 
-The snapshot records `pending_first_message` initially and `supplied_with_first_message` after the coordinator writes that input. Delivery means supplied to the runtime, not proof that the model understood it. The report labels context size as the capacity limit, explicitly not current token usage. It states that live usage is not measured and that capacity alone does not mean the context is full. The report is a startup observation, not continuous monitoring. It consumes part of the 8,192-token context and can eventually be affected by context limits. It does not guarantee truthful model answers.
+1. Append the new user message to a copy of the active conversation.
+2. Ask the local server to format it with the model's native chat template (`/apply-template`, thinking disabled), then count the exact prompt tokens (`/tokenize`, special tokens included).
+3. Reserve 512 tokens for the reply at the default 8,192-token capacity. Smaller contexts reserve one quarter of capacity, capped at 512. Leave one additional token spare.
+4. If the request does not fit, remove the oldest whole user/assistant exchange and count again. Never remove the system report or shorten the new message.
+5. Stream the reply from `/v1/chat/completions`. On success, keep the fitted history and reply. If the request fails, retain the previous history. Partial failed replies may appear in the transcript but are not retained as conversation context.
 
-Only successful loading creates a snapshot. A startup failure is logged; a missing readiness event times out after 180 seconds. Exiting before the first message leaves the snapshot marked pending. The files are owner-readable/writable and remain under ignored `data/conversations/`. Export or back up the matching JSON and three text files together. Same-format restoration requires copying them back; the model does not reload them as memory.
+A message too large to fit with the report and reply allowance is rejected with a visible explanation. A response reaching its allowance is retained and marked in the terminal. Rollover is announced and recorded with prompt counts and removed-exchange counts. It does not summarize or retrieve old conversations. Reprocessing a shortened history may cause a pause; the model remains loaded.
 
-This coordinator supports a fresh interactive conversation. Preloaded prompts, user-supplied system prompts, prompt caches, and flags that disable required conversation/logging behavior are rejected. An external `--server-base` override is rejected so the report describes the model loaded in this process. Runtime inspection commands still work without creating a session. Model and context overrides must be checked against the observed report; snapshot parsing is tied to the pinned b12211 diagnostic format and must be retested on upgrades.
+The 8,192-token total includes report, message formatting, active history, and replies. The previously discussed extra 500 tokens have not been added. If the report grows, it leaves less room for history; review the context size and reply allowance when changing it.
 
-## Verification
+## Operation and verification
 
-The real-model test answered its observed model name, RX 7900 XT, 8,192-token context, local execution, and inability to open its own logs. A follow-up recalled a synthetic word. Debug input confirms the report is a system message before the first user message, with the empty thinking block intact.
+`/clear` removes active exchanges while keeping the report. `/exit`, Ctrl+D, and Ctrl+C exit the client and shut down its server. The client has no file-reading, browser, command, memory, or attachment tools. Logs are not fed back into the model. Export the matching setup JSON and three text logs together; copying them back does not restore model memory.
 
-Run `python -m unittest discover -s tests/native-linux -v` for the regression checks, including snapshot provenance, unknown observations, private portable JSON, delivery, native command handling, and startup failure without a false verified snapshot. Tests use temporary synthetic data rather than real conversations.
+Automated checks cover complete-exchange trimming, system preservation, oversized messages, exact budget boundaries, failure recovery, clearing, snapshot provenance, logging, and server lifecycle. Synthetic HTTP tests require local loopback sockets, not internet access. Real GPU checks verified repeated rollover at 1,024 tokens, exact agreement between preflight and server token counts, report retention, oversized-message recovery, and clean shutdown. Normal-capacity checks verify chat and word recall at 8,192 tokens.
