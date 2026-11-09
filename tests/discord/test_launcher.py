@@ -54,6 +54,23 @@ raise SystemExit(adapter.main())
         runtime = root / 'runtime/llama.cpp/test/bin/completion'
         runtime.write_text(runtime.read_text().replace("{'content': 'Synthetic reply.'}",
             "{'reasoning_content': 'PRIVATE_THOUGHT', 'content': 'Synthetic reply.'}"))
+        # Assert metadata at the HTTP inference boundary, not only in client history.
+        runtime.write_text(runtime.read_text().replace(
+            "        elif self.path == '/v1/chat/completions':",
+            """        elif self.path == '/v1/chat/completions':
+            from pathlib import Path
+            profiles = json.loads(Path(__file__).resolve().parents[4].joinpath(
+                'data/identities/profiles.json').read_text())
+            content = body['messages'][-1]['content']
+            header, text = content.split('\\n\\nMessage:\\n', 1)
+            identity = json.loads(header.split('\\n', 1)[1])
+            assert identity['person_uuid'] == profiles['owner_uuid']
+            assert identity['display_name'] == 'Phat'
+            expected_source = 'discord' if text == 'Synthetic Discord hello' else 'terminal'
+            assert identity['source'] == expected_source
+            assert identity['sender_id'] == ('123' if expected_source == 'discord' else profiles['owner_uuid'])
+            print('Verified identity at inference: ' + expected_source, file=sys.stderr, flush=True)
+"""))
         address = root / 'data/session/chat.sock'
         address.parent.mkdir(mode=0o700)
         env = fixture.env | {'MARIONETTE_SESSION_SOCKET': str(address)}
@@ -62,6 +79,8 @@ raise SystemExit(adapter.main())
             main = subprocess.Popen([sys.executable, str(source / 'session.py'), str(runtime)],
                 stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT, env=env, text=True)
             try:
+                main.stdin.write('1\n')
+                main.stdin.flush()
                 deadline = time.monotonic() + 10
                 while not address.exists():
                     self.assertIsNone(main.poll(), output_path.read_text())
@@ -91,6 +110,8 @@ raise SystemExit(adapter.main())
                 self.assertIn('[Discord · 123]\nSynthetic Discord hello', output_path.read_text())
                 self.assertIn('Reasoning:\nPRIVATE_THOUGHT', output_path.read_text())
                 self.assertIn('Answer:\nSynthetic reply.', output_path.read_text())
+                self.assertIn('Verified identity at inference: terminal', output_path.read_text())
+                self.assertEqual(output_path.read_text().count('Verified identity at inference: discord'), 2)
                 self.assertFalse(address.exists())
                 result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')],
                                         env=env, capture_output=True, text=True, timeout=10)

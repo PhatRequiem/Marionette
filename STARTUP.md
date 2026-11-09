@@ -11,7 +11,7 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-This starts her and opens two log windows: **Connections and requests** and **Model processing**. Wait for **Ready** and the `>` prompt. You can now chat in this terminal.
+This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. Profiles persist between launches; see [identities](docs/identity.md). You can now chat in this terminal.
 
 ## 2. Connect Discord — optional
 

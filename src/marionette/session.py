@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Terminal chat with an owned local server and between-turn cache preparation."""
 from concurrent.futures import Future
+from pathlib import Path
 import queue
 import select
 import http.client
@@ -17,6 +18,7 @@ import urllib.error
 import urllib.request
 
 from style import COLORS, enabled, paint
+from identity import Profiles, message_with_identity
 
 LOG_LOCK = threading.Lock()
 
@@ -210,7 +212,8 @@ class Preparation:
 
 class Conversation:
     """One history and one generation at a time, shared by every input."""
-    def __init__(self, api, capacity):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None):
+        self.profiles, self.terminal_profile = profiles, terminal_profile
         self.api, self.capacity = api, capacity
         self.reserve = min(32768, capacity // 2)
         self.history = []
@@ -249,7 +252,7 @@ class Conversation:
         print(f'{message}\n', flush=True)
         color('data')
         try:
-            answer, finish = self.turn(message, display=True)
+            answer, finish = self.turn(message, display=True, source='discord', sender_id=str(sender_id))
             if message.strip() == '/clear':
                 color('meta')
                 print(answer)
@@ -269,19 +272,25 @@ class Conversation:
             print('\n')
         return True
 
-    def turn(self, message, *, display=False):
+    def turn(self, message, *, display=False, source="terminal", sender_id=None):
         with self.lock:
             if self.api.closing.is_set():
                 raise RuntimeError('Session is closing.')
             if self.pending is not None:
                 self.history = self.pending.result()
                 self.pending = None
+            identity = None
+            if self.profiles is not None:
+                sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
+                identity = self.profiles.resolve(source, sender_id)
+                log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
             if message.strip() == '/clear':
                 self.history = []
                 log('Chat history cleared.')
                 return 'Chat history cleared.', 'stop'
             candidate, removed, tokens = fit_history(
-                self.history, message, self.api.count, self.capacity, self.reserve)
+                self.history, message_with_identity(message, identity) if identity else message,
+                self.api.count, self.capacity, self.reserve)
             log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
                 f'{self.capacity}; removed_exchanges={removed}.')
             if removed:
@@ -348,7 +357,15 @@ def terminal(conversation, *, external=False):
 
 
 def chat(api, capacity):
-    conversation = Conversation(api, capacity)
+    data = Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
+    profiles = Profiles(data / 'identities/profiles.json')
+    profiles.link_owner(data / 'discord/.env')
+    try:
+        selected = profiles.select()
+    except EOFError:
+        return
+    print(paint('Terminal profile: ', 'meta', enabled()) + paint(selected['name'], 'ids', enabled()))
+    conversation = Conversation(api, capacity, profiles, selected)
     log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     print(paint('Ready.', 'meta', enabled()) + paint(' Context limit: ', 'data', enabled()) + paint(str(capacity), 'tokens', enabled())

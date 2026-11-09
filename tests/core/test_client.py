@@ -21,6 +21,13 @@ spec.loader.exec_module(client)
 
 
 class ClientTests(unittest.TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        environment = patch.dict(os.environ, {'MARIONETTE_DATA_DIR': directory.name})
+        environment.start()
+        self.addCleanup(environment.stop)
+
     def test_reasoning_is_white_answer_is_pink_and_only_answer_is_retained(self):
         events = [
             {'choices': [{'delta': {'reasoning_content': 'Check '}}]},
@@ -49,7 +56,7 @@ class ClientTests(unittest.TestCase):
                     self.reserve = reserve
                     return 'answer', 'stop'
             api = FakeAPI()
-            with patch('builtins.input', side_effect=['hello', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+            with patch('builtins.input', side_effect=['1', 'hello', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
                 client.chat(api, capacity)
                 api.worker.join()
             self.assertEqual(api.reserve, expected)
@@ -90,10 +97,10 @@ class ClientTests(unittest.TestCase):
                     raise RuntimeError('stream interrupted')
                 return 'answer', 'stop'
         api = FakeAPI()
-        with patch('builtins.input', side_effect=['failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+        with patch('builtins.input', side_effect=['1', 'failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
             client.chat(api, 8192)
-        self.assertEqual([m['content'] for m in api.sent[1]], ['good'])
-        self.assertEqual([m['content'] for m in api.sent[2]], ['fresh'])
+        self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[1] for m in api.sent[1]], ['good'])
+        self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[1] for m in api.sent[2]], ['fresh'])
 
     def test_eof_and_termination_stop_owned_server(self):
         for action in ('eof', 'terminate'):
@@ -106,6 +113,8 @@ class ClientTests(unittest.TestCase):
                         stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
                         text=True, cwd=directory)
                     try:
+                        process.stdin.write('1\n')
+                        process.stdin.flush()
                         deadline = time.monotonic() + 10
                         while 'Ready.' not in output_path.read_text():
                             self.assertIsNone(process.poll(), output_path.read_text())

@@ -75,7 +75,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -96,7 +96,7 @@ class LauncherTests(unittest.TestCase):
         self.launcher = scripts / 'chat.sh'
 
     def run_chat(self, *args):
-        return subprocess.run(['bash', str(self.launcher), *args], input='hello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
+        return subprocess.run(['bash', str(self.launcher), *args], input='1\nhello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
 
     def test_private_pairs_separation_quoting_and_viewer_failure(self):
         marker = self.root / 'must-not-exist'

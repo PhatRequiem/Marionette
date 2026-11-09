@@ -18,6 +18,8 @@ The recoverable Git checkpoint is **`baseline-v2` (2026-11-09)**; recovery steps
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [current baseline and verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
+Terminal profiles and linked Discord accounts now use permanent person UUIDs; see [identities](docs/identity.md). This addition is newer than the fixed `baseline-v2` checkpoint. Conversation history is still shared.
+
 ## Reviewing the code
 
 Start with these files, in order:
@@ -26,6 +28,7 @@ Start with these files, in order:
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
 | [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
+| [identity.py](src/marionette/identity.py) | Saved profiles, terminal selection, linked accounts, and sender metadata |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
@@ -49,6 +52,7 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
+- `data/identities/`: private, portable JSON profile registry; ignored by Git.
 - `data/session/`: private socket for optional connections to the running chat; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.

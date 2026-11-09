@@ -53,7 +53,7 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 ## Runtime decision
 
-Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client requires no third-party Python packages or persistent service. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
+Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client requires no third-party Python packages or persistent service. At startup, select a saved terminal profile or add a new one; [identity mapping](identity.md) explains the private UUID registry and Discord link. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
 The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
