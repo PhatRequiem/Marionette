@@ -6,6 +6,8 @@ import datetime
 import fcntl
 import json
 import os
+import select
+import time
 from pathlib import Path
 import sys
 import uuid
@@ -59,12 +61,53 @@ def chat_event(event_type, **fields):
         append(path, record(data.get('source', 'application'), event_type, data=data))
 
 
+def timestamp(microseconds):
+    return datetime.datetime.fromtimestamp(microseconds // 1_000_000).astimezone().replace(
+        microsecond=microseconds % 1_000_000).isoformat(timespec='microseconds')
+
+
+def raw_batches(source, limit=65536, interval=0.1):
+    """Group pipe reads up to 64 KiB or 100 ms; keep receipt times and flush EOF."""
+    try:
+        descriptor = source.fileno()
+    except (AttributeError, OSError):
+        # In-memory streams used by tests and offline replay cannot block.
+        while raw := source.read(limit):
+            yield [(time.time_ns() // 1000, raw)]
+        return
+    pending, size, deadline = [], 0, None
+    while True:
+        timeout = None if deadline is None else max(0, deadline - time.monotonic())
+        readable, _, _ = select.select([descriptor], [], [], timeout)
+        if readable:
+            raw = os.read(descriptor, limit - size)
+            if not raw:
+                if pending:
+                    yield pending
+                return
+            pending.append((time.time_ns() // 1000, raw))
+            size += len(raw)
+            if deadline is None:
+                deadline = time.monotonic() + interval
+        if pending and (size >= limit or time.monotonic() >= deadline):
+            yield pending
+            pending, size, deadline = [], 0, None
+
+
 def capture(source, path, kind, output=None):
     """Terminal chunks remain arbitrary bytes; Discord emits native JSON events."""
     session_id = os.environ.get('MARIONETTE_SESSION_ID') or Path(path).name.rsplit('-', 1)[0]
+    if kind == 'terminal':
+        for sequence, batch in enumerate(raw_batches(source), 1):
+            event = record(kind, 'terminal_output', raw=b''.join(raw for _, raw in batch),
+                           sequence=sequence, session_id=session_id)
+            event['timestamp'] = timestamp(batch[0][0])
+            event['data']['ended_at'] = timestamp(batch[-1][0])
+            append(path, event)
+        return
     sequence = 0
     while True:
-        raw = source.read1(65536) if kind == 'terminal' else source.readline()
+        raw = source.readline()
         if not raw:
             return
         sequence += 1

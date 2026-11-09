@@ -96,3 +96,49 @@ class StorageTests(unittest.TestCase):
         log_view.render(io.StringIO(log_store.encode(event).decode()), output, 'diagnostic', True)
         log_view.render(io.StringIO(format_event(12, event['timestamp'], raw).decode()), legacy, 'diagnostic', True)
         self.assertEqual(output.getvalue(), legacy.getvalue())
+
+    def test_pipe_batches_flush_during_idle_and_at_eof(self):
+        import threading
+        import time
+        read_fd, write_fd = os.pipe()
+        results, flushed = [], threading.Event()
+        def consume():
+            with os.fdopen(read_fd, 'rb', buffering=0) as source:
+                for batch in log_store.raw_batches(source, interval=.03):
+                    results.append(b''.join(raw for _, raw in batch))
+                    flushed.set()
+        thread = threading.Thread(target=consume)
+        thread.start()
+        try:
+            os.write(write_fd, b'a')
+            os.write(write_fd, b'b')
+            self.assertTrue(flushed.wait(1), 'Idle pipe must flush without waiting for more output')
+            os.write(write_fd, b'last')
+        finally:
+            os.close(write_fd)
+            thread.join(2)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(b''.join(results), b'ablast')
+
+    def test_diagnostic_batches_preserve_split_lines_order_and_timestamps(self):
+        import log_router
+        chunks = [[(1000000, b'first\npart')], [(1000100, b'ial\n\xfftail')]]
+        server, model = io.BytesIO(), io.BytesIO()
+        with patch.object(log_router, 'raw_batches', return_value=iter(chunks)):
+            log_router.route(None, server, model)
+        decoded = []
+        expected_display = io.StringIO()
+        for line in server.getvalue().splitlines():
+            event = json.loads(line)
+            decoded.extend(log_router.diagnostic_lines(event))
+        self.assertEqual([x[2] for x in decoded], [b'first\n', b'partial\n', b'\xfftail'])
+        self.assertEqual([x[0] for x in decoded], [1, 2, 3])
+        self.assertEqual(decoded[1][1], log_store.timestamp(1000100))
+        for number, when, raw in decoded:
+            log_view.render(io.StringIO(log_router.format_event(number, when, raw).decode()), expected_display, 'diagnostic', True)
+        actual = io.StringIO()
+        log_view.render(io.StringIO(server.getvalue().decode()), actual, 'diagnostic', True)
+        self.assertEqual(actual.getvalue(), expected_display.getvalue())
+        counterpart = [entry for line in model.getvalue().splitlines()
+                       for entry in log_router.diagnostic_lines(json.loads(line))]
+        self.assertEqual(decoded, counterpart)

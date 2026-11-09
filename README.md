@@ -42,7 +42,7 @@ Start with these files, in order:
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
-| [log_store.py](src/marionette/log_store.py) | Common JSONL records, locked chat writes, Base64 raw capture and export |
+| [log_store.py](src/marionette/log_store.py) | Common JSONL records, timed raw batches, locked chat writes, Base64 capture and export |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and JSONL routing |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |

@@ -7,7 +7,7 @@ import sys
 import textwrap
 
 from style import enabled, paint, safe
-from log_router import format_event
+from log_router import format_event, diagnostic_lines
 
 
 def severity(text):
@@ -228,10 +228,10 @@ def render(source, output, mode, colored):
                 continue
         if event is not None:
             try:
-                if event['event_type'] == 'diagnostic':
-                    raw = base64.b64decode(event['raw_b64'], validate=True)
-                    block = format_event(event['sequence'], event['timestamp'], raw).decode()
-                    render(block.splitlines(keepends=True), output, 'diagnostic', colored)
+                if event['event_type'] in ('diagnostic', 'diagnostic_batch'):
+                    for sequence, when, raw in diagnostic_lines(event):
+                        block = format_event(sequence, when, raw).decode()
+                        render(block.splitlines(keepends=True), output, 'diagnostic', colored)
                 else:
                     for kind, text in event_rows(event):
                         rendered = field_text(text, kind[6:], colored) if kind.startswith('field/') else paint(text, kind, colored)

@@ -30,7 +30,8 @@ class LogTests(unittest.TestCase):
             result = {}
             for line in output.getvalue().splitlines():
                 event = json.loads(line)
-                result[event['sequence']] = (event, base64.b64decode(event['raw_b64'], validate=True))
+                for number, when, raw in router.diagnostic_lines(event):
+                    result[number] = (when, raw)
             return result
         a, b = events(server), events(model)
         self.assertEqual(set(a) | set(b), set(range(1, len(lines)+1)))
