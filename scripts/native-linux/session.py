@@ -15,7 +15,7 @@ import urllib.error
 import urllib.request
 
 LOG_LOCK = threading.Lock()
-COLORS = {'input': '\033[92m', 'data': '\033[97m',
+COLORS = {'input': '\033[38;2;57;255;20m', 'data': '\033[97m',
           'reply': '\033[38;2;255;128;191m', 'reset': '\033[0m'}
 
 
