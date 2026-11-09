@@ -20,21 +20,33 @@ class LogTests(unittest.TestCase):
                  b'0.01.253.521 E srv send_error: context full\n',
                  b'0.01.253.522 W llama_context: warning\n',
                  b'0.01.253.523 I future_component: new message\n',
-                 b'continuation with \xff original byte\n', b'final partial line']
+                 b'continuation with \xff original byte\n', b'\n', b'\x1b[32mcolored\x1b[0m backspace\b slash\\\n',
+                 b'0.02 D Parsed message: {"a":1,"a":2,"text":"' + b'long '*100 + b'"}\n', b'final partial line']
         server, model = io.BytesIO(), io.BytesIO()
         router.route(io.BytesIO(b''.join(lines)), server, model)
         def events(output):
             result = {}
-            for line in output.getvalue().splitlines(keepends=True):
-                match = re.match(rb'\[event (\d+)\] \[[^]]+\] (.*)', line, re.S)
+            blocks = re.split(rb'(?=^\[event )', output.getvalue(), flags=re.M)
+            for block in blocks:
+                if not block:
+                    continue
+                header, *rows = block.splitlines(keepends=True)
+                match = re.match(rb'\[event (\d+)\]', header)
                 self.assertIsNotNone(match)
-                result[int(match[1])] = (line, match[2])
+                if b'[blank line]' in header:
+                    original = b'\n'
+                else:
+                    visible = b''.join(row.removeprefix(b'    | ').removesuffix(b'\n') for row in rows)
+                    original = re.sub(rb'\\(\\|x[0-9a-f]{2})', lambda m: b'\\' if m[1] == b'\\' else bytes([int(m[1][1:], 16)]), visible)
+                    if b'[no final newline]' not in header:
+                        original += b'\n'
+                result[int(match[1])] = (block, original)
             return result
         a, b = events(server), events(model)
         self.assertEqual(set(a) | set(b), set(range(1, len(lines)+1)))
         self.assertNotIn(1, b)
         self.assertNotIn(2, a)
-        for number in range(3, 8):
+        for number in range(3, 9):
             self.assertEqual(a[number], b[number])
         for number, (_, text) in (a | b).items():
             self.assertEqual(text, lines[number-1])

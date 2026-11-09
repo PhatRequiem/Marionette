@@ -3,6 +3,7 @@
 import datetime
 import re
 import sys
+import textwrap
 
 RECORD = re.compile(rb'^\d[\d.]*\s+([A-Z])\s+(.*)')
 COMPONENT = re.compile(rb'^(srv|slot|que|res)\s+([^:]+):\s*(.*)')
@@ -53,11 +54,58 @@ def route(source, server, model):
         # Runtime elapsed timestamps and original bytes are left untouched.
         # Receipt time also timestamps launcher messages lacking a runtime clock.
         now = datetime.datetime.now().astimezone().isoformat(timespec='microseconds')
-        event = f'[event {number:08d}] [{now}] '.encode() + line
+        event = format_event(number, now, line)
         for name, output in [('server', server), ('model', model)]:
             if destination in (name, 'both'):
                 output.write(event)
                 output.flush()
+
+
+def format_event(number, now, line):
+    """Readable blocks; no JSON parsing, truncation, or discarded source bytes."""
+    header = f'[event {number:08d}] [{now}]'.encode()
+    if line == b'\n':
+        return header + b' [blank line]\n'
+    # Escape controls instead of letting them move the cursor or recolor the log.
+    # Escape literal backslashes too, so this representation is reversible.
+    text = line.removesuffix(b'\n').decode('utf-8', errors='surrogateescape')
+    def escape(text):
+        visible = ''
+        for char in text:
+            code = ord(char)
+            if char == '\\':
+                visible += '\\\\'
+            elif code < 32 or code == 127:
+                visible += f'\\x{code:02x}'
+            elif 0xdc80 <= code <= 0xdcff:
+                visible += f'\\x{code - 0xdc00:02x}'
+            else:
+                visible += char
+        return visible
+    # Split JSON punctuation outside quoted strings without interpreting values.
+    # Keeping the exact characters avoids losing duplicate keys or number precision.
+    sections, start, quoted, escaped = [], 0, False, False
+    json_start = text.find('{')
+    for index, char in enumerate(text):
+        if escaped:
+            escaped = False
+        elif char == '\\':
+            escaped = True
+        elif char == '"':
+            quoted = not quoted
+        elif json_start >= 0 and index >= json_start and not quoted and char in '{[,}':
+            sections.append(text[start:index + 1])
+            start = index + 1
+    sections.append(text[start:])
+    rows = []
+    for section in sections:
+        if section:
+            rows.extend(textwrap.wrap(escape(section), width=140, expand_tabs=False,
+                                      replace_whitespace=False, drop_whitespace=False,
+                                      break_on_hyphens=False))
+    ending = b'' if line.endswith(b'\n') else b' [no final newline]'
+    body = ''.join('    | ' + row + '\n' for row in rows).encode('utf-8')
+    return header + ending + b'\n' + body
 
 
 if __name__ == '__main__':

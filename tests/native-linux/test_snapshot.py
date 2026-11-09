@@ -34,6 +34,8 @@ class SnapshotTests(unittest.TestCase):
         report = session.snapshot(['synthetic-runtime'], facts, Path('/tmp/test-model.txt'))
         self.assertIn('Synthetic GPU', report['context'])
         self.assertIn('No tools', report['context'])
+        self.assertIn('not current usage', report['context'])
+        self.assertIn('Current token usage is not measured', report['context'])
         self.assertEqual(report['delivery'], 'pending_first_message')
 
     def test_commands_and_clear_preserve_report_delivery(self):

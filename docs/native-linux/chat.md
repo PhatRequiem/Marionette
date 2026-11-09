@@ -29,7 +29,7 @@ Each session saves four matching files in `data/conversations/`:
 
 Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
 
-Unknown entries, warnings, and errors appear in both diagnostic files with the same event number. Original timestamps are retained. There is no new raw debug file; older logs remain untouched.
+Unknown entries, warnings, and errors appear in both diagnostic files with the same event number. Original timestamps are retained. Long entries are wrapped into readable blocks; terminal control codes are shown as escaped text without being discarded. There is no new raw debug file; older logs remain untouched.
 
 Closing either log window does not stop chat or recording. After chat exits, press **Enter** in each log window to close it. Restarting chat does not erase past logs.
 

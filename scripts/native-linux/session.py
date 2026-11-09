@@ -50,10 +50,11 @@ def snapshot(command, facts, debug_path):
     lines = [f'Local runtime setup report generated {now}.',
              'This conversation runs in local llama-cli with an embedded loopback HTTP server, not a hosted chat API.']
     for key, label in [('runtime_version', 'Runtime version'), ('model_name', 'Loaded model name'), ('device', 'Runtime-selected device'),
-                       ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Loaded context tokens'),
+                       ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Context capacity limit (tokens, not current usage)'),
                        ('local_server', 'Local server address')]:
         lines.append(f'{label}: {facts.get(key, {}).get("value", "not reported; unverified")}.')
-    lines += ['Configured: offline local-model operation, text conversation, reasoning disabled by an empty closed thinking block.',
+    lines += ['The context limit is the maximum capacity, not the number of tokens currently used. Current token usage is not measured by this startup report. Do not claim the context is full from its capacity; live usage requires runtime measurements.',
+              'Configured: offline local-model operation, text conversation, reasoning disabled by an empty closed thinking block.',
               'Capabilities: receive your messages and generate replies. No tools for browsing, executing commands, or opening files.',
               'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. The user can explicitly attach text through CLI commands.',
               f'Current model-processing log: {debug_path}.',
