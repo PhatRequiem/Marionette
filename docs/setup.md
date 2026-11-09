@@ -17,11 +17,11 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 Application code lives in `src/marionette/`: `session.py` owns chat and the local server, and `log_router.py` formats and routes diagnostics. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
 
-`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/native-linux/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
+`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/native-linux/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
 
 ## Operation
 
-For everyday launch, chat, and exit commands, see [STARTUP.md](../../STARTUP.md).
+For everyday launch, chat, and exit commands, see [STARTUP.md](../STARTUP.md).
 
 The launcher resolves paths relative to itself and can be invoked from any directory. It uses util-linux `script` to record the terminal and `flock` to prevent duplicate sessions, with a Python terminal client and `llama-server` running in the foreground. Two separate desktop terminals follow the saved connections/requests and model-processing logs. The client starts its own HTTP server process on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the connections/requests log.
 

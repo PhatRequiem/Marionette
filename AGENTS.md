@@ -5,7 +5,7 @@ These instructions apply throughout this repository.
 ## Direction and change scope
 
 - Future scaling is intended. Prioritize a reliable, understandable base and incremental additions; simplicity must not be mistaken for abandoning scalability.
-- Consult README.md, docs/native-linux/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
+- Consult README.md, docs/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
 - When the user requests discussion or confirmation first, investigate and present a concrete proposal without editing. Once implementation is authorized, complete the agreed scope without adding unrelated features.
 
 ## Complete and sync changes
@@ -46,8 +46,8 @@ On initial setup or changes to the model, weight precision, reasoning mode, or r
 
 Keep the project understandable without reading development chats.
 
-1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Use matching component names across `docs/` and `scripts/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep actual tool names under `runtime/`.
-2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/<component>/experiments/`.
+1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Keep application guides directly under `docs/`; keep platform-specific launch and setup scripts under `scripts/native-linux/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep actual tool names under `runtime/`.
+2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/experiments/`.
 3. **Repeatable scripts:** Save documented setup, start, and stop commands in `scripts/`, including supported background operation and logging.
 4. **Documented decisions:** Record significant architecture choices and their reasons in `docs/`, linked from the README.
 5. **Source and operation:** Native Linux runs directly from its Git checkout using scripts/native-linux/. Keep setup and operation reproducible from this checkout.

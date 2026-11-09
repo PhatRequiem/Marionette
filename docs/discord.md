@@ -28,7 +28,7 @@ nvim data/discord/.env
 
 ## Start and stop
 
-Follow [STARTUP.md](../../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
+Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 

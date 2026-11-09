@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-command -v uv >/dev/null || { echo 'Install uv first; see docs/native-linux/discord.md.' >&2; exit 1; }
+command -v uv >/dev/null || { echo 'Install uv first; see docs/discord.md.' >&2; exit 1; }
 umask 077
 mkdir -p "$ROOT/runtime/discord" "$ROOT/data/discord"
 exec 9>"$ROOT/data/discord/.setup.lock"

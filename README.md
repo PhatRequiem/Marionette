@@ -6,15 +6,15 @@ Local terminal chat with Qwen3.5 4B using a small Python terminal client and lla
 
 Follow [STARTUP.md](STARTUP.md) to launch her in the terminal and optionally connect Discord. It lists the steps in order and explains how to stop each part.
 
-For a new installation, see [local setup](docs/native-linux/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
+For a new installation, see [local setup](docs/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
-Optional phone access: [Discord DM setup](docs/native-linux/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It allows only your configured user ID, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It allows only your configured user ID, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
 The current base runs Qwen3.5-4B BF16 on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
-See [context policy and verified behavior](docs/native-linux/context.md) for allowances, trimming, cache preparation, and limitations. See the [current baseline and verification](docs/native-linux/baseline.md) and [log guide](docs/native-linux/logs.md). Historical experiments live under `docs/native-linux/experiments/`.
+See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [current baseline and verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
 ## Reviewing the code
 
@@ -35,14 +35,14 @@ Start with these files, in order:
 | [tests/native-linux](tests/native-linux) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
-In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `terminal()` handles input and `chat()` connects optional transports, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/native-linux/setup.md).
+In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `terminal()` handles input and `chat()` connects optional transports, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
 
 ## Folder map
 
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
-- `docs/native-linux/`: setup requirements, operation, and decisions.
+- `docs/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
@@ -55,4 +55,4 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/native-linux/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
-See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).
+See [native Linux setup and operation](docs/setup.md) and [licenses](docs/licenses.md).
