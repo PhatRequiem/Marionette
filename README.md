@@ -30,6 +30,6 @@ Baseline 1 is reviewed and tested. See [baseline scope, checks, and limitations]
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.
 - `tests/native-linux/`: isolated setup and logging regression checks.
-- `src/`, `public/`, `model/`: existing scaffolding; unused by this setup. `model/` is ignored to protect weights.
+- `src/`, `public/`: existing scaffolding; unused by this setup.
 
 See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).
