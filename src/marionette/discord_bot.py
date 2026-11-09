@@ -2,7 +2,6 @@
 """Optional, owner-only Discord DM transport for the local chat engine."""
 import asyncio
 import datetime
-import json
 import math
 import time
 from pathlib import Path
@@ -12,14 +11,14 @@ import sys
 import discord
 
 from connection import request
+from log_store import record, encode
 
 ROOT = Path(__file__).resolve().parents[2]
 ADDRESS = ROOT / 'data/session/chat.sock'
 
 
 def log(message, **fields):
-    details = ' ' + json.dumps(fields, ensure_ascii=False, allow_nan=False) if fields else ''
-    print(f'{datetime.datetime.now().astimezone().isoformat()} {message}{details}', flush=True)
+    print(encode(record('discord', 'status', data={'message': message, **fields})).decode(), end='', flush=True)
 
 
 def elapsed(start):
@@ -74,9 +73,8 @@ def chunks(text, limit=1900):
 
 
 def transcript(role, content, message_id, **fields):
-    print(json.dumps({'time': datetime.datetime.now().astimezone().isoformat(),
-                      'message_id': str(message_id), 'role': role, 'content': content, **fields},
-                     ensure_ascii=False), flush=True)
+    print(encode(record('discord', 'message_received' if role == 'user' else 'answer',
+        data={'message_id': str(message_id), 'role': role, 'content': content, **fields})).decode(), end='', flush=True)
 
 
 class DMChat(discord.Client):

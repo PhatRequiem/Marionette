@@ -6,6 +6,7 @@ import sys
 import time
 
 import diagnostics
+from log_store import chat_event
 from commands import HELP_TEXT, recognize
 from style import COLORS, enabled, paint
 
@@ -130,6 +131,7 @@ def run(conversation, *, external=False):
         if not message.strip():
             continue
         if command == 'exit':
+            chat_event('command_result', source='terminal', command='/exit', content='Session exit requested.')
             return
         print()
         if command == 'clear':

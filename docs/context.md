@@ -28,7 +28,7 @@ The allowances are capacity planning, not separate model windows or hard input-l
 
 The optional [Discord transport](discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
 
-Each chat session saves `-chat.txt`, `-server.txt`, and `-model.txt`; each optional Discord connection also saves its own `-discord.txt`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
+Each chat session saves `-chat.jsonl`, `-server.jsonl`, and `-model.jsonl`; each optional Discord connection also saves its own `-discord.jsonl`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
 Run `python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 

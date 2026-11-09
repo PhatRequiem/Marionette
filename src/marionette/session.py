@@ -17,6 +17,7 @@ from connection import LocalConnection
 from conversation import Conversation
 from identity import Profiles
 from inference import API
+from log_store import chat_event
 
 
 def observe(line, facts):
@@ -38,10 +39,12 @@ def chat(api, capacity):
         selected = terminal.select_profile(profiles)
     except EOFError:
         return
+    chat_event('profile_selected', person_uuid=selected['uuid'], display_name=selected['name'], source='terminal')
     terminal.show_profile(selected)
     conversation = Conversation(api, capacity, profiles, selected)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
+    chat_event('ready', context_capacity=capacity, reply_allowance=conversation.reserve)
     terminal.show_ready(capacity, conversation.reserve)
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
@@ -76,6 +79,7 @@ def run(command):
     reader.start()
     diagnostics.log(f'Local server started: pid={child.pid}.')
     try:
+        chat_event('session_started', server_pid=child.pid)
         terminal.color('meta')
         print('Loading model...', flush=True)
         terminal.color('data')
@@ -113,6 +117,7 @@ def run(command):
         reader.join(timeout=5)
         child.stdout.close()
         diagnostics.log('Local server stopped.')
+        chat_event('session_stopped')
 
 
 if __name__ == '__main__':

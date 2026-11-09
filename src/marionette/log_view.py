@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Human-readable, colored views of saved diagnostics; never rewrite evidence."""
+import base64
 import json
 import re
 import sys
 import textwrap
 
 from style import enabled, paint, safe
+from log_router import format_event
 
 
 def severity(text):
@@ -25,7 +27,7 @@ def severity(text):
 def field_kind(key, default='data'):
     if key == 'confirmed_chunks':
         return 'success'
-    if key.endswith('_id'):
+    if key.endswith(('_id', '_uuid')):
         return 'ids'
     if key.endswith('_at') or key in ('time', 'timestamp'):
         return 'muted'
@@ -184,9 +186,61 @@ def diagnostic_row(line, kind, colored):
     return paint(text, kind, colored)
 
 
+def event_rows(event):
+    """Human presentation of JSONL records; raw storage is never modified."""
+    data = event['data']
+    event_type = event['event_type']
+    source = event['source']
+    if event_type == 'terminal_output':
+        return []  # Chat view uses semantic events; export-raw recovers the stream.
+    if event_type == 'raw_output':
+        raw = base64.b64decode(event['raw_b64'], validate=True)
+        return [('muted', event['timestamp']), ('data', safe(raw.decode('utf-8', errors='backslashreplace')))]
+    kind = {'message_received': 'input', 'answer': 'reply', 'reasoning': 'data'}.get(event_type)
+    if kind:
+        title = {'message_received': 'USER', 'answer': 'Answer', 'reasoning': 'Reasoning'}[event_type]
+        heading = {'input': 'meta', 'reply': 'answer_heading', 'data': 'reasoning_heading'}[kind]
+        rows = [('muted', '\n' + event['timestamp']), (heading, f'{title} · {source}')]
+    else:
+        title = data.get('message', event_type.replace('_', ' '))
+        kind = severity(title)
+        rows = [('muted', '\n' + event['timestamp']), (kind, safe(title))]
+    fields = {'event_id': event['event_id'], 'session_id': event['session_id']}
+    fields.update({key: value for key, value in data.items() if key not in ('content', 'role', 'message')})
+    rows.extend(metadata_rows(fields, kind))
+    if 'content' in data:
+        rows.extend([('data', ''), (kind, safe(data['content'])), ('data', '')])
+    return rows
+
+
 def render(source, output, mode, colored):
     view = DiagnosticView()
     for line in source:
+        event = None
+        if line.startswith('{'):
+            try:
+                candidate = json.loads(line)
+                if isinstance(candidate, dict) and candidate.get('version') == 1 and 'event_type' in candidate:
+                    event = candidate
+            except ValueError:
+                output.write(paint('[Incomplete or invalid JSON record; original file unchanged]', 'warning', colored) + '\n')
+                output.flush()
+                continue
+        if event is not None:
+            try:
+                if event['event_type'] == 'diagnostic':
+                    raw = base64.b64decode(event['raw_b64'], validate=True)
+                    block = format_event(event['sequence'], event['timestamp'], raw).decode()
+                    render(block.splitlines(keepends=True), output, 'diagnostic', colored)
+                else:
+                    for kind, text in event_rows(event):
+                        rendered = field_text(text, kind[6:], colored) if kind.startswith('field/') else paint(text, kind, colored)
+                        output.write(rendered + '\n')
+                output.flush()
+            except (ValueError, KeyError, TypeError) as error:
+                output.write(paint(f'[Invalid log record: {type(error).__name__}; original file unchanged]', 'warning', colored) + '\n')
+                output.flush()
+            continue
         if mode == 'discord':
             for kind, text in discord_rows(line):
                 rendered = field_text(text, kind[6:], colored) if kind.startswith('field/') else paint(text, kind, colored)
@@ -201,8 +255,8 @@ def render(source, output, mode, colored):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2 or sys.argv[1] not in ('discord', 'diagnostic'):
-        raise SystemExit('Usage: log_view.py discord|diagnostic < SAVED_LOG')
+    if len(sys.argv) != 2 or sys.argv[1] not in ('discord', 'diagnostic', 'chat'):
+        raise SystemExit('Usage: log_view.py discord|diagnostic|chat < SAVED_LOG')
     try:
         render(sys.stdin, sys.stdout, sys.argv[1], enabled())
     finally:

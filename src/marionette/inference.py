@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 
 import diagnostics
+from log_store import chat_event
 
 
 class API:
@@ -65,35 +66,45 @@ class API:
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
         pieces, thoughts, finish = [], [], None
-        with self.open('/v1/chat/completions', body) as response:
-            for line in response:
-                if self.closing.is_set():
-                    raise RuntimeError('Session is closing.')
-                if not line.startswith(b'data: '):
-                    continue
-                payload = line[6:].strip()
-                if payload == b'[DONE]':
-                    if finish is None:
-                        raise RuntimeError('Response ended without a completion status.')
-                    if thoughts:
-                        diagnostics.log('Reasoning: ' + json.dumps(''.join(thoughts), ensure_ascii=False))
-                    return ''.join(pieces), finish
-                event = json.loads(payload)
-                if 'error' in event:
-                    raise RuntimeError(str(event['error']))
-                for choice in event.get('choices', []):
-                    delta = choice.get('delta', {})
-                    reasoning = delta.get('reasoning_content') or ''
-                    if reasoning:
-                        if on_delta is not None:
-                            on_delta('reasoning', reasoning)
-                        thoughts.append(reasoning)
-                    text = delta.get('content') or ''
-                    if text:
-                        if on_delta is not None:
-                            on_delta('answer', text)
-                        pieces.append(text)
-                    finish = choice.get('finish_reason') or finish
-                if event.get('usage'):
-                    diagnostics.log('Runtime usage: ' + json.dumps(event['usage']))
-        raise RuntimeError('Response stream closed early; partial reply was not kept.')
+        completed = False
+        try:
+            with self.open('/v1/chat/completions', body) as response:
+                for line in response:
+                    if self.closing.is_set():
+                        raise RuntimeError('Session is closing.')
+                    if not line.startswith(b'data: '):
+                        continue
+                    payload = line[6:].strip()
+                    if payload == b'[DONE]':
+                        if finish is None:
+                            raise RuntimeError('Response ended without a completion status.')
+                        if thoughts:
+                            diagnostics.log('Reasoning: ' + json.dumps(''.join(thoughts), ensure_ascii=False))
+                        completed = True
+                        return ''.join(pieces), finish
+                    event = json.loads(payload)
+                    if 'error' in event:
+                        raise RuntimeError(str(event['error']))
+                    for choice in event.get('choices', []):
+                        delta = choice.get('delta', {})
+                        reasoning = delta.get('reasoning_content') or ''
+                        if reasoning:
+                            if on_delta is not None:
+                                on_delta('reasoning', reasoning)
+                            thoughts.append(reasoning)
+                        text = delta.get('content') or ''
+                        if text:
+                            if on_delta is not None:
+                                on_delta('answer', text)
+                            pieces.append(text)
+                        finish = choice.get('finish_reason') or finish
+                    if event.get('usage'):
+                        diagnostics.log('Runtime usage: ' + json.dumps(event['usage']))
+                        chat_event('usage', **event['usage'])
+            raise RuntimeError('Response stream closed early; partial reply was not kept.')
+        finally:
+            if thoughts:
+                chat_event('reasoning', content=''.join(thoughts), complete=completed)
+            if pieces:
+                chat_event('answer', role='assistant', content=''.join(pieces),
+                           complete=completed, finish_reason=finish)

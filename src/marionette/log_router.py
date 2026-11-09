@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Number and route diagnostics to two files without a third raw log."""
-import datetime
 import re
 import sys
 import textwrap
+
+from log_store import record, encode
 
 RECORD = re.compile(rb'^\d[\d.]*\s+([A-Z])\s+(.*)')
 COMPONENT = re.compile(rb'^(srv|slot|que|res)\s+([^:]+):\s*(.*)')
@@ -51,10 +52,9 @@ def category(line):
 def route(source, server, model):
     for number, line in enumerate(source, 1):
         destination = category(line)
-        # Runtime elapsed timestamps and original bytes are left untouched.
-        # Receipt time also timestamps launcher messages lacking a runtime clock.
-        now = datetime.datetime.now().astimezone().isoformat(timespec='microseconds')
-        event = format_event(number, now, line)
+        # Assign once before routing: shared errors retain the same event identity.
+        event = encode(record('diagnostic', 'diagnostic', raw=line, sequence=number,
+                              data={'destination': destination}))
         for name, output in [('server', server), ('model', model)]:
             if destination in (name, 'both'):
                 output.write(event)

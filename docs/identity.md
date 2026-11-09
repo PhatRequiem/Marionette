@@ -18,7 +18,7 @@ Selecting another terminal profile never transfers your Discord account to it. D
 
 `src/marionette/identity.py` resolves the sender and prefixes each user message with a labeled JSON metadata block containing `source`, `sender_id`, `display_name`, and `person_uuid`, followed by the original message. Terminal sender IDs use the selected profile's UUID; Discord sender IDs use the Discord account number. Thus Phat has the same person UUID across both sources. Unknown Discord identities are rejected instead of being treated as the owner.
 
-The main diagnostic logs record **Sender identity** with these fields; the normal transcript records profile selection, messages and replies. Metadata is counted before generation and retained with each user message. `/clear` resets shared conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
+The main diagnostic logs record **Sender identity** with these fields; the chat JSONL records profile selection, source/sender/person and turn IDs, messages, reasoning, and replies, alongside the raw terminal capture. See [logs](logs.md). Metadata is counted before generation and retained with each user message. `/clear` resets shared conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
 
 All profiles still share one history, budget, and rollover policy. This adds no relationship records, separate histories, persistent model memory, or file-reading access. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
 

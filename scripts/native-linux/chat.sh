@@ -25,7 +25,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
+for source in log_store.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -51,16 +51,26 @@ flock -n 9 || { echo 'A chat is already running. Stop it before starting another
 LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
-CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.txt")"
-SERVER_FILE="${CHAT_FILE%-chat.txt}-server.txt"
-MODEL_FILE="${CHAT_FILE%-chat.txt}-model.txt"
+CHAT_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-chat.jsonl")"
+SERVER_FILE="${CHAT_FILE%-chat.jsonl}-server.jsonl"
+MODEL_FILE="${CHAT_FILE%-chat.jsonl}-model.jsonl"
 (set -o noclobber; : > "$SERVER_FILE"; : > "$MODEL_FILE")
+export MARIONETTE_SESSION_ID="$(basename "${CHAT_FILE%-chat.jsonl}")"
+export MARIONETTE_CHAT_LOG="$CHAT_FILE"
 # One writer assigns event IDs before routing; no raw debug file is created.
 exec 3> >(python "$ROOT/src/marionette/log_router.py" "$SERVER_FILE" "$MODEL_FILE")
 ROUTER_PID=$!
+# Keep the recorder's exact bytes inside JSONL; never create a raw .txt file.
+exec 4> >(python "$ROOT/src/marionette/log_store.py" terminal "$CHAT_FILE" 3>&-)
+RECORDER_PID=$!
 finish() {
     local status=$?
     printf '\nSession ended: %s\nExit status: %s\n' "$(date --iso-8601=seconds)" "$status" >&3
+    exec 4>&-
+    if ! wait "$RECORDER_PID"; then
+        echo 'Terminal log writer failed; saved logs may be incomplete.' >&2
+        status=1
+    fi
     exec 3>&-
     if ! wait "$ROUTER_PID"; then
         echo 'Diagnostic log writer failed; saved logs may be incomplete.' >&2
@@ -101,7 +111,7 @@ for view in server model; do
         model) title='Marionette — Model processing'; log_file="$MODEL_FILE" ;;
     esac
     (
-        exec 3>&- 9>&-
+        exec 3>&- 4>&- 9>&-
         if ! xdg-terminal-exec --title="$title" -- \
             bash "$ROOT/scripts/native-linux/view-log.sh" "$log_file" "$$" "$view"; then
             warning="Debug window could not open or exited with an error ($view). Logs are still saved: $log_file"
@@ -115,6 +125,6 @@ done
 # The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
 printf -v RECORD_COMMAND '%q ' python -u "$ROOT/src/marionette/session.py" \
     "${COMMAND[@]}"
-RECORD_COMMAND+=' 2>&3 3>&-'
+RECORD_COMMAND+=' 2>&3 3>&- 4>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
-    --command "$RECORD_COMMAND" "$CHAT_FILE" 2>&3
+    --command "$RECORD_COMMAND" /dev/fd/4 2>&3
