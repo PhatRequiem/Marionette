@@ -37,7 +37,7 @@ def observe(line, facts):
     for key, pattern in patterns.items():
         match = re.search(pattern, line)
         if match:
-            facts[key] = {'value': match.group(1).strip(), 'evidence': line.strip()}
+            facts[key] = match.group(1).strip()
 
 
 class API:
@@ -70,10 +70,13 @@ class API:
     def body(messages):
         return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': False}}
 
+    def tokenize(self, prompt):
+        return self.json('/tokenize', {'content': prompt, 'add_special': True,
+                                       'parse_special': True})['tokens']
+
     def count(self, messages):
         prompt = self.json('/apply-template', self.body(messages))['prompt']
-        result = self.json('/tokenize', {'content': prompt, 'add_special': True, 'parse_special': True})
-        return len(result['tokens'])
+        return len(self.tokenize(prompt))
 
     def prepare(self, messages):
         # Render with a following user turn so the template treats the last reply
@@ -84,8 +87,7 @@ class API:
         if prompt.count(marker) != 1:
             raise RuntimeError('Cannot locate next-message boundary in chat template.')
         prefix = prompt.split(marker)[0]
-        tokens = self.json('/tokenize', {'content': prefix, 'add_special': True,
-                                        'parse_special': True})['tokens']
+        tokens = self.tokenize(prefix)
         # Leave the boundary token for the real input in case tokenization merges it.
         result = self.json('/completion', {'prompt': tokens[:-1], 'n_predict': 0,
                                           'cache_prompt': True})
@@ -137,7 +139,6 @@ class Preparation:
     """One worker; only the chat thread commits history after joining it."""
     def __init__(self, api, history, capacity, reserve):
         self.history = history
-        self.error = None
         self.thread = threading.Thread(target=self.work,
                                        args=(api, capacity, reserve), daemon=True)
         api.worker = self.thread
@@ -167,8 +168,7 @@ class Preparation:
             log(f'Rollover preparation completed: removed_exchanges={removed}; '
                 f'elapsed_ms={(time.monotonic() - started) * 1000:.2f}.')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
-            self.error = error
-            if getattr(api, 'closing', threading.Event()).is_set():
+            if api.closing.is_set():
                 log('Rollover preparation stopped with session shutdown.')
             else:
                 log(f'Rollover preparation failed; history retained: {error}')
@@ -199,15 +199,16 @@ def chat(api, capacity):
                 color('data')
         except EOFError:
             return
-        if not message.strip():
+        command = message.strip()
+        if not command:
             continue
-        if message.strip() == '/exit':
+        if command == '/exit':
             return
         print()
         if pending is not None:
             history = pending.result()
             pending = None
-        if message.strip() == '/clear':
+        if command == '/clear':
             history = []
             log('Chat history cleared.')
             print('Chat history cleared.')
@@ -269,13 +270,13 @@ def run(command):
                 raise RuntimeError(f'Server exited before readiness (status {status}).')
             if time.monotonic() > deadline:
                 raise RuntimeError('Server did not become ready within 180 seconds.')
-        address = facts.get('local_server', {}).get('value')
+        address = facts.get('local_server')
         if not address:
             raise RuntimeError('No loopback server address was reported.')
         api = API(address)
         api.json('/health')
         capacity = int(api.json('/props')['default_generation_settings']['n_ctx'])
-        observed = facts.get('context_tokens', {}).get('value')
+        observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
         chat(api, capacity)

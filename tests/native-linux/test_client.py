@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 import time
+import threading
 from pathlib import Path
 import tempfile
 import unittest
@@ -43,6 +44,7 @@ class ClientTests(unittest.TestCase):
 
     def test_failed_stream_not_kept_and_clear_starts_empty(self):
         class FakeAPI:
+            closing = threading.Event()
             def __init__(self):
                 self.sent = []
             def count(self, _):
@@ -53,7 +55,7 @@ class ClientTests(unittest.TestCase):
                     raise RuntimeError('stream interrupted')
                 return 'answer', 'stop'
         api = FakeAPI()
-        with tempfile.TemporaryDirectory() as directory, patch('builtins.input', side_effect=['failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+        with patch('builtins.input', side_effect=['failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
             client.chat(api, 8192)
         self.assertEqual([m['content'] for m in api.sent[1]], ['good'])
         self.assertEqual([m['content'] for m in api.sent[2]], ['fresh'])
@@ -61,26 +63,34 @@ class ClientTests(unittest.TestCase):
     def test_eof_and_termination_stop_owned_server(self):
         for action in ('eof', 'terminate'):
             with self.subTest(action=action), tempfile.TemporaryDirectory() as directory:
-                path = Path(directory) / 'test-model.txt'
-                process = subprocess.Popen([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                try:
-                    # Read the explicit readiness line, without needing a report file.
-                    while 'Ready.' not in process.stdout.readline():
-                        self.assertIsNone(process.poll())
-                    children = Path(f'/proc/{process.pid}/task/{process.pid}/children').read_text().split()
-                    self.assertEqual(len(children), 1)
-                    pid = int(children[0])
-                    self.assertFalse(list(Path(directory).glob('*setup*')))
-                    if action == 'terminate':
-                        process.send_signal(signal.SIGTERM)
-                    stdout, stderr = process.communicate('', timeout=10)
-                    self.assertEqual(process.returncode, 0, stdout + stderr)
-                    with self.assertRaises(ProcessLookupError):
-                        os.kill(pid, 0)
-                finally:
-                    if process.poll() is None:
-                        process.terminate()
-                        process.communicate(timeout=10)
+                output_path = Path(directory) / 'terminal.txt'
+                with output_path.open('w') as output:
+                    process = subprocess.Popen(
+                        [sys.executable, str(ROOT / 'scripts/native-linux/session.py'),
+                         sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')],
+                        stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
+                        text=True, cwd=directory)
+                    try:
+                        deadline = time.monotonic() + 10
+                        while 'Ready.' not in output_path.read_text():
+                            self.assertIsNone(process.poll(), output_path.read_text())
+                            self.assertLess(time.monotonic(), deadline, 'Startup timed out')
+                            time.sleep(.02)
+                        children = Path(f'/proc/{process.pid}/task/{process.pid}/children').read_text().split()
+                        self.assertEqual(len(children), 1)
+                        pid = int(children[0])
+                        if action == 'terminate':
+                            process.send_signal(signal.SIGTERM)
+                        process.communicate('', timeout=10)
+                        self.assertEqual(process.returncode, 0, output_path.read_text())
+                        self.assertFalse(list(Path(directory).glob('*setup*')))
+                        with self.assertRaises(ProcessLookupError):
+                            os.kill(pid, 0)
+                    finally:
+                        if process.poll() is None:
+                            process.terminate()
+                            process.communicate(timeout=10)
+
 
 
 class PreparationTests(unittest.TestCase):
@@ -89,10 +99,10 @@ class PreparationTests(unittest.TestCase):
                 for role in ('user', 'assistant')]
 
     def test_idle_rollover_prepares_before_committing_and_waits_for_early_input(self):
-        import threading
         started, release = threading.Event(), threading.Event()
         history = self.history()
         class FakeAPI:
+            closing = threading.Event()
             def count(self, messages):
                 return len(messages) * 10
             def prepare(self, messages):
@@ -115,18 +125,20 @@ class PreparationTests(unittest.TestCase):
 
     def test_preparation_failure_retains_original_history(self):
         class FakeAPI:
+            closing = threading.Event()
             def count(self, messages):
                 return len(messages) * 10
             def prepare(self, messages):
                 raise RuntimeError('synthetic cache failure')
         history = self.history()
-        with patch.object(client, 'log'):
+        with patch.object(client, 'log') as logged:
             pending = client.Preparation(FakeAPI(), history, 200, 50)
             self.assertIs(pending.result(), history)
-            self.assertIsInstance(pending.error, RuntimeError)
+            self.assertTrue(any('synthetic cache failure' in call.args[0] for call in logged.call_args_list))
 
     def test_no_prefill_when_next_turn_has_room(self):
         class FakeAPI:
+            closing = threading.Event()
             def count(self, messages):
                 return 20
             def prepare(self, messages):

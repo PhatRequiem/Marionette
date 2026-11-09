@@ -74,8 +74,7 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
     printf 'Chat file: %s\nServer log: %s\nModel log: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
-    RUNTIME_VERSION="$("$CLI" --version 2>&1)"
-    printf '%s\n' "$RUNTIME_VERSION"
+    "$CLI" --version
     script --version
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
@@ -92,7 +91,7 @@ for view in server model; do
         exec 3>&-
         if ! xdg-terminal-exec --title="$title" -- \
             bash "$ROOT/scripts/native-linux/view-log.sh" "$log_file" "$$" "$view"; then
-            warning="Debug window could not open or exited with an error ($view). Logs are still saved: $MODEL_FILE"
+            warning="Debug window could not open or exited with an error ($view). Logs are still saved: $log_file"
             printf '%s\n' "$warning" >&2
         fi
     ) &

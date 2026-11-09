@@ -15,9 +15,9 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The client starts the Q4_K_M model with an 8,192-token context and reasoning disabled. It counts the formatted prompt before each reply, reserves 512 tokens for the response, and removes the oldest complete exchanges when needed. After a reply, it prepares shortened history in the background when space runs low, reserving room for the next turn. No setup report is generated or sent. The server listens on `127.0.0.1` at a temporary port and stops when the client exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, an 8,192-token context, and reasoning disabled. The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
-Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses automatic context rollover and [between-turn preparation](docs/native-linux/context.md). See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
+See [context policy and verified behavior](docs/native-linux/context.md) for allowances, trimming, cache preparation, and limitations. The older direct-inference checkpoint is documented separately at [Baseline 1](docs/native-linux/baseline.md) and Git tag `baseline-v1`.
 
 ## Folder map
 
@@ -32,8 +32,7 @@ Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses autom
 - `scripts/visual-design/`: optional, local Blender character-render experiments.
 - `docs/visual-design/experiments/`: visual experiment methods and limitations.
 - `data/visual-design/`: generated Blender scenes and renders; ignored by Git.
-- `tests/native-linux/`: isolated setup and logging regression checks.
-- `src/`, `public/`: existing scaffolding; unused by this setup.
+- `tests/native-linux/`: isolated setup, chat, rollover, logging, and lifecycle checks.
 
 See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).
 

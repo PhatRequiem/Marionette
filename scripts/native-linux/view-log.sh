@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 case "${3:-}" in
     server) title='Connections and requests' ;;
     model) title='Model processing' ;;

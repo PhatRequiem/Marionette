@@ -22,7 +22,7 @@ The launcher resolves paths relative to itself and can be invoked from any direc
 - No personality file or generated setup report is used. See [context rollover](context.md) for preparation, budgeting, and failure behavior.
 - Model context lasts only for this process. Dated transcripts are saved for the user; they are not automatically fed back into the model. No memory database or cross-database migration exists.
 - Chat uses `--offline` for model loading; the loopback HTTP connection still operates. No hosted API or login is needed.
-- Each session has a shared timestamp and unique suffix with `-chat.txt`, `-server.txt`, and `-model.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. terminal color codes, carriage returns, and backspaces may remain. The chat transcript format is unchanged.
+- Each session has a shared timestamp and unique suffix with `-chat.txt`, `-server.txt`, and `-model.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. Terminal color codes, carriage returns, and backspaces may remain.
 - Both diagnostic files record session start/end times, exact launch arguments, runtime/recorder versions, and the exit status. llama.cpp runs with `--verbose --log-prefix --log-timestamps`, capturing all diagnostics exposed by this build, including model, device, memory, prompt, token, timing, and error details. Runtime timestamps are elapsed time; session headers give local time and UTC offset.
 - The client forwards the runtime stderr stream to one log router outside the recorder, keeping diagnostics out of the chat transcript. The router assigns a session-wide event number to each received line before routing it. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder.
 - Files use owner-only permissions and unique timestamped names. The chat recorder flushes each write, and each viewer follows its own saved file until the launcher exits. Debug visibility follows the runtime logging flush behavior. Closing the viewer does not stop recording. A viewer launch failure is reported in the launching terminal while chat recording continues.
@@ -59,14 +59,14 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 ## Runtime decision
 
-Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `session.py`. No new dependency or persistent service is required. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
+Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `session.py`. The client requires no third-party Python packages or persistent service. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
 The model's native template is used with reasoning disabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
-The context remains 8,192 tokens with a 512-token reply allowance. The archive, model, and checksums are unchanged. The manifest now selects `llama-server`. Rebuild using the same setup command. Existing chats continue using the old client until exited and relaunched.
+The context remains 8,192 tokens with a 512-token reply allowance. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
 ## Verification
 
 Run `python -m unittest discover -s tests/native-linux -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. Baseline 1 remains a historical direct-inference checkpoint.
 
-The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, and: synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
+The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
