@@ -165,6 +165,40 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn('Terminal log writer failed', result.stderr)
 
+    def test_info_only_runtime_reaches_readiness(self):
+        runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
+        source = runtime.read_text().replace('llama_context: n_ctx_seq = 8192',
+                                            'srv load_model: n_ctx_slot = 8192')
+        source = source.replace("print('0.0 I srv update_slots: all slots are idle', file=sys.stderr, flush=True)", '')
+        runtime.write_text(source)
+        result = self.run_chat()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Ready.', result.stdout)
+        self.assertIn('Synthetic reply.', result.stdout)
+
+    def test_normal_and_debug_modes_choose_runtime_verbosity(self):
+        for args, mode, expected in [((), 'normal', '--log-verbosity 3'),
+                                      (('--debug',), 'debug', '--verbose')]:
+            with self.subTest(mode=mode):
+                result = self.run_chat(*args)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('Logging mode: ' + mode, result.stdout)
+                path = max(self.logs.glob('*-model.jsonl'), key=lambda p: p.stat().st_mtime_ns)
+                diagnostic = raw_text(path)
+                command = next(line for line in diagnostic.splitlines() if line.startswith('Command:'))
+                self.assertIn(expected, command)
+                self.assertNotIn('--debug', command)
+                self.assertIn('Logging mode: ' + mode, diagnostic)
+                if mode == 'normal':
+                    self.assertNotIn('--verbose', command)
+
+    def test_runtime_verbosity_overrides_require_launcher_debug_mode(self):
+        for flag in ['--verbose', '--log-verbosity=5', '-lv', '--verbosity']:
+            result = self.run_chat(flag)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('unsupported override', result.stderr)
+        self.assertFalse(self.logs.exists())
+
     def test_inspection_does_not_create_a_session(self):
         result = self.run_chat('--version')
         self.assertEqual(result.returncode, 0)

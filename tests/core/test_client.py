@@ -50,6 +50,12 @@ class ClientTests(unittest.TestCase):
                          + '\n\nAnswer:\n' + COLORS['reply'] + 'Four.')
         logged.assert_called_once_with('Reasoning: "Check the sum."')
 
+    def test_readiness_accepts_info_level_slot_capacity(self):
+        facts = {}
+        client.observe("0.01 I srv load_model: initializing, n_slots = 1, n_ctx_slot = 65536, kv_unified = 'false'", facts)
+        client.observe('0.01 I srv server_on_li: listening on http://127.0.0.1:12345', facts)
+        self.assertEqual(facts, {'context_tokens': '65536', 'local_server': 'http://127.0.0.1:12345'})
+
     def test_generation_allowance_uses_half_context_up_to_32k(self):
         for capacity, expected in ((65536, 32768), (8192, 4096)):
             class FakeAPI:

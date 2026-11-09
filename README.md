@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated JSONL chat and diagnostic files locally, preserving raw bytes in Base64. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated JSONL chat and diagnostic files locally, preserving raw bytes in Base64. Normal launches use lighter runtime logging; add `--debug` for full per-token diagnostics. Previous logs are not loaded as memory.
 
 ## Quick start
 

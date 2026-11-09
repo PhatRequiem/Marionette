@@ -4,6 +4,16 @@ New sessions save **JSONL**: one complete JSON object per line, in UTF-8. The lo
 
 This is storage and presentation only. Marionette cannot read these files, recall previous sessions, or use them as memory.
 
+## Normal and debug modes
+
+Normal launch (`./scripts/native-linux/chat.sh`) uses llama.cpp `--log-verbosity 3`: generic, error, warning, and informational runtime output. It retains model/GPU startup details, request summaries and response timings. The client independently records messages, reasoning, answers, identity, token usage, rollover, and lifecycle events. Discord logging is unchanged.
+
+For exhaustive runtime diagnostics, launch `./scripts/native-linux/chat.sh --debug` instead. This selects `--verbose`, including trace/debug queue activity, per-token processing, and internal settings. The launcher consumes `--debug`; it is not a server option. Direct verbosity overrides are rejected so the selected mode is unambiguous. Both modes show and record their mode and exact runtime command.
+
+This uses the installed b12211 binary's `--help` definitions and the [official server logging options](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md). The runtime suppresses lower-level messages at the source; the router does not discard emitted warnings or unknown lines. Debug mode must be enabled before reproducing a problem; it cannot recover details omitted by an earlier normal session. Model and sampling settings are unchanged.
+
+There is **no 5 GB cap, automatic deletion, or rotation**. Existing sessions keep their original mode until restarted. Saved historical logs remain untouched.
+
 ## Files and contents
 
 All files remain private under `data/conversations/`:
@@ -114,3 +124,9 @@ An isolated Q4 GPU launch with a synthetic profile produced separate reasoning a
 Replaying the five-message session through 64 KiB / 100 ms grouping reduced projected storage from **94.80 MB to 28.34 MB (70.1%)**. Server: 17.96 MB; model: 10.05 MB; chat: 0.31 MB; Discord unchanged at 0.02 MB. This is an offline replay using recorded receipt times, not a new live-session benchmark. Every diagnostic byte, line sequence, and timestamp matched the originals, as did the complete terminal byte stream. Original session files were not modified.
 
 48 core and 12 mocked Discord checks pass, including idle-time flushing, EOF flushing, split diagnostic lines, byte recovery, per-line timestamps, unchanged colored rendering, and launcher shutdown. Existing running processes continue using the code loaded at startup; grouping takes effect on the next launch. Full verbose diagnostics, shared copies, and Base64 still account for substantial storage.
+
+## Normal-mode verification (2026-11-09)
+
+52 core and 12 mocked Discord checks pass. Tests cover mode selection, rejection of ambiguous verbosity overrides, and startup using informational context/listening lines without the verbose idle notification. Startup still checks health and compares the logged slot capacity against the server's reported context capacity.
+
+An isolated real Q4 normal-mode launch with a synthetic profile loaded, produced separate reasoning and the answer to a short arithmetic prompt, retained response timing, and stopped cleanly. Its logs totaled **29,571 bytes**, with no per-token process entries. This is one short functional smoke test, not a like-for-like size comparison with the earlier five-message conversation or a long-session benchmark. The user's running session was not restarted.

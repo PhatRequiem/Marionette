@@ -22,7 +22,7 @@ from log_store import chat_event
 
 def observe(line, facts):
     patterns = {
-        'context_tokens': r'llama_context: n_ctx_seq\s*=\s*(\d+)',
+        'context_tokens': r'(?:llama_context: n_ctx_seq|\bn_ctx_slot)\s*=\s*(\d+)',
         'local_server': r'server_on_li: listening on (http://127\.0\.0\.1:\d+)',
     }
     for key, pattern in patterns.items():
@@ -72,7 +72,7 @@ def run(command):
             line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
             if not ready.is_set():
                 observe(line, facts)
-                if 'update_slots: all slots are idle' in line:
+                if 'local_server' in facts:
                     ready.set()
 
     reader = threading.Thread(target=read_diagnostics, daemon=True)
