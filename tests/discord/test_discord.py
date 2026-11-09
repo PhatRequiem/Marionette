@@ -1,6 +1,7 @@
 """Synthetic DM checks; never connect to Discord or use private credentials."""
 import asyncio
 import contextlib
+import datetime
 import io
 import json
 from pathlib import Path
@@ -9,7 +10,7 @@ import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
@@ -25,10 +26,12 @@ async def typing():
 def message(number=1, owner=123, guild=None, channel=None, content='hello', attachments=None):
     if channel is None:
         channel = Mock(spec=bot.discord.DMChannel)
-        channel.send = AsyncMock()
+        channel.id = 789
+        channel.send = AsyncMock(return_value=SimpleNamespace(id=987))
         channel.typing = typing
     return SimpleNamespace(id=number, author=SimpleNamespace(id=owner, bot=False),
                            guild=guild, channel=channel, content=content,
+                           created_at=datetime.datetime.now(datetime.timezone.utc),
                            attachments=attachments or [], stickers=[])
 
 
@@ -48,13 +51,14 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.api = FakeAPI()
         self.conversation = session.Conversation(self.api, 65536)
-        async def request(address, text, sender_id):
+        async def request(address, text, sender_id, *, details=False):
             self.assertEqual(sender_id, 123)
-            return self.conversation.turn(text)
+            answer, finish = self.conversation.turn(text)
+            return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)
         self.logged = patch.object(session, 'log').start()
-        patch.object(bot, 'log').start()
+        self.events = patch.object(bot, 'log').start()
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
 
@@ -113,6 +117,55 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(''.join(parts), answer)
         self.assertTrue(all(len(part.encode('utf-16-le')) // 2 <= 1900 for part in parts))
         self.assertEqual(self.conversation.history[-1]['content'], answer)
+
+    async def test_received_metadata_and_timing_breakdown(self):
+        item = message()
+        item.created_at -= datetime.timedelta(seconds=2)
+        with patch.object(bot.DMChat, 'latency', new_callable=PropertyMock, return_value=.025):
+            await self.client.on_message(item)
+        events = {call.args[0]: call.kwargs for call in self.events.call_args_list}
+        received = events['Discord message received.']
+        self.assertEqual((received['sender_id'], received['channel_id'], received['message_id']),
+                         ('123', '789', '1'))
+        self.assertEqual(received['heartbeat_ms'], 25)
+        self.assertGreaterEqual(received['receipt_delay_ms'], 2000)
+        self.assertEqual(received['created_at'], item.created_at.isoformat())
+        self.assertIn('received_at', received)
+        self.assertGreaterEqual(events['Discord turn started.']['adapter_queue_ms'], 0)
+        local = events['Local response completed.']
+        self.assertEqual((local['main_queue_ms'], local['processing_ms']), (2, 3))
+        self.assertGreaterEqual(local['local_response_ms'], 0)
+        sent = events['Discord chunk sent.']
+        self.assertEqual((sent['outgoing_message_id'], sent['chunk'], sent['chunk_count']), ('987', 1, 1))
+        self.assertGreaterEqual(sent['send_ms'], 0)
+        self.assertGreaterEqual(events['Discord answer delivered.']['total_ms'], 0)
+
+    async def test_partial_send_logs_codes_and_progress_without_error_payload(self):
+        item = message()
+        error = bot.discord.HTTPException(SimpleNamespace(status=403, reason='Forbidden'),
+                                          {'code': 50007, 'message': 'synthetic-secret-payload'})
+        item.channel.send.side_effect = [SimpleNamespace(id=987), error, SimpleNamespace(id=988)]
+        with patch.object(self.api, 'reply', return_value=('a' * 2000, 'stop')):
+            await self.client.on_message(item)
+        failure = next(call.kwargs for call in self.events.call_args_list
+                       if call.args[0] == 'Discord chunk failed.')
+        self.assertEqual((failure['chunk'], failure['chunk_count'], failure['confirmed_chunks']), (2, 2, 1))
+        self.assertEqual((failure['http_status'], failure['discord_code']), (403, 50007))
+        self.assertNotIn('synthetic-secret-payload', str(self.events.call_args_list))
+        self.assertFalse(any(c.args[0] == 'Discord answer delivered.' for c in self.events.call_args_list))
+
+    async def test_connection_events_and_unavailable_latency(self):
+        with patch.object(bot.DMChat, 'latency', new_callable=PropertyMock, return_value=float('nan')):
+            await self.client.on_connect()
+            await self.client.on_disconnect()
+            first_disconnect = self.client.disconnected_at
+            await self.client.on_disconnect()
+            self.assertEqual(self.client.disconnected_at, first_disconnect)
+            await self.client.on_resumed()
+        resumed = self.events.call_args.kwargs
+        self.assertIsNone(resumed['heartbeat_ms'])
+        self.assertGreaterEqual(resumed['downtime_ms'], 0)
+        self.assertIsNone(self.client.disconnected_at)
 
 
 class ConfigAndStreamingTests(unittest.TestCase):

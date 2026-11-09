@@ -30,9 +30,11 @@ class LocalConnection:
                             or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
                         raise ValueError('A numeric Discord sender ID is required.')
                     log(f'Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
-                    answer, finish = turn(message, sender_id=sender_id)
+                    timings = {}
+                    options = {'timings': timings} if request.get('details') else {}
+                    answer, finish = turn(message, sender_id=sender_id, **options)
                     log('Discord answer: ' + json.dumps(answer, ensure_ascii=False))
-                    result = {'answer': answer, 'finish': finish}
+                    result = {'answer': answer, 'finish': finish, 'timings': timings}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
                     log(f'Discord local request failed: {error}')
                     result = {'error': 'Local chat could not finish this turn; check model logs.'}
@@ -59,11 +61,11 @@ class LocalConnection:
         self.path.unlink(missing_ok=True)
 
 
-async def request(address, message, sender_id):
+async def request(address, message, sender_id, *, details=False):
     """No generation timeout: a 32K thinking response can legitimately take minutes."""
     reader, writer = await asyncio.open_unix_connection(str(address), limit=4 * MAX_REQUEST)
     try:
-        payload = (json.dumps({'message': message, 'sender_id': str(sender_id)}) + '\n').encode()
+        payload = (json.dumps({'message': message, 'sender_id': str(sender_id), 'details': details}) + '\n').encode()
         if len(payload) > MAX_REQUEST:
             raise ValueError('Message is too large for the local connection.')
         writer.write(payload)
@@ -74,7 +76,7 @@ async def request(address, message, sender_id):
         result = json.loads(raw)
         if 'error' in result:
             raise RuntimeError(result['error'])
-        return result['answer'], result['finish']
+        return result if details else (result['answer'], result['finish'])
     finally:
         writer.close()
         await writer.wait_closed()

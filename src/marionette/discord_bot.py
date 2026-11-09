@@ -3,6 +3,8 @@
 import asyncio
 import datetime
 import json
+import math
+import time
 from pathlib import Path
 import signal
 import sys
@@ -15,8 +17,23 @@ ROOT = Path(__file__).resolve().parents[2]
 ADDRESS = ROOT / 'data/session/chat.sock'
 
 
-def log(message):
-    print(f'{datetime.datetime.now().astimezone().isoformat()} {message}', flush=True)
+def log(message, **fields):
+    details = ' ' + json.dumps(fields, ensure_ascii=False, allow_nan=False) if fields else ''
+    print(f'{datetime.datetime.now().astimezone().isoformat()} {message}{details}', flush=True)
+
+
+def elapsed(start):
+    return round((time.monotonic() - start) * 1000, 2)
+
+
+def error_fields(error):
+    # Numeric codes only: exception text/headers may include credentials or payloads.
+    fields = {'error_type': type(error).__name__}
+    for name in ('status', 'code'):
+        value = getattr(error, name, None)
+        if isinstance(value, int):
+            fields['http_status' if name == 'status' else 'discord_code'] = value
+    return fields
 
 
 def read_config(path):
@@ -56,9 +73,9 @@ def chunks(text, limit=1900):
         yield ''.join(part)
 
 
-def transcript(role, content, message_id):
+def transcript(role, content, message_id, **fields):
     print(json.dumps({'time': datetime.datetime.now().astimezone().isoformat(),
-                      'message_id': str(message_id), 'role': role, 'content': content},
+                      'message_id': str(message_id), 'role': role, 'content': content, **fields},
                      ensure_ascii=False), flush=True)
 
 
@@ -71,48 +88,112 @@ class DMChat(discord.Client):
         self.address, self.owner = address, owner
         self.turn_lock = asyncio.Lock()
         self.last_message_id = 0
+        self.disconnected_at = None
+
+    def heartbeat_ms(self):
+        return round(self.latency * 1000, 2) if math.isfinite(self.latency) else None
+
+    async def on_connect(self):
+        log('Discord transport connected; awaiting ready/resume.')
+
+    async def on_disconnect(self):
+        if self.disconnected_at is None:
+            self.disconnected_at = time.monotonic()
+        log('Discord disconnected.', heartbeat_ms=self.heartbeat_ms())
+
+    def connection_ready(self, event):
+        log(event, heartbeat_ms=self.heartbeat_ms(),
+            downtime_ms=elapsed(self.disconnected_at) if self.disconnected_at is not None else None)
+        self.disconnected_at = None
+
+    async def on_resumed(self):
+        self.connection_ready('Discord session resumed.')
 
     async def on_ready(self):
-        log('Discord connected; accepting only configured owner DMs.')
+        self.connection_ready('Discord ready; accepting only configured owner DMs.')
         print('Discord ready. Send the bot a DM. Ctrl+C disconnects Discord; main chat keeps running.', flush=True)
 
     async def on_error(self, event, *args, **kwargs):
-        # Do not dump Gateway payloads or credentials through generic tracebacks.
-        log(f'Discord event failed: {event}; {type(sys.exception()).__name__}.')
+        log('Discord event failed.', event=event, **error_fields(sys.exception()))
+
+    async def send_parts(self, channel, text, context, *, kind='answer'):
+        parts = list(chunks(text))
+        started = time.monotonic()
+        log('Discord send started.', **context, kind=kind, chunk_count=len(parts))
+        for index, part in enumerate(parts, 1):
+            part_start = time.monotonic()
+            try:
+                sent = await channel.send(part, suppress_embeds=True,
+                                          allowed_mentions=discord.AllowedMentions.none())
+            except (OSError, discord.HTTPException) as error:
+                log('Discord chunk failed.', **context, kind=kind, chunk=index,
+                    chunk_count=len(parts), confirmed_chunks=index - 1,
+                    send_ms=elapsed(part_start), **error_fields(error))
+                raise
+            log('Discord chunk sent.', **context, kind=kind, chunk=index, chunk_count=len(parts),
+                outgoing_message_id=str(sent.id), send_ms=elapsed(part_start))
+        log('Discord send completed.', **context, kind=kind, chunk_count=len(parts),
+            send_ms=elapsed(started))
 
     async def on_message(self, message):
         # Filter before reading/logging content or touching conversation history.
         if (message.author.bot or message.author.id != self.owner
                 or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
             return
+        received = datetime.datetime.now(datetime.timezone.utc)
+        started = time.monotonic()
+        context = {'message_id': str(message.id), 'sender_id': str(message.author.id),
+                   'channel_id': str(message.channel.id)}
+        log('Discord message received.', **context, created_at=message.created_at.isoformat(),
+            received_at=received.isoformat(),
+            receipt_delay_ms=round((received - message.created_at).total_seconds() * 1000, 2),
+            heartbeat_ms=self.heartbeat_ms())
         async with self.turn_lock:
             if message.id <= self.last_message_id:
+                log('Discord duplicate/older message ignored.', **context)
                 return
             self.last_message_id = message.id
-            if message.attachments or message.stickers:
-                await message.channel.send('Text only for now; please send your message without attachments.')
-                return
-            text = message.content.strip()
-            if not text:
-                return
-            transcript('user', text, message.id)
+            log('Discord turn started.', **context, adapter_queue_ms=elapsed(started))
+            phase = 'input'
+            local_start = None
             try:
+                if message.attachments or message.stickers:
+                    await self.send_parts(message.channel,
+                        'Text only for now; please send your message without attachments.', context, kind='notice')
+                    return
+                text = message.content.strip()
+                if not text:
+                    log('Discord empty message ignored.', **context)
+                    return
+                transcript('user', text, **context)
                 async with message.channel.typing():
-                    answer, finish = await request(self.address, text, message.author.id)
-                    transcript('assistant', answer, message.id)
-                    for part in chunks(answer):
-                        await message.channel.send(part, suppress_embeds=True,
-                                                   allowed_mentions=discord.AllowedMentions.none())
-                log(f'Discord answer delivered: message_id={message.id}.')
+                    phase = 'local_response'
+                    local_start = time.monotonic()
+                    result = await request(self.address, text, message.author.id, details=True)
+                    answer, finish = result['answer'], result['finish']
+                    timings = result.get('timings', {})
+                    log('Local response completed.', **context, local_response_ms=elapsed(local_start),
+                        main_queue_ms=timings.get('main_queue_ms'),
+                        processing_ms=timings.get('processing_ms'), finish_reason=finish)
+                    transcript('assistant', answer, **context)
+                    phase = 'delivery'
+                    await self.send_parts(message.channel, answer, context)
+                log('Discord answer delivered.', **context, total_ms=elapsed(started))
                 if finish == 'length':
-                    await message.channel.send('[Thinking and answer reached their shared token allowance.]')
+                    phase = 'notice'
+                    await self.send_parts(message.channel,
+                        '[Thinking and answer reached their shared token allowance.]', context, kind='notice')
             except (OSError, ValueError, RuntimeError, discord.HTTPException) as error:
-                log(f'Discord turn failed: message_id={message.id}; {type(error).__name__}. '
-                            'Delivery may be partial; no automatic resend.')
+                log('Discord turn failed; delivery may be partial; no automatic resend.',
+                    **context, phase=phase, total_ms=elapsed(started),
+                    local_response_ms=elapsed(local_start) if phase == 'local_response' and local_start else None,
+                    **error_fields(error))
                 try:
-                    await message.channel.send('This turn could not finish. Please try again; details are in the local logs.')
-                except discord.HTTPException:
-                    log('Discord error notice could not be delivered.')
+                    await self.send_parts(message.channel,
+                        'This turn could not finish. Please try again; details are in the local logs.',
+                        context, kind='error_notice')
+                except (OSError, discord.HTTPException):
+                    pass  # send_parts has already recorded the failure and codes.
 
 
 def main():
@@ -153,11 +234,11 @@ if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except KeyboardInterrupt:
-        print('Discord session stopped.', flush=True)
+        log('Discord session stopped.')
     except (OSError, ValueError, RuntimeError, discord.DiscordException) as error:
         # Never print the credential or HTTP request headers.
         if isinstance(error, ValueError):
             print(str(error), file=sys.stderr)
         else:
-            print(f'Discord startup failed ({type(error).__name__}); check configuration and connection.', file=sys.stderr)
+            log('Discord startup failed; check configuration and connection.', **error_fields(error))
         raise SystemExit(1)

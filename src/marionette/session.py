@@ -212,10 +212,10 @@ class Conversation:
         self.lock = threading.Lock()
         self.incoming = queue.Queue()
 
-    def submit_discord(self, message, *, sender_id):
+    def submit_discord(self, message, *, sender_id, timings=None):
         # The terminal thread owns rendering, including while awaiting local input.
         future = Future()
-        self.incoming.put((message, sender_id, future))
+        self.incoming.put((message, sender_id, future, time.monotonic(), timings))
         while not self.api.closing.wait(.1):
             if future.done():
                 return future.result()
@@ -223,9 +223,12 @@ class Conversation:
 
     def display_discord(self):
         try:
-            message, sender_id, future = self.incoming.get_nowait()
+            message, sender_id, future, queued_at, timings = self.incoming.get_nowait()
         except queue.Empty:
             return False
+        processing_start = time.monotonic()
+        if timings is not None:
+            timings['main_queue_ms'] = round((processing_start - queued_at) * 1000, 2)
         print('\n')
         color('input')
         print(f'[Discord · {sender_id}]\n{message}\n', flush=True)
@@ -237,6 +240,8 @@ class Conversation:
             if finish == 'length':
                 color('data')
                 print('\n[Thinking and answer reached their shared token allowance.]')
+            if timings is not None:
+                timings['processing_ms'] = round((time.monotonic() - processing_start) * 1000, 2)
             future.set_result((answer, finish))
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
             color('data')
