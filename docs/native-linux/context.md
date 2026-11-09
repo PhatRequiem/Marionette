@@ -6,7 +6,7 @@ Thinking is enabled in the request template and server, with `deepseek` parsing 
 
 ## Between-turn preparation
 
-The total context is 16,384 tokens. The client reserves 2,048 tokens for the next input and 2,048 for thinking and its answer, inside that total. Smaller contexts use one eighth of capacity for the input allowance and one quarter for replies, both capped at 2,048.
+The total context is 16,384 tokens. The client reserves 2,048 tokens for the next input and 3,072 for thinking and its answer, inside that total. Smaller contexts use one eighth of capacity for the input allowance and one quarter for replies, capped at 2,048 and 3,072 respectively.
 
 After each successful reply, one worker checks the formatted history plus the next-turn formatting. If the allowances would no longer fit, it removes oldest complete user/reply pairs until the history uses at most 75% of capacity and both allowances fit with one spare token. It then processes the retained prefix through `/completion` with `n_predict: 0` and prompt caching enabled. No preparation reply is added to history or printed.
 

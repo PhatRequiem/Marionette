@@ -196,7 +196,7 @@ class Preparation:
 
 
 def chat(api, capacity):
-    reserve = min(2048, capacity // 4)
+    reserve = min(3072, capacity // 4)
     history = []
     pending = None
     log(f'Context policy: capacity={capacity}, reply_budget={reserve}, '
