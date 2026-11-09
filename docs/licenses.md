@@ -6,7 +6,7 @@ All selected software is free and open source. Local operation has no paid featu
 
 | Component | Verified version | License / evidence |
 |---|---|---|
-| llama.cpp, ggml, bundled completion libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
+| llama.cpp, ggml, bundled CLI/server libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
 | Python (setup, manifest loading, and session coordination; standard library only) | 3.14.8 | PSF-2.0 |
 | util-linux (`script` terminal recorder) | 2.42.4 | util-linux package: BSD-2-Clause, BSD-3-Clause, BSD-4-Clause-UC, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-or-later, ISC, LGPL-2.1-or-later, public domain; installed license texts under `/usr/share/licenses/util-linux/` |
 | xdg-terminal-exec (default terminal launcher) | 0.14.3 | GPL-3.0-or-later, verified in `/usr/bin/xdg-terminal-exec` |
@@ -23,7 +23,7 @@ All selected software is free and open source. Local operation has no paid featu
 | Vulkan loader | 1.4.363.0 | Apache-2.0 |
 | Mesa RADV (`vulkan-radeon`) | 26.2.5 | MIT AND BSD-3-Clause AND SGI-B-2.0 package components |
 
-System package versions and license identifiers were checked using `pacman -Qi`; installed license texts are under `/usr/share/licenses/` and package/upstream source distributions. Linked completion libraries were inspected with `ldd`. These are the current host versions, not a frozen operating-system image. Mesa also uses system graphics/LLVM support libraries provided by the distribution; their package licenses apply.
+System package versions and license identifiers were checked using `pacman -Qi`; installed license texts are under `/usr/share/licenses/` and package/upstream source distributions. Linked CLI/server libraries were inspected with `ldd`. These are the current host versions, not a frozen operating-system image. Mesa also uses system graphics/LLVM support libraries provided by the distribution; their package licenses apply.
 
 ## Model weights (separate from software)
 
@@ -31,7 +31,7 @@ System package versions and license identifiers were checked using `pacman -Qi`;
 
 ## Resolved system library inventory
 
-Transitive shared-library package owners resolved with `ldd` and `pacman` for the completion executable, Vulkan backend, and RADV driver on the verified host:
+Transitive shared-library package owners resolved with `ldd` and `pacman` for the CLI executable, Vulkan backend, and RADV driver on the verified host:
 
 | Package | Installed version | Package license identifiers |
 |---|---|---|

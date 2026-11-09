@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using llama.cpp’s `llama-completion`. Runs in the foreground with no background service, account, or personality file. Each launch opens a live debug terminal and saves dated chat/debug text files and a generated setup snapshot locally. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using llama.cpp’s `llama-cli`. Runs in the foreground with an embedded local HTTP server, no persistent background service, account, or personality file. Each launch opens a live debug terminal and saves dated chat/debug text files and a generated setup snapshot locally. Previous logs are not loaded as memory.
 
 ## Quick start
 
@@ -15,9 +15,9 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-completion` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. A generated setup report supplies factual system context after model loading. A text-only Qwen formatting template closes the empty thinking block; no HTTP listener is used.
+Verified on an AMD Radeon RX 7900 XT with Vulkan: model download checksums, repeat setup, and a generated offline response. The launcher records the foreground `llama-cli` session, loading the Q4_K_M model with an 8,192-token context and reasoning disabled. A generated setup report supplies factual system context after model loading. A text-only Qwen formatting template closes the empty thinking block; the server listens on `127.0.0.1` at a temporary port and stops when the chat process exits.
 
-Baseline 1 is preserved at Git tag `baseline-v1`. The current version adds [generated startup context](docs/native-linux/startup-context.md). See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
+Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses local-server terminal chat and [generated startup context](docs/native-linux/startup-context.md). See [baseline scope, checks, and limitations](docs/native-linux/baseline.md) before adding features.
 
 ## Folder map
 

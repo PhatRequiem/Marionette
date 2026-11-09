@@ -13,12 +13,12 @@ A second terminal opens to show full debug output. In the chat terminal, wait fo
 
 ## While chatting
 
-- **Exit:** press **Ctrl+D** at an empty chat prompt.
-- **Start fresh:** exit, then run the launch command again.
+- **Exit:** type `/exit`, or press **Ctrl+D** at an empty chat prompt.
+- **Start fresh:** type `/clear`, or exit and launch again.
 
-`/exit` and `/clear` are not commands in this runtime; typing them sends them as messages.
+The embedded server is local to this computer and stops when the chat process exits. Its temporary address appears in the debug log and setup snapshot.
 
-After loading, she receives a generated report of the observed setup with your first message. She still cannot open files or read logs herself.
+After loading, she receives a generated report of the observed setup with your first message, and again with the first message after `/clear`. She still cannot open files or read logs herself.
 
 Each session saves three matching files in `data/conversations/`:
 

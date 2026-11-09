@@ -79,7 +79,7 @@ class LauncherTests(unittest.TestCase):
         runtime.write_text('''#!/bin/bash
 if [[ "$1" == --version ]]; then echo 'synthetic runtime'; exit; fi
 printf 'synthetic diagnostic\\n' >&2
-printf '0.00.001.000 D waiting for user input\\n' >&2
+printf '0.00.001.000 I srv  update_slots: all slots are idle\\n' >&2
 printf 'Synthetic reply.\\n'
 for arg in "$@"; do
     [[ "$arg" == --test-fail ]] && exit 7
@@ -139,6 +139,12 @@ exit 0
         result = self.run_chat('--version')
         self.assertEqual(result.returncode, 0)
         self.assertIn('synthetic runtime', result.stdout)
+        self.assertFalse(self.logs.exists())
+
+    def test_external_server_override_rejected_before_launch(self):
+        result = self.run_chat('--server-base', 'http://example.invalid')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('unsupported override', result.stderr)
         self.assertFalse(self.logs.exists())
 
 

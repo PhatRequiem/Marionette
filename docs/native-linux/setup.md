@@ -17,11 +17,11 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
 
-The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with a Python session coordinator and `llama-completion` in the foreground. A separate desktop terminal follows the current full debug log. No daemon, systemd unit, server command, or network listener is launched. The runtime archive also contains server programs, but this launcher uses direct inference in the completion executable.
+The launcher resolves paths relative to itself and can be invoked from any directory. It runs the util-linux `script` recorder with a Python session coordinator and `llama-cli` in the foreground. A separate desktop terminal follows the current full debug log. The CLI starts an embedded HTTP server on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the debug log and setup snapshot.
 
-- No personality file is used. The coordinator builds a factual setup snapshot after loading and supplies it as system context with the first user message. See [startup context](startup-context.md) for evidence, timing, and limitations.
-- Model context lasts only for this process. Dated transcripts are saved for the user; they are never fed back into the model. No memory database or cross-database migration exists.
-- Chat uses `--offline`; no hosted API or login is needed.
+- No personality file is used. The coordinator builds a factual setup snapshot after loading and supplies it as system context with the first user message and again after `/clear`. See [startup context](startup-context.md) for evidence, timing, and limitations.
+- Model context lasts only for this process. Dated transcripts are saved for the user; they are not automatically fed back into the model. No memory database or cross-database migration exists.
+- Chat uses `--offline` for model loading; the loopback HTTP connection still operates. No hosted API or login is needed.
 - Each session has a shared timestamp and unique suffix with `-chat.txt`, `-debug.txt`, and (after successful loading) `-setup.json` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. `--simple-io` preserves terminal input; terminal color codes, carriage returns, and backspaces may remain. Log formatting is unchanged.
 - The debug file records session start/end times, exact launch arguments, runtime/recorder versions, and the exit status. llama.cpp runs with `--verbose --log-prefix --log-timestamps`, capturing all diagnostics exposed by this build, including model, device, memory, prompt, token, timing, and error details. Runtime timestamps are elapsed time; session headers give local time and UTC offset.
 - The coordinator copies the runtime stderr stream into the debug file inside the recorder, keeping verbose diagnostics out of the chat transcript. No `--log-file` duplication is needed. Bash command arguments are shell-quoted explicitly for the recorder.
@@ -49,14 +49,16 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 ## Runtime decision
 
-Use `llama-completion` from the same pinned b12211 Vulkan archive. This executable loads and evaluates the model directly. In contrast, b12211 `llama-cli` starts an HTTP server thread, even with `--offline`; it is no longer launched by this project.
+Use `llama-cli` from the same pinned b12211 Vulkan archive. It manages terminal chat and starts the llama.cpp server in a thread in the same process. The prior direct-inference choice was based on excluding HTTP listeners; the intended requirement is now local operation with nothing left serving after chat exits.
 
-This completion build accepts `--reasoning off` but does not apply that setting in its interactive template call. The session coordinator therefore passes an inline Jinja text template preserving Qwen’s message markers and explicitly closing an empty thinking block before each reply. It also formats the generated setup report as a system message. The report supplies deployment facts, not personality instructions. It supports text conversation only, not tools, image inputs, or structured reasoning history.
+The existing session coordinator supplies its observed setup report through the first-turn text-only Qwen template. It retains the empty closed thinking block and does not add a personality file. Native `/exit`, `/clear`, `/regen`, `/read`, and `/glob` commands remain available; after `/clear`, the next message receives the startup report again. The model itself has no tools to open files.
 
-Exit with Ctrl+D on an empty prompt. This runtime does not interpret `/exit` or `/clear`; restart for a new context. The launch command and paired log paths stay the same. Any chat already open during an upgrade continues using its old executable until exited and relaunched.
+The context remains 8,192 tokens. Switching to the server does not implement automatic history trimming or guarantee preservation at context exhaustion. The proposed extra 500 tokens and requested-versus-loaded comparison remain unimplemented; these are separate changes.
 
-The download archive and its checksum are unchanged. The manifest identifies the selected completion executable, and setup verifies it after extraction. Rebuild by rerunning the setup command above.
+The archive, model, and checksums are unchanged. The manifest now selects `llama-cli`, and setup verifies it after extraction. Rebuild using the same setup command. Existing chats continue using the old executable until exited and relaunched.
 
 ## Verification
 
-See [Baseline 1](baseline.md) for the authoritative checklist, repeatable test commands, and known limits.
+Run `python -m unittest discover -s tests/native-linux -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data. Baseline 1 remains a historical direct-inference checkpoint.
+
+The local-server switch was checked with an isolated real GPU session: synthetic word recall, setup context after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-cli` process.

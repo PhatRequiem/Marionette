@@ -17,9 +17,10 @@ def observe(line, facts):
     patterns = {
         'runtime_version': r'^version: (.+)',
         'model_name': r'general\.name\s+str\s*=\s*(.+)',
-        'context_tokens': r'llama_context: n_ctx\s*=\s*(\d+)',
+        'context_tokens': r'llama_context: n_ctx_seq\s*=\s*(\d+)',
         'gpu_offload': r'offloaded (\d+/\d+) layers to GPU',
         'device': r'using device (.+?) \(\d{4}:',
+        'local_server': r'server_on_li: listening on (http://127\.0\.0\.1:\d+)',
     }
     for key, pattern in patterns.items():
         match = re.search(pattern, line)
@@ -29,23 +30,36 @@ def observe(line, facts):
 
 def template(start, end):
     # Only the first message can carry the coordinator's unpredictable envelope.
-    return """{% for message in messages %}{% if loop.first and message['role'] == 'user' and message['content'].startswith('START') %}{% set parts = message['content'].split('END', 1) %}{{ '<|im_start|>system\n' + parts[0].split('START', 1)[1] + '<|im_end|>\n<|im_start|>user\n' + parts[1] + '<|im_end|>\n' }}{% else %}{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n<think>\n\n</think>\n\n' }}{% endif %}""".replace('START', start).replace('END', end)
+    return """{% for message in messages %}{% if loop.first and message['role'] == 'user' and 'START' in message['content'] %}{% set parts = message['content'].split('END', 1) %}{% set prefix = parts[0].split('START', 1) %}{{ '<|im_start|>system\n' + prefix[1] + '<|im_end|>\n<|im_start|>user\n' + prefix[0] + parts[1] + '<|im_end|>\n' }}{% else %}{{ '<|im_start|>' + message['role'] + '\n' + message['content'] + '<|im_end|>\n' }}{% endif %}{% endfor %}{% if add_generation_prompt %}{{ '<|im_start|>assistant\n<think>\n\n</think>\n\n' }}{% endif %}""".replace('START', start).replace('END', end)
+
+
+def prepare_line(line, first, context, start, end):
+    """Preserve native commands; supply context again after /clear."""
+    if line.startswith(b'/clear'):
+        return line + b'\n', True, False
+    if not line.strip() or line.startswith((b'/exit', b'/regen', b'/read ', b'/glob ')):
+        return line + b'\n', first, False
+    if first:
+        return (start + context + end).encode() + line + b'\n', False, True
+    return line + b'\n', False, False
 
 
 def snapshot(command, facts, debug_path):
     now = datetime.datetime.now().astimezone().isoformat(timespec='seconds')
     lines = [f'Local runtime setup report generated {now}.',
-             'This conversation is running in a local llama-completion process, not a hosted chat API.']
+             'This conversation runs in local llama-cli with an embedded loopback HTTP server, not a hosted chat API.']
     for key, label in [('runtime_version', 'Runtime version'), ('model_name', 'Loaded model name'), ('device', 'Runtime-selected device'),
-                       ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Loaded context tokens')]:
+                       ('gpu_offload', 'Layers reported offloaded to GPU'), ('context_tokens', 'Loaded context tokens'),
+                       ('local_server', 'Local server address')]:
         lines.append(f'{label}: {facts.get(key, {}).get("value", "not reported; unverified")}.')
     lines += ['Configured: offline local-model operation, text conversation, reasoning disabled by an empty closed thinking block.',
               'Capabilities: receive your messages and generate replies. No tools for browsing, executing commands, or opening files.',
-              'Local software saves chat and debug logs; the model cannot read those files or past sessions itself.',
+              'Local software saves chat and debug logs; the model cannot read those files or past sessions itself. The user can explicitly attach text through CLI commands.',
               f'Current debug log: {debug_path}.',
               f'Current chat log: {str(debug_path).removesuffix("-debug.txt")}-chat.txt.',
               'This is a startup snapshot, not continuous monitoring. Model-file checksums are verified by setup, not rechecked by this report.']
-    context = '\n'.join(lines)
+    # CLI input does not interpret escaped newlines. Keep the envelope one line.
+    context = ' '.join(lines)
     data = {'schema_version': 1, 'generated_at': now, 'runtime_pid': None,
             'runtime_command': command, 'observed': facts.copy(), 'context': context,
             'delivery': 'pending_first_message'}
@@ -65,7 +79,7 @@ def run(debug_path, command):
     path = debug_path.with_name(debug_path.name.removesuffix('-debug.txt') + '-setup.json')
     nonce = secrets.token_hex(12)
     start, end = f'[setup-{nonce}]', f'[/setup-{nonce}]'
-    command = command + ['--chat-template', template(start, end), '--escape']
+    command = command + ['--chat-template', template(start, end)]
     facts = {}
     for line in debug_path.read_text(errors='replace').splitlines():
         observe(line, facts)
@@ -122,7 +136,7 @@ def run(debug_path, command):
                             line, diagnostic_buffer = diagnostic_buffer.split(b'\n', 1)
                             line = line.decode('utf-8', errors='replace')
                             observe(line, facts)
-                            if report is None and re.search(r' D waiting for user input$', line):
+                            if report is None and re.search(r'update_slots: all slots are idle$', line):
                                 report = snapshot(command, facts, debug_path)
                                 report['runtime_pid'] = child.pid
                                 save(path, report)
@@ -135,22 +149,13 @@ def run(debug_path, command):
                             if not outgoing:
                                 child.stdin.close()
                             continue
-                        if first:
-                            pending += chunk
-                            # An empty line is not a conversation turn in this runtime.
-                            while b'\n' in pending and not pending.split(b'\n', 1)[0].strip():
-                                pending = pending.split(b'\n', 1)[1]
-                            if b'\n' not in pending:
-                                continue
-                            line, rest = pending.split(b'\n', 1)
-                            context = report['context'].replace('\\', '\\\\').replace('\n', '\\n')
-                            packet = (start + context + end).encode() + line + b'\n' + rest
+                        pending += chunk
+                        while b'\n' in pending:
+                            line, pending = pending.split(b'\n', 1)
+                            packet, first, delivered = prepare_line(line, first, report['context'], start, end)
                             outgoing.extend(packet)
-                            first = False
-                            delivery_pending = True
-                        else:
-                            outgoing.extend(chunk)
-                        if child.stdin.fileno() not in selector.get_map():
+                            delivery_pending |= delivered
+                        if outgoing and child.stdin.fileno() not in selector.get_map():
                             selector.register(child.stdin, selectors.EVENT_WRITE, 'write')
                 if child.poll() is not None:
                     # Drain the remaining diagnostics, but never wait for more terminal input.

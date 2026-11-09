@@ -20,19 +20,38 @@ class SnapshotTests(unittest.TestCase):
             'version: build-test',
             '0.01 I llama_prepare_model_devices: using device Vulkan0 (Synthetic GPU) (0000:03:00.0) - 999 MiB free',
             '0.01 I model: general.name str = Synthetic Model',
-            '0.01 I llama_context: n_ctx                 = 4096',
-            '0.02 I llama_context: n_ctx                 = 8192',
+            '0.01 I llama_context: n_ctx_seq                 = 4096',
+            '0.02 I llama_context: n_ctx_seq                 = 8192',
             '0.02 I load_tensors: offloaded 12/12 layers to GPU',
+            '0.03 I srv  server_on_li: listening on http://127.0.0.1:54321',
         ]
         for line in lines:
             session.observe(line, facts)
         self.assertEqual(facts['context_tokens']['value'], '8192')
         self.assertEqual(facts['context_tokens']['evidence'], lines[4])
         self.assertEqual(facts['device']['value'], 'Vulkan0 (Synthetic GPU)')
+        self.assertEqual(facts['local_server']['value'], 'http://127.0.0.1:54321')
         report = session.snapshot(['synthetic-runtime'], facts, Path('/tmp/test-debug.txt'))
         self.assertIn('Synthetic GPU', report['context'])
         self.assertIn('No tools', report['context'])
         self.assertEqual(report['delivery'], 'pending_first_message')
+
+    def test_commands_and_clear_preserve_report_delivery(self):
+        first = True
+        for command in [b'', b'/read example.txt', b'/glob *.txt', b'/regen']:
+            packet, first, delivered = session.prepare_line(command, first, 'SETUP', '[start]', '[end]')
+            self.assertEqual(packet, command + b'\n')
+            self.assertTrue(first)
+            self.assertFalse(delivered)
+        packet, first, delivered = session.prepare_line(b'hello', first, 'SETUP', '[start]', '[end]')
+        self.assertEqual(packet, b'[start]SETUP[end]hello\n')
+        self.assertTrue(delivered)
+        packet, first, _ = session.prepare_line(b'/clear', first, 'SETUP', '[start]', '[end]')
+        self.assertEqual(packet, b'/clear\n')
+        self.assertTrue(first)
+        packet, first, delivered = session.prepare_line(b'/exit', first, 'SETUP', '[start]', '[end]')
+        self.assertEqual(packet, b'/exit\n')
+        self.assertFalse(delivered)
 
     def test_unknown_hardware_is_not_invented_and_snapshot_is_portable(self):
         report = session.snapshot(['synthetic-runtime'], {}, Path('/tmp/test-debug.txt'))
@@ -49,7 +68,7 @@ class SnapshotTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             engine = root / 'engine.py'
-            engine.write_text("import sys\nprint('0.0 D waiting for user input', file=sys.stderr, flush=True)\nfor line in sys.stdin: print(line, end='', flush=True)\n")
+            engine.write_text("import sys\nprint('0.0 I srv  update_slots: all slots are idle', file=sys.stderr, flush=True)\nfor line in sys.stdin: print(line, end='', flush=True)\n")
             debug = root / 'test-debug.txt'
             debug.touch()
             result = subprocess.run([sys.executable, str(ROOT / 'scripts/native-linux/session.py'), str(debug), sys.executable, str(engine)], input='\nhello\n' + ('next message\n' * 20000), capture_output=True, text=True, timeout=10)
