@@ -97,25 +97,6 @@ class Profiles:
             raise
         return profile
 
-    def select(self):
-        while True:
-            print('\nWho is chatting?', flush=True)
-            for number, profile in enumerate(self.profiles, 1):
-                print(f'{number}. {profile["name"]}')
-            print(f'{len(self.profiles) + 1}. Add new profile', flush=True)
-            choice = input('Profile: ').strip()
-            if choice.isascii() and choice.isdecimal():
-                number = int(choice)
-                if 1 <= number <= len(self.profiles):
-                    return self.profiles[number - 1]
-                if number == len(self.profiles) + 1:
-                    try:
-                        return self.add(input('Name: '))
-                    except ValueError as error:
-                        print(error)
-                        continue
-            print('Choose a listed number.')
-
     def resolve(self, source, sender_id):
         key = 'uuid' if source == 'terminal' else 'discord_id'
         if source not in ('terminal', 'discord'):

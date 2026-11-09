@@ -15,7 +15,10 @@ from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
 import discord_bot as bot
-import session
+from conversation import Conversation
+from inference import API
+import terminal
+from style import COLORS
 from identity import Profiles
 
 
@@ -42,8 +45,8 @@ class FakeAPI:
         self.requests = []
     def count(self, messages):
         return 10
-    def reply(self, messages, reserve, *, display):
-        assert display is False
+    def reply(self, messages, reserve, *, on_delta):
+        assert on_delta is None
         self.requests.append(messages.copy())
         return 'Final answer.', 'stop'
 
@@ -55,14 +58,14 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(temporary.cleanup)
         profiles = Profiles(Path(temporary.name) / 'profiles.json')
         profiles.profiles[0]['discord_id'] = '123'
-        self.conversation = session.Conversation(self.api, 65536, profiles, profiles.profiles[0])
+        self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
         async def request(address, text, sender_id):
             self.assertEqual(sender_id, 123)
             answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id))
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)
-        self.logged = patch.object(session, 'log').start()
+        self.logged = patch('diagnostics.log').start()
         self.events = patch.object(bot, 'log').start()
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
@@ -217,9 +220,9 @@ class ConfigAndStreamingTests(unittest.TestCase):
         events = [ {'choices': [{'delta': {'reasoning_content': 'PRIVATE_REASONING'}}]},
                    {'choices': [{'delta': {'content': 'PUBLIC_ANSWER'}, 'finish_reason': 'stop'}]} ]
         stream = io.BytesIO((''.join('data: '+json.dumps(e)+'\n\n' for e in events)+'data: [DONE]\n\n').encode())
-        api = session.API('http://127.0.0.1:1')
-        with patch.object(api, 'open', return_value=stream), patch.object(session, 'log') as logged, contextlib.redirect_stdout(io.StringIO()) as output:
-            result = api.reply([{'role': 'user', 'content': 'test'}], 32768, display=False)
+        api = API('http://127.0.0.1:1')
+        with patch.object(api, 'open', return_value=stream), patch('diagnostics.log') as logged, contextlib.redirect_stdout(io.StringIO()) as output:
+            result = api.reply([{'role': 'user', 'content': 'test'}], 32768, on_delta=None)
         self.assertEqual(result, ('PUBLIC_ANSWER', 'stop'))
         self.assertEqual(output.getvalue(), '')
         logged.assert_called_once_with('Reasoning: "PRIVATE_REASONING"')

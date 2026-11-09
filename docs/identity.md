@@ -1,6 +1,6 @@
 # Profiles and sender identity
 
-At main-chat startup, choose a saved terminal profile or **Add new profile**. The initial profile is **Phat**. New names must be unique (ignoring case), printable, and 1–80 characters. A profile receives one random UUID when created; selecting it again never generates a new ID. Restart main chat to select a different terminal profile.
+`terminal.py` owns the menu and keyboard prompts; `identity.py` stores and resolves profiles without reading terminal input. At main-chat startup, choose a saved terminal profile or **Add new profile**. The initial profile is **Phat**. New names must be unique (ignoring case), printable, and 1–80 characters. A profile receives one random UUID when created; selecting it again never generates a new ID. Restart main chat to select a different terminal profile.
 
 ## Saved mapping
 
@@ -24,7 +24,7 @@ All profiles still share one history, budget, and rollover policy. This adds no 
 
 ## Command permissions
 
-`permissions.py` separately authorizes commands using the resolved person UUID and saved `owner_uuid`. `/clear` is owner-only, whether sent from the Phat terminal profile or its linked Discord account. Another profile cannot clear shared history merely because it exists. Unlinked service senders fail identity lookup; linked non-owners receive a permission-denied reply, with history unchanged and no model generation. Missing identities and unknown commands are denied by the permission function. `session.py` calls this check before clearing or adopting pending history.
+`permissions.py` separately authorizes commands using the resolved person UUID and saved `owner_uuid`. `/clear` is owner-only, whether sent from the Phat terminal profile or its linked Discord account. Another profile cannot clear shared history merely because it exists. Unlinked service senders fail identity lookup; linked non-owners receive a permission-denied reply, with history unchanged and no model generation. Missing identities and unknown commands are denied by the permission function. `conversation.py` calls this check before clearing or adopting pending history.
 
 This is deliberately limited to `/clear`, the current shared-history command. `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
 

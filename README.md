@@ -29,13 +29,18 @@ Start with these files, in order:
 | File | Responsibility |
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
-| [session.py](src/marionette/session.py) | Server lifetime, terminal input, streaming replies, token budgets, and rollover preparation |
-| [identity.py](src/marionette/identity.py) | Saved profiles, terminal selection, linked accounts, and sender metadata |
+| [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
+| [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
+| [conversation.py](src/marionette/conversation.py) | Shared history, sequential turns, identity resolution, and permission checks |
+| [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
+| [inference.py](src/marionette/inference.py) | Local HTTP requests, token counting, cache requests, and streamed response parsing |
+| [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
+| [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
@@ -43,7 +48,7 @@ Start with these files, in order:
 | [tests/core](tests/core) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
-In `session.py`, `run()` owns the server, `Conversation` owns shared history and serializes turns, `terminal()` handles input and `chat()` connects optional transports, `fit_history()` checks actual requests, and `Preparation` prepares shortened history between turns. `API` handles loopback requests. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
+`session.py` connects the components. `terminal.py` renders streamed text through a per-reply callback; inference and conversation code do not import terminal UI code. Future interfaces can supply their own callback while reusing identity, permissions, and conversation handling. The current Discord connection still queues work for the main terminal thread, preserving one shared conversation and sequential generation. For diagnostic flow and test commands, see [operation and verification](docs/setup.md).
 
 ## Folder map
 

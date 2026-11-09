@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
 from identity import Profiles
 import connection
-import session
+from conversation import Conversation
+from inference import API
+import terminal
+from style import COLORS
 
 
 class ConnectionTests(unittest.TestCase):
@@ -29,21 +32,21 @@ class ConnectionTests(unittest.TestCase):
                 self.sent.append(messages.copy())
                 return 'answer', 'stop'
         api = API()
-        conversation = session.Conversation(api, 65536)
-        with tempfile.TemporaryDirectory() as directory, patch.object(session, 'log'):
+        conversation = Conversation(api, 65536)
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
             profiles = Profiles(Path(directory) / 'profiles.json')
             profiles.profiles[0]['discord_id'] = '123'
-            conversation = session.Conversation(api, 65536, profiles, profiles.profiles[0])
+            conversation = Conversation(api, 65536, profiles, profiles.profiles[0])
             address = Path(directory) / 'chat.sock'
             with connection.LocalConnection(address, lambda message, sender_id, **_: conversation.turn(message, source='discord', sender_id=sender_id), lambda _: None):
-                conversation.turn('terminal first', display=True)
+                conversation.turn('terminal first', on_delta=terminal.ReplyDisplay())
                 result = asyncio.run(connection.request(address, 'discord second', 123))
                 self.assertEqual(result, {'answer': 'answer', 'finish': 'stop', 'timings': {}})
-                conversation.turn('terminal third', display=True)
+                conversation.turn('terminal third', on_delta=terminal.ReplyDisplay())
                 self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[-1] for m in api.sent[-1]],
                     ['terminal first', 'answer', 'discord second', 'answer', 'terminal third'])
                 asyncio.run(connection.request(address, '/clear', 123))
-                conversation.turn('fresh terminal', display=True)
+                conversation.turn('fresh terminal', on_delta=terminal.ReplyDisplay())
                 self.assertEqual(len(api.sent[-1]), 1)
                 self.assertTrue(api.sent[-1][0]['content'].endswith('Message:\nfresh terminal'))
                 conversation.pending.result()
@@ -66,8 +69,8 @@ class ConnectionTests(unittest.TestCase):
                         raise RuntimeError('Test timed out')
                 return 'answer', 'stop'
         api = API()
-        conversation = session.Conversation(api, 65536)
-        with patch.object(session, 'log'):
+        conversation = Conversation(api, 65536)
+        with patch('diagnostics.log'):
             first = threading.Thread(target=conversation.turn, args=('terminal',))
             second = threading.Thread(target=conversation.turn, args=('discord',))
             first.start()
@@ -81,8 +84,8 @@ class ConnectionTests(unittest.TestCase):
             conversation.pending.result()
 
     def test_discord_display_has_sender_colors_and_only_returns_answer(self):
-        api = session.API('http://127.0.0.1:1')
-        conversation = session.Conversation(api, 65536)
+        api = API('http://127.0.0.1:1')
+        conversation = Conversation(api, 65536)
         events = [
             {'choices': [{'delta': {'reasoning_content': 'Private thinking.'}}]},
             {'choices': [{'delta': {'content': 'Final answer.'}, 'finish_reason': 'stop'}]},
@@ -92,7 +95,7 @@ class ConnectionTests(unittest.TestCase):
         output = io.StringIO()
         result = []
         with patch.object(api, 'open', return_value=stream), patch.object(api, 'count', return_value=10), \
-             patch.object(session, 'log'), patch('sys.stdout', output), \
+             patch('diagnostics.log'), patch('sys.stdout', output), \
              patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
             worker = threading.Thread(target=lambda: result.append(
                 conversation.submit_discord('Hello from Discord', sender_id='123')))
@@ -100,29 +103,29 @@ class ConnectionTests(unittest.TestCase):
             # Wait for the queued request without arbitrary timing assumptions.
             item = conversation.incoming.get(timeout=2)
             conversation.incoming.put(item)
-            self.assertTrue(conversation.display_discord())
+            self.assertTrue(terminal.display_discord(conversation))
             worker.join(2)
             self.assertFalse(worker.is_alive())
             conversation.pending.result()
         self.assertEqual(result, [('Final answer.', 'stop')])
         rendered = output.getvalue()
-        self.assertIn(session.COLORS['meta'] + '[Discord · ' + session.COLORS['ids'] + '123' + session.COLORS['meta'] + ']\n', rendered)
-        self.assertIn(session.COLORS['input'] + 'Hello from Discord', rendered)
-        self.assertIn(session.COLORS['reasoning_heading'] + 'Reasoning:\n' + session.COLORS['data'] + 'Private thinking.', rendered)
-        self.assertIn(session.COLORS['reply'] + 'Final answer.', rendered)
+        self.assertIn(COLORS['meta'] + '[Discord · ' + COLORS['ids'] + '123' + COLORS['meta'] + ']\n', rendered)
+        self.assertIn(COLORS['input'] + 'Hello from Discord', rendered)
+        self.assertIn(COLORS['reasoning_heading'] + 'Reasoning:\n' + COLORS['data'] + 'Private thinking.', rendered)
+        self.assertIn(COLORS['reply'] + 'Final answer.', rendered)
         self.assertEqual(conversation.history[0]['content'], 'Hello from Discord')
 
     def test_discord_handoff_returns_immediately_and_propagates_failure(self):
         from concurrent.futures import Future
-        api = session.API('http://127.0.0.1:1')
-        conversation = session.Conversation(api, 65536)
+        api = API('http://127.0.0.1:1')
+        conversation = Conversation(api, 65536)
         for failure in (None, TimeoutError('generation timed out')):
             future = Future()
             if failure:
                 future.set_exception(failure)
             else:
                 future.set_result(('answer', 'stop'))
-            with patch.object(session, 'Future', return_value=future), \
+            with patch('conversation.Future', return_value=future), \
                  patch.object(api.closing, 'wait', side_effect=AssertionError('unnecessary polling delay')):
                 if failure:
                     with self.assertRaisesRegex(TimeoutError, 'generation timed out'):

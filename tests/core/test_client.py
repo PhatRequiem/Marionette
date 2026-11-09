@@ -18,6 +18,10 @@ sys.path.insert(0, str(ROOT / 'src/marionette'))
 spec = importlib.util.spec_from_file_location('client', ROOT / 'src/marionette/session.py')
 client = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client)
+import context
+import inference
+import terminal
+from style import COLORS
 
 
 class ClientTests(unittest.TestCase):
@@ -36,14 +40,14 @@ class ClientTests(unittest.TestCase):
         stream = io.BytesIO((''.join('data: ' + json.dumps(event) + '\n\n' for event in events)
                              + 'data: [DONE]\n\n').encode())
         output = io.StringIO()
-        api = client.API('http://127.0.0.1:1')
-        with patch.object(api, 'open', return_value=stream) as request, patch.object(client, 'log') as logged, patch('sys.stdout', output), patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
-            answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024)
+        api = inference.API('http://127.0.0.1:1')
+        with patch.object(api, 'open', return_value=stream) as request, patch('diagnostics.log') as logged, patch('sys.stdout', output), patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
+            answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024, on_delta=terminal.ReplyDisplay())
         self.assertEqual((answer, finish), ('Four.', 'stop'))
         self.assertTrue(request.call_args.args[1]['chat_template_kwargs']['enable_thinking'])
-        self.assertEqual(output.getvalue(), client.COLORS['reasoning_heading'] + 'Reasoning:\n' + client.COLORS['data'] + 'Check '
-                         + 'the sum.' + client.COLORS['answer_heading']
-                         + '\n\nAnswer:\n' + client.COLORS['reply'] + 'Four.')
+        self.assertEqual(output.getvalue(), COLORS['reasoning_heading'] + 'Reasoning:\n' + COLORS['data'] + 'Check '
+                         + 'the sum.' + COLORS['answer_heading']
+                         + '\n\nAnswer:\n' + COLORS['reply'] + 'Four.')
         logged.assert_called_once_with('Reasoning: "Check the sum."')
 
     def test_generation_allowance_uses_half_context_up_to_32k(self):
@@ -52,11 +56,11 @@ class ClientTests(unittest.TestCase):
                 closing = threading.Event()
                 def count(self, messages):
                     return 10
-                def reply(self, messages, reserve, *, display=True):
+                def reply(self, messages, reserve, *, on_delta=None):
                     self.reserve = reserve
                     return 'answer', 'stop'
             api = FakeAPI()
-            with patch('builtins.input', side_effect=['1', 'hello', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+            with patch('builtins.input', side_effect=['1', 'hello', '/exit']), patch('diagnostics.log'), patch('sys.stdout', io.StringIO()):
                 client.chat(api, capacity)
                 api.worker.join()
             self.assertEqual(api.reserve, expected)
@@ -66,7 +70,7 @@ class ClientTests(unittest.TestCase):
         for i in range(8):
             history += [{'role': 'user', 'content': str(i)}, {'role': 'assistant', 'content': str(i)}]
         original = history.copy()
-        fitted, removed, tokens = client.fit_history(history, 'new', lambda messages: len(messages)*10, 85, 20)
+        fitted, removed, tokens = context.fit_history(history, 'new', lambda messages: len(messages)*10, 85, 20)
         self.assertEqual(history, original)
         self.assertEqual(removed, 6)
         self.assertEqual([m['role'] for m in fitted], ['user', 'assistant', 'user', 'assistant', 'user'])
@@ -77,12 +81,12 @@ class ClientTests(unittest.TestCase):
         history = [{'role': 'user', 'content': 'old'}, {'role': 'assistant', 'content': 'answer'}]
         original = history.copy()
         with self.assertRaisesRegex(ValueError, 'Shorten'):
-            client.fit_history(history, 'huge', lambda _: 100, 100, 20)
+            context.fit_history(history, 'huge', lambda _: 100, 100, 20)
         self.assertEqual(history, original)
 
     def test_exact_boundary_reserves_spare_token(self):
         with self.assertRaises(ValueError):
-            client.fit_history([], 'new', lambda _: 80, 100, 20)
+            context.fit_history([], 'new', lambda _: 80, 100, 20)
 
     def test_failed_stream_not_kept_and_clear_starts_empty(self):
         class FakeAPI:
@@ -91,13 +95,13 @@ class ClientTests(unittest.TestCase):
                 self.sent = []
             def count(self, _):
                 return 30
-            def reply(self, messages, reserve, *, display=True):
+            def reply(self, messages, reserve, *, on_delta=None):
                 self.sent.append(messages.copy())
                 if len(self.sent) == 1:
                     raise RuntimeError('stream interrupted')
                 return 'answer', 'stop'
         api = FakeAPI()
-        with patch('builtins.input', side_effect=['1', 'failed', 'good', '/clear', 'fresh', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+        with patch('builtins.input', side_effect=['1', 'failed', 'good', '/clear', 'fresh', '/exit']), patch('diagnostics.log'), patch('sys.stdout', io.StringIO()):
             client.chat(api, 8192)
         self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[1] for m in api.sent[1]], ['good'])
         self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[1] for m in api.sent[2]], ['fresh'])
@@ -154,8 +158,8 @@ class PreparationTests(unittest.TestCase):
                 started.set()
                 release.wait(3)
         api = FakeAPI()
-        with patch.object(client, 'log'):
-            pending = client.Preparation(api, history, 200, 50)
+        with patch('diagnostics.log'):
+            pending = context.Preparation(api, history, 200, 50)
             self.assertTrue(started.wait(2))
             self.assertIs(pending.history, history)
             self.assertTrue(pending.thread.is_alive())
@@ -175,8 +179,8 @@ class PreparationTests(unittest.TestCase):
             def prepare(self, messages):
                 raise RuntimeError('synthetic cache failure')
         history = self.history()
-        with patch.object(client, 'log') as logged:
-            pending = client.Preparation(FakeAPI(), history, 200, 50)
+        with patch('diagnostics.log') as logged:
+            pending = context.Preparation(FakeAPI(), history, 200, 50)
             self.assertIs(pending.result(), history)
             self.assertTrue(any('synthetic cache failure' in call.args[0] for call in logged.call_args_list))
 
@@ -188,13 +192,13 @@ class PreparationTests(unittest.TestCase):
             def prepare(self, messages):
                 raise AssertionError('unnecessary prefill')
         history = self.history()
-        with patch.object(client, 'log'):
-            pending = client.Preparation(FakeAPI(), history, 8192, 512)
+        with patch('diagnostics.log'):
+            pending = context.Preparation(FakeAPI(), history, 8192, 512)
             self.assertIs(pending.result(), history)
 
     def test_prepare_excludes_marker_and_leaves_token_boundary(self):
-        api = client.API('http://127.0.0.1:1')
-        with patch.object(client.secrets, 'token_hex', return_value='test'), patch.object(api, 'json', side_effect=[{'prompt': 'historyMARIONETTE_NEXT_INPUT_testend'}, {'tokens': [1, 2, 3]}, {'timings': {}}]) as request, patch.object(client, 'log'):
+        api = inference.API('http://127.0.0.1:1')
+        with patch.object(inference.secrets, 'token_hex', return_value='test'), patch.object(api, 'json', side_effect=[{'prompt': 'historyMARIONETTE_NEXT_INPUT_testend'}, {'tokens': [1, 2, 3]}, {'timings': {}}]) as request, patch('diagnostics.log'):
             api.prepare(self.history())
         self.assertEqual(request.call_args_list[1].args[1]['content'], 'history')
         self.assertEqual(request.call_args_list[2].args,

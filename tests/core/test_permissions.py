@@ -9,7 +9,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
 from identity import Profiles
 from permissions import require_command
-from session import Conversation
+from conversation import Conversation
 
 
 class PermissionTests(unittest.TestCase):
@@ -25,7 +25,7 @@ class PermissionTests(unittest.TestCase):
     def test_guest_denied_owner_allowed_across_sources(self):
         class API:
             closing = threading.Event()
-        with tempfile.TemporaryDirectory() as directory, patch('session.log') as logged:
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log') as logged:
             profiles = Profiles(Path(directory) / 'profiles.json')
             owner = profiles.profiles[0]
             owner['discord_id'] = '123'

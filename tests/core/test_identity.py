@@ -11,8 +11,9 @@ from unittest.mock import patch
 import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
+from terminal import select_profile
 from identity import Profiles
-from session import Conversation
+from conversation import Conversation
 
 
 class IdentityTests(unittest.TestCase):
@@ -43,12 +44,12 @@ class IdentityTests(unittest.TestCase):
 
     def test_selector_new_profile_survives_restart_without_owner_link(self):
         with patch('builtins.input', side_effect=['bad', '2', 'Guest']), patch('sys.stdout', io.StringIO()):
-            guest = self.profiles.select()
+            guest = select_profile(self.profiles)
         self.assertNotEqual(guest['uuid'], self.profiles.data['owner_uuid'])
         self.assertIsNone(guest['discord_id'])
         restored = Profiles(self.path)
         with patch('builtins.input', return_value='2'), patch('sys.stdout', io.StringIO()):
-            self.assertEqual(restored.select(), guest)
+            self.assertEqual(select_profile(restored), guest)
         for name in ('Phat', '\x1b[31m', ''):
             with self.assertRaises(ValueError):
                 restored.add(name)
@@ -77,7 +78,7 @@ class IdentityTests(unittest.TestCase):
         api = API()
         owner = self.profiles.profiles[0]
         conversation = Conversation(api, 8192, self.profiles, owner)
-        with patch('session.log') as logged:
+        with patch('diagnostics.log') as logged:
             conversation.turn('terminal hello')
             conversation.pending.result()
             conversation.turn('discord hello', source='discord', sender_id='123')
@@ -101,6 +102,6 @@ class IdentityTests(unittest.TestCase):
             def reply(self, *args, **kwargs):
                 raise AssertionError('Oversized metadata plus input must not reach generation')
         conversation = Conversation(API(), 256, self.profiles, self.profiles.profiles[0])
-        with patch('session.log'), self.assertRaisesRegex(ValueError, 'Shorten'):
+        with patch('diagnostics.log'), self.assertRaisesRegex(ValueError, 'Shorten'):
             conversation.turn('short')
         self.assertEqual(conversation.history, [])
