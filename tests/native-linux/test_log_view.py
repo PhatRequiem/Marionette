@@ -24,7 +24,9 @@ class ViewTests(unittest.TestCase):
                       'message_id': '789'}
             result = self.render(json.dumps(record) + '\n', 'discord')
             label = 'incoming sender_id' if role == 'assistant' else 'sender_id'
-            self.assertIn(COLORS['meta'] + f'  {label}: "123"', result)
+            self.assertIn(COLORS['ids'] + f'  {label}: "123"', result)
+            if role == 'assistant':
+                self.assertIn(COLORS['answer_heading'] + 'ASSISTANT · Discord', result)
             self.assertIn(COLORS[kind] + 'first\nsecond\\x1b[31m', result)
             self.assertNotIn('\x1b[31m', result)
             plain = self.render(json.dumps(record) + '\n', 'discord', False)
@@ -39,6 +41,8 @@ class ViewTests(unittest.TestCase):
         text = '2026-11-09T01:00:00-05:00 Discord chunk failed. ' + json.dumps(fields) + '\n'
         result = self.render(text, 'discord')
         self.assertIn(COLORS['error'] + 'Discord chunk failed.', result)
+        self.assertIn(COLORS['timing'] + '  send_ms: 12.34', result)
+        self.assertIn(COLORS['muted'] + '\n2026-11-09', result)
         plain = self.render(text, 'discord', False)
         for key, value in fields.items():
             self.assertIn(f'{key}: {json.dumps(value)}', plain)
@@ -56,9 +60,9 @@ class ViewTests(unittest.TestCase):
                     '    | 0.0 E srv send_error: error\n')
         result = self.render(original, 'diagnostic')
         self.assertIn(COLORS['reply'] + '    | more answer', result)
-        self.assertIn(COLORS['data'] + '    | "reasoning_content"', result)
-        self.assertIn(COLORS['reply'] + '    | "content"', result)
-        self.assertIn(COLORS['meta'] + '    | Client: Discord input [123]: ', result)
+        self.assertIn(COLORS['thinking_heading'] + '    | "reasoning_content"', result)
+        self.assertIn(COLORS['answer_heading'] + '    | "content"', result)
+        self.assertIn(COLORS['meta'] + '    | Client: Discord input [', result)
         self.assertIn(COLORS['input'] + '"hello"', result)
         self.assertEqual(re.sub(r'\x1b\[[0-9;]*m', '', result), original)
         self.assertEqual(self.render(original, 'diagnostic', False), original)

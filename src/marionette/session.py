@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 
-from style import COLORS
+from style import COLORS, enabled, paint
 
 LOG_LOCK = threading.Lock()
 
@@ -121,15 +121,16 @@ class API:
                     reasoning = delta.get('reasoning_content') or ''
                     if reasoning:
                         if display:
-                            color('data')
                             if not thoughts:
+                                color('thinking_heading')
                                 print('Thinking:', flush=True)
+                            color('data')
                             print(reasoning, end='', flush=True)
                         thoughts.append(reasoning)
                     text = delta.get('content') or ''
                     if text:
                         if display and not pieces and thoughts:
-                            color('data')
+                            color('answer_heading')
                             print('\n\nAnswer:', flush=True)
                         if display:
                             color('reply')
@@ -231,7 +232,11 @@ class Conversation:
             timings['main_queue_ms'] = round((processing_start - queued_at) * 1000, 2)
         print('\n')
         color('meta')
-        print(f'[Discord · {sender_id}]', flush=True)
+        print('[Discord · ', end='', flush=True)
+        color('ids')
+        print(sender_id, end='', flush=True)
+        color('meta')
+        print(']', flush=True)
         color('input')
         print(f'{message}\n', flush=True)
         color('data')
@@ -338,7 +343,9 @@ def chat(api, capacity):
     conversation = Conversation(api, capacity)
     log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
-    print(f'Ready. Context limit: {capacity}; thinking + answer allowance: {conversation.reserve} tokens. /clear starts fresh; /exit quits.')
+    print('Ready. Context limit: ' + paint(str(capacity), 'tokens', enabled())
+          + '; thinking + answer allowance: ' + paint(str(conversation.reserve), 'tokens', enabled())
+          + ' tokens. /clear starts fresh; /exit quits.')
     from contextlib import nullcontext
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:

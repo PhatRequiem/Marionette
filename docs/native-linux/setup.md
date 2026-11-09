@@ -47,13 +47,19 @@ The live windows use `log_view.py` and the shared palette in `style.py`:
 
 | Meaning | Color |
 |---|---|
-| Sender/source labels and IDs | Cyan |
+| Discord/source labels | Bright cyan |
+| User, channel, message IDs | Lavender |
 | User message text | Neon green |
-| Thinking and processing details | White |
-| Assistant answer text | Pink |
-| Timestamps and event headers | Gray |
-| Warnings/disconnections | Yellow |
-| Errors | Red |
+| Thinking heading | Bright yellow |
+| Thinking and routine processing | White |
+| Answer heading | Hot pink (`#FF4FA3`) |
+| Assistant answer text | Light pink (`#FF9ACB`) |
+| Timestamps and event headers | Light blue |
+| Connection/delivery success | Turquoise |
+| Queue, processing, delivery timings | Peach |
+| Token counts and context usage | Violet |
+| Warnings, disconnects, retries | Orange |
+| Errors | Bright red |
 
 Diagnostic colors follow recognizable fields and client records; unknown rows remain white. Message words such as “error” inside a normal reply do not change its color. Source control codes stay visible as escaped text. This is a display layer: saved server/model files retain their complete reversible format and shared event numbers. Main chat keeps its normal terminal transcript, including its color codes. No extra files or windows are created.
 

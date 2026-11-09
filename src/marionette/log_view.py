@@ -11,9 +11,23 @@ from style import enabled, paint, safe
 def severity(text):
     if re.search(r'\b(?:failed|failure|error)\b', text, re.I):
         return 'error'
-    if re.search(r'\b(?:disconnect|disconnected|warning|ignored)\b', text, re.I):
+    if re.search(r'\b(?:disconnect|disconnected|warning|ignored|retry|retrying)\b', text, re.I):
         return 'warning'
+    if re.search(r'\b(?:connected|ready|resumed|delivered|sent|completed)\b', text, re.I):
+        return 'success'
     return 'data'
+
+
+def field_kind(key, default='data'):
+    if key.endswith('_id'):
+        return 'ids'
+    if key.endswith('_at') or key in ('time', 'timestamp'):
+        return 'muted'
+    if key.endswith('_ms') or 'timing' in key or 'latency' in key:
+        return 'timing'
+    if 'token' in key or 'context' in key or key in ('capacity', 'reply_budget'):
+        return 'tokens'
+    return default
 
 
 def discord_rows(line):
@@ -30,7 +44,7 @@ def discord_rows(line):
         timestamp, _, title = prefix.rstrip('\n').partition(' ')
         rows = [('muted', '\n' + timestamp), (severity(title), title)]
         for key, value in fields.items():
-            kind = 'meta' if key.endswith('_id') else severity(title)
+            kind = field_kind(key, severity(title))
             text = f'{key}: {json.dumps(value, ensure_ascii=False)}'
             rows.extend((kind, '  ' + row) for row in textwrap.wrap(safe(text), 116,
                          replace_whitespace=False, drop_whitespace=False) or [''])
@@ -39,11 +53,12 @@ def discord_rows(line):
         return [('data', safe(line.rstrip('\n')))]
     kind = {'user': 'input', 'assistant': 'reply'}.get(record['role'], 'data')
     rows = [('muted', '\n' + safe(record.get('time', ''))),
-            ('meta', f"{safe(record['role']).upper()} · Discord")]
+            ('answer_heading' if record['role'] == 'assistant' else 'meta',
+             f"{safe(record['role']).upper()} · Discord")]
     for key, value in record.items():
         if key not in ('role', 'content', 'time'):
             label = f'incoming {key}' if record['role'] == 'assistant' and key in ('sender_id', 'message_id') else key
-            rows.append(('meta', f'  {safe(label)}: {safe(json.dumps(value, ensure_ascii=False))}'))
+            rows.append((field_kind(key, 'meta'), f'  {safe(label)}: {safe(json.dumps(value, ensure_ascii=False))}'))
     rows.append((kind, safe(record['content'])))
     rows.append(('data', ''))
     return rows
@@ -65,6 +80,10 @@ class DiagnosticView:
             self.kind = 'error'
         elif re.match(r'\d[\d.]*\s+W\s', text):
             self.kind = 'warning'
+        elif re.match(r'\d[\d.]*\s+[IDT]\s+.*(?:print_timing|print_timings|timings:)', text):
+            self.kind = 'timing'
+        elif re.match(r'\d[\d.]*\s+[IDT]\s+.*\b(?:n_ctx|n_ctx_seq|n_tokens|n_predict)\s*[=:]', text):
+            self.kind = 'tokens'
         elif text.startswith('Client: Discord input'):
             self.kind = 'input'
         elif text.startswith('Client: Discord answer:'):
@@ -78,7 +97,33 @@ class DiagnosticView:
             self.kind = 'data'
         elif re.match(r'"content"\s*:', text):
             self.kind = self.role or 'reply'
+        elif re.match(r'"[^"\n]+"\s*:', text):
+            key = text.split('"', 2)[1]
+            self.kind = field_kind(key, 'data')
+        elif text.startswith(('Client: Prompt budget:', 'Client: Context policy:', 'Client: Runtime usage:')):
+            self.kind = 'tokens'
+        elif text.startswith(('Client: Prepared cache timings:', 'Client: Preparation wait after input:',
+                              'Client: Rollover preparation completed:')):
+            self.kind = 'timing'
+        elif text.startswith(('Client: Reply completed:', 'Client: Local server started:')):
+            self.kind = 'success'
         return self.kind
+
+
+def diagnostic_row(line, kind, colored):
+    # Split headings from content without changing any saved character.
+    text = line.rstrip('\n')
+    match = re.match(r'(    \| Client: Discord input \[)([0-9]+)(\]: )(.*)', text)
+    if match:
+        return (paint(match[1], 'meta', colored) + paint(match[2], 'ids', colored)
+                + paint(match[3], 'meta', colored) + paint(match[4], 'input', colored))
+    match = re.match(r'(    \| (?:Client: Discord answer: |"content"\s*:))(.*)', text)
+    if match and kind == 'reply':
+        return paint(match[1], 'answer_heading', colored) + paint(match[2], 'reply', colored)
+    match = re.match(r'(    \| (?:Client: Reasoning: |"reasoning_content"\s*:))(.*)', text)
+    if match:
+        return paint(match[1], 'thinking_heading', colored) + paint(match[2], 'data', colored)
+    return paint(text, kind, colored)
 
 
 def render(source, output, mode, colored):
@@ -89,13 +134,7 @@ def render(source, output, mode, colored):
                 output.write(paint(text, kind, colored) + '\n')
         else:
             kind = view.row(line)
-            # Sender metadata is cyan, while the actual input stays green.
-            if 'Client: Discord input [' in line:
-                prefix, separator, body = line.partition(']: ')
-                output.write(paint(prefix + separator, 'meta', colored)
-                             + paint(body.rstrip('\n'), 'input', colored) + '\n')
-            else:
-                output.write(paint(line.rstrip('\n'), kind, colored) + '\n')
+            output.write(diagnostic_row(line, kind, colored) + '\n')
         output.flush()
 
 

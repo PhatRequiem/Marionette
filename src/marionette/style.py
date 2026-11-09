@@ -2,10 +2,15 @@
 import os
 import sys
 
-COLORS = {'input': '\033[38;2;57;255;20m', 'data': '\033[97m',
-          'reply': '\033[38;2;255;128;191m', 'meta': '\033[96m',
-          'muted': '\033[90m', 'warning': '\033[93m', 'error': '\033[91m',
-          'reset': '\033[0m'}
+PALETTE = {
+    'input': '#39FF14', 'data': '#FFFFFF', 'meta': '#55E7FF',
+    'ids': '#C6B4FF', 'muted': '#8ACBFF', 'thinking_heading': '#FFE66D',
+    'answer_heading': '#FF4FA3', 'reply': '#FF9ACB', 'success': '#5CFFD6',
+    'timing': '#FFC49B', 'tokens': '#D69CFF', 'warning': '#FFAD55', 'error': '#FF6262',
+}
+COLORS = {name: '\033[38;2;' + ';'.join(str(int(value[i:i+2], 16)) for i in (1, 3, 5)) + 'm'
+          for name, value in PALETTE.items()}
+COLORS['reset'] = '\033[0m'
 
 
 def enabled():
