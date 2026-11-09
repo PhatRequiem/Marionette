@@ -8,6 +8,8 @@ These instructions apply throughout this repository.
 - Consult README.md, docs/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
 - When the user requests discussion or confirmation first, investigate and present a concrete proposal without editing. Once implementation is authorized, complete the agreed scope without adding unrelated features.
 
+- Treat `docs/ideas/` as discussion-only notes. Saving or editing an idea does not authorize implementation; require a separate explicit user instruction before acting on it. Ideas do not override the current baseline or project rules.
+
 ## Complete and sync changes
 
 - Work in small, focused changes. Run appropriate checks, update relevant documentation, and review the diff.

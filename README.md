@@ -45,6 +45,7 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
 - `docs/`: setup requirements, operation, and decisions.
+- `docs/ideas/`: [discussion-only ideas](docs/ideas/README.md), separate from approved work and current behavior.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
