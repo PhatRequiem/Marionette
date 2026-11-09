@@ -38,6 +38,21 @@ class ClientTests(unittest.TestCase):
                          + '\n\nAnswer:\n' + client.COLORS['reply'] + 'Four.')
         logged.assert_called_once_with('Reasoning: "Check the sum."')
 
+    def test_generation_allowance_uses_half_context_up_to_32k(self):
+        for capacity, expected in ((65536, 32768), (8192, 4096)):
+            class FakeAPI:
+                closing = threading.Event()
+                def count(self, messages):
+                    return 10
+                def reply(self, messages, reserve):
+                    self.reserve = reserve
+                    return 'answer', 'stop'
+            api = FakeAPI()
+            with patch('builtins.input', side_effect=['hello', '/exit']), patch.object(client, 'log'), patch('sys.stdout', io.StringIO()):
+                client.chat(api, capacity)
+                api.worker.join()
+            self.assertEqual(api.reserve, expected)
+
     def test_rollover_removes_whole_exchanges(self):
         history = []
         for i in range(8):

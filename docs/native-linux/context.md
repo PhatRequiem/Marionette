@@ -2,11 +2,11 @@
 
 `src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report, setup JSON file, personality file, or application system message is generated. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
 
-Thinking is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. The server caps thinking at 1,024 tokens; both thinking and the answer consume the shared generation allowance. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
+Thinking is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate thinking cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
 
 ## Between-turn preparation
 
-The total context is 16,384 tokens. The client reserves 2,048 tokens for the next input and 3,072 for thinking and its answer, inside that total. Smaller contexts use one eighth of capacity for the input allowance and one quarter for replies, capped at 2,048 and 3,072 respectively.
+The total context is 65,536 tokens. The client reserves 2,048 tokens for the next input and 32,768 for thinking and its answer, inside that total. With the full input allowance, retained history and formatting must fit below 30,720 tokens. Smaller contexts use one eighth of capacity for the input allowance and one half for replies, capped at 2,048 and 32,768 respectively.
 
 After each successful reply, one worker checks the formatted history plus the next-turn formatting. If the allowances would no longer fit, it removes oldest complete user/reply pairs until the history uses at most 75% of capacity and both allowances fit with one spare token. It then processes the retained prefix through `/completion` with `n_predict: 0` and prompt caching enabled. No preparation reply is added to history or printed.
 
@@ -26,4 +26,4 @@ Each session saves only `-chat.txt`, `-server.txt`, and `-model.txt`. The two di
 
 Run `python -m unittest discover -s tests/native-linux -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
-Verified on the pinned runtime and RX 7900 XT at 16,384 tokens; earlier checks used 1,024 and 8,192 tokens. See [GPU preparation results](experiments/idle-rollover.md).
+Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [GPU preparation results](experiments/idle-rollover.md).

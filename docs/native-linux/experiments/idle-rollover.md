@@ -24,3 +24,9 @@ With thinking enabled, a 256-token server thinking cap, and a 1,024-token combin
 ## Doubled token limits
 
 The 16,384-token configuration completed 23 synthetic replies and six rollover preparations on the same GPU, with a 512-token thinking cap and 2,048-token input and combined generation allowances. Following requests reused over 11,000 cached tokens. Preparation took about 2.96 seconds with the larger retained history. `/clear`, fresh generation, and server/socket cleanup passed; all 21 automated checks passed. These timings describe the synthetic run, not a guarantee for every conversation.
+
+## 64K context and recommended sampling
+
+The pinned runtime loaded a 65,536-token context on the RX 7900 XT, allocating 2,048 MiB for the KV cache, 2,603.50 MiB for GPU model weights, 50.25 MiB for recurrent state, and 143.02 MiB for the GPU compute buffer. These are reported buffers, not total process VRAM.
+
+An isolated launcher chat and a synthetic history test verified the 32,768-token request allowance, thinking/final-answer separation, and the effective general-thinking sampling values documented in the setup guide. No separate thinking cap was applied. A 34,306-token synthetic next-turn prompt triggered removal of two oldest exchanges; preparing the retained 30,264-token prefix took about 9.4 seconds. The following reply reused all 30,264 cached tokens and processed 14 new tokens. Generation and server/socket cleanup succeeded. The 22 automated checks passed. This verifies loading, generation, and rollover; it does not benchmark a full 32K-token output or prove that repetitive reasoning is eliminated.

@@ -59,7 +59,7 @@ Keep the existing `data/conversations/` folder when updating or reinstalling. To
 
 ## Choices and updates
 
-Q4_K_M reduces the model download to 2,740,937,888 bytes with a quality tradeoff versus full precision. The 16,384-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
+Q4_K_M reduces the model download to 2,740,937,888 bytes with a quality tradeoff versus full precision. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
@@ -69,7 +69,9 @@ Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the st
 
 The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
-The context is 16,384 tokens with a 3,072-token combined thinking-and-answer allowance and a 1,024-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
+The context is 65,536 tokens with a 32,768-token combined thinking-and-answer allowance and no separate thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
+
+Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-4B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
 
 ## Verification
 
