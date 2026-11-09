@@ -1,5 +1,7 @@
 # Baseline 1
 
+Historical checkpoint: `baseline-v1`. The current setup adds [generated startup context](startup-context.md); statements below about having no system message describe the checkpoint.
+
 A local, text-only terminal chat with reproducible installation and diagnostic logs. This is the base for future work, reviewed on November 8, 2026.
 
 ## Fixed scope

@@ -70,7 +70,7 @@ class LauncherTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         scripts = self.root / 'scripts/native-linux'
         scripts.mkdir(parents=True)
-        for name in ['chat.sh', 'view-log.sh']:
+        for name in ['chat.sh', 'view-log.sh', 'session.py']:
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -79,6 +79,7 @@ class LauncherTests(unittest.TestCase):
         runtime.write_text('''#!/bin/bash
 if [[ "$1" == --version ]]; then echo 'synthetic runtime'; exit; fi
 printf 'synthetic diagnostic\\n' >&2
+printf '0.00.001.000 D waiting for user input\\n' >&2
 printf 'Synthetic reply.\\n'
 for arg in "$@"; do
     [[ "$arg" == --test-fail ]] && exit 7
@@ -106,7 +107,7 @@ exit 0
         marker = self.root / 'must-not-exist'
         payload = 'literal $(touch ' + str(marker) + ') ; "quoted"'
         for _ in range(2):
-            result = self.run_chat('--prompt', payload)
+            result = self.run_chat('--synthetic-argument', payload)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertFalse(marker.exists())
         chats = list(self.logs.glob('*-chat.txt'))
@@ -118,6 +119,9 @@ exit 0
             self.assertNotIn('synthetic diagnostic', chat.read_text())
             self.assertIn('synthetic diagnostic', debug.read_text())
             self.assertIn('Exit status: 0', debug.read_text())
+            snapshot = json.loads(chat.with_name(chat.name.replace('-chat.txt', '-setup.json')).read_text())
+            self.assertEqual(snapshot['delivery'], 'pending_first_message')
+            self.assertIn('unverified', snapshot['context'])
             self.assertIn('Debug window could not open', debug.read_text())
             for path in [chat, debug]:
                 self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)

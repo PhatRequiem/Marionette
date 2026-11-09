@@ -18,10 +18,13 @@ A second terminal opens to show full debug output. In the chat terminal, wait fo
 
 `/exit` and `/clear` are not commands in this runtime; typing them sends them as messages.
 
-Each session saves two matching files in `data/conversations/`:
+After loading, she receives a generated report of the observed setup with your first message. She still cannot open files or read logs herself.
+
+Each session saves three matching files in `data/conversations/`:
 
 - `…-chat.txt`: your messages and her replies.
 - `…-debug.txt`: full troubleshooting details, shown live in the second terminal.
+- `…-setup.json`: generated setup facts and the context supplied to her.
 
 Past logs stay there, but she starts fresh each launch. Logs remain local and are excluded from GitHub.
 
