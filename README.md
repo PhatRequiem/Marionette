@@ -14,6 +14,8 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 The current base runs Qwen3.5-4B BF16 on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
+The recoverable Git checkpoint is **`baseline-v2` (2026-11-09)**; recovery steps are in [the baseline guide](docs/baseline.md).
+
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [current baseline and verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
 ## Reviewing the code
