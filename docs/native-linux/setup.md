@@ -43,6 +43,29 @@ Every received line gets `[event 00000001]` followed by an ISO timestamp with mi
 
 Messages appear below their event header on `    | ` continuation rows, wrapped at 140 characters. JSON punctuation outside strings starts a new row; values are not parsed, rounded, truncated, or deduplicated. Blank input lines are explicitly marked `[blank line]`. Control bytes are displayed as `\xHH` (for example `\x1b` for Escape and `\x08` for backspace), and literal backslashes are doubled. This retains the codes without allowing them to alter the terminal display. To recover an original message, concatenate its continuation rows without their prefixes or added line breaks, decode those escapes, and restore its final newline unless the header says `[no final newline]`. Shared events use identical formatting in both files. Existing session files are not rewritten; the new format applies on the next launch.
 
+The live windows use `log_view.py` and the shared palette in `style.py`:
+
+| Meaning | Color |
+|---|---|
+| Sender/source labels and IDs | Cyan |
+| User message text | Neon green |
+| Thinking and processing details | White |
+| Assistant answer text | Pink |
+| Timestamps and event headers | Gray |
+| Warnings/disconnections | Yellow |
+| Errors | Red |
+
+Diagnostic colors follow recognizable fields and client records; unknown rows remain white. Message words such as “error” inside a normal reply do not change its color. Source control codes stay visible as escaped text. This is a display layer: saved server/model files retain their complete reversible format and shared event numbers. Main chat keeps its normal terminal transcript, including its color codes. No extra files or windows are created.
+
+To read an existing saved file with the same presentation, run from the project directory (replace `PATH_TO_LOG` with its path):
+
+```bash
+python src/marionette/log_view.py diagnostic < PATH_TO_LOG
+python src/marionette/log_view.py discord < PATH_TO_DISCORD_LOG
+```
+
+The Discord view expands JSON message text into readable blocks and shows every metadata field separately. Saved Discord records remain structured and uncolored for tracing and future tools. Colors are enabled only when output goes to a terminal; redirected output is readable plain text. Existing saved files are never rewritten.
+
 There is no third raw debug file or filtered temporary log. The launcher waits for the router to finish writing before exiting. Older `-debug.txt` files remain untouched. Export all three matching session files together; nothing automatically deletes or rotates them.
 
 The default device is Vulkan0, verified as the RX 7900 XT on this machine. Check device ordering after driver/hardware changes:

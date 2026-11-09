@@ -75,7 +75,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['session.py', 'log_router.py', 'connection.py']:
+        for name in ['session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))

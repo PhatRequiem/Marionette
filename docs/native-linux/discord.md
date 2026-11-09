@@ -45,7 +45,7 @@ Discord runs in that same terminal and attaches to the running conversation; it 
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 
-- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating. Main chat displays Discord messages in neon green as `[Discord · numeric user ID]`, thinking in white, and answers in pink. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The sender label is display/log metadata, not an added model instruction, and does not authorize other users.
+- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating. Main chat displays `[Discord · numeric user ID]` in cyan, your message text in neon green, thinking in white, and answers in pink. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The sender label is display/log metadata, not an added model instruction, and does not authorize other users.
 - `/clear` from either input clears the shared model history, not saved logs or Discord messages.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
@@ -58,7 +58,7 @@ The main chat owns the model and conversation. A Unix socket at `data/session/ch
 
 The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including thinking and accepted Discord turns. The terminal transcript now also includes the labeled Discord exchanges and their thinking. Remote requests are queued for the main terminal thread to render between local turns, then the local input prompt is shown again.
 
-Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its own terminal displays connection status, timestamped user/final-answer records, and delivery outcomes. It contains no model thinking. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
+Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its terminal displays readable message blocks: cyan IDs, green incoming text, pink answers, gray timestamps, yellow warnings, and red errors. Connection/delivery fields appear on separate labeled lines. It contains no model thinking. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 
 The Discord log adds these diagnostics without additional Discord permissions:
 
@@ -71,7 +71,7 @@ The Discord log adds these diagnostics without additional Discord permissions:
 - Error class, HTTP status, and Discord error code when provided. Exception bodies, request headers, credentials, and raw network packets are not dumped.
 - `heartbeat_ms` snapshots on ready/resume/disconnect and accepted incoming messages. This is Gateway heartbeat round-trip latency, not message delivery latency. Unavailable readings are `null`; there is no continuous heartbeat log spam.
 
-Diagnostics use timestamped event names followed by JSON fields; transcripts remain timestamped JSON records. An older running main session may return `null` for new local timing fields: restart main chat and reconnect Discord to enable those fields. Main chat and model logs still contain thinking; the Discord log does not.
+Saved diagnostics use timestamped event names followed by JSON fields; saved transcripts remain timestamped JSON records. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](setup.md#reading-the-two-diagnostic-logs). An older running main session may return `null` for new local timing fields: restart main chat and reconnect Discord to enable those fields. Main chat and model logs still contain thinking; the Discord log does not.
 
 Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 

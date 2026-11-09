@@ -2,8 +2,10 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'src/marionette'))
 spec = importlib.util.spec_from_file_location('session', ROOT / 'src/marionette/session.py')
 session = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(session)

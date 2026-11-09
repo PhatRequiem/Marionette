@@ -16,9 +16,9 @@ import time
 import urllib.error
 import urllib.request
 
+from style import COLORS
+
 LOG_LOCK = threading.Lock()
-COLORS = {'input': '\033[38;2;57;255;20m', 'data': '\033[97m',
-          'reply': '\033[38;2;255;128;191m', 'reset': '\033[0m'}
 
 
 def color(kind):
@@ -230,21 +230,24 @@ class Conversation:
         if timings is not None:
             timings['main_queue_ms'] = round((processing_start - queued_at) * 1000, 2)
         print('\n')
+        color('meta')
+        print(f'[Discord · {sender_id}]', flush=True)
         color('input')
-        print(f'[Discord · {sender_id}]\n{message}\n', flush=True)
+        print(f'{message}\n', flush=True)
         color('data')
         try:
             answer, finish = self.turn(message, display=True)
             if message.strip() == '/clear':
                 print(answer)
             if finish == 'length':
-                color('data')
+                color('warning')
                 print('\n[Thinking and answer reached their shared token allowance.]')
             if timings is not None:
                 timings['processing_ms'] = round((time.monotonic() - processing_start) * 1000, 2)
             future.set_result((answer, finish))
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
             color('data')
+            color('error')
             print(f'\nDiscord request failed: {error}')
             future.set_exception(error)
         finally:
@@ -321,10 +324,14 @@ def terminal(conversation, *, external=False):
                 color('data')
             print()
             if finish == 'length':
+                color('warning')
                 print('[Thinking and answer reached their shared token allowance.]')
+                color('data')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
             log(f'Request failed: {error}')
+            color('error')
             print(f'\n{error}\nConversation history is unchanged; you can retry.')
+            color('data')
 
 
 def chat(api, capacity):

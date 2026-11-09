@@ -14,6 +14,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'src/marionette'))
 spec = importlib.util.spec_from_file_location('client', ROOT / 'src/marionette/session.py')
 client = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client)
