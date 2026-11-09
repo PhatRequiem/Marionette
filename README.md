@@ -29,7 +29,7 @@ Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses autom
 - `data/models/`: local model weights; ignored by Git.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: existing visual references, independent of terminal chat.
-- `scripts/visual-design/`: optional, local Blender character-render experiment.
+- `scripts/visual-design/`: optional, local Blender character-render experiments.
 - `docs/visual-design/experiments/`: visual experiment methods and limitations.
 - `data/visual-design/`: generated Blender scenes and renders; ignored by Git.
 - `tests/native-linux/`: isolated setup and logging regression checks.
@@ -38,3 +38,4 @@ Baseline 1 is preserved at Git tag `baseline-v1`. The current version uses autom
 See [native Linux setup and operation](docs/native-linux/setup.md) and [licenses](docs/licenses.md).
 
 The optional [porcelain marionette render experiment](docs/visual-design/experiments/porcelain-marionette.md) interprets the character sheet as editable Blender geometry.
+The separate [simplified marionette experiment](docs/visual-design/experiments/simplified-marionette.md) builds the revised design with broad hair clumps, simpler clothing and continuous fingers, and renders front, side and back inspection views.
