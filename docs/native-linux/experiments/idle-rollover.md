@@ -20,3 +20,7 @@ After moving application code to `src/marionette/` (commit `e93ad96`), the uncha
 ## Thinking-mode recheck
 
 With thinking enabled, a 256-token server thinking cap, and a 1,024-token combined generation allowance, the 8,192-token synthetic session completed 17 replies, automatic preparation, `/clear`, and clean shutdown. Reasoning appeared before final answers and was recorded in the diagnostic logs. After preparation, requests reused the retained cache (for example, 5,767 cached tokens and 12 newly processed tokens). The 21 automated checks also passed, including white reasoning/pink answer output and retaining only final answers. The larger generation reserve can trigger preparation earlier; the context capacity and oldest-pair removal policy are unchanged.
+
+## Doubled token limits
+
+The 16,384-token configuration completed 23 synthetic replies and six rollover preparations on the same GPU, with a 512-token thinking cap and 2,048-token input and combined generation allowances. Following requests reused over 11,000 cached tokens. Preparation took about 2.96 seconds with the larger retained history. `/clear`, fresh generation, and server/socket cleanup passed; all 21 automated checks passed. These timings describe the synthetic run, not a guarantee for every conversation.

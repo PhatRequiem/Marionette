@@ -59,7 +59,7 @@ Keep the existing `data/conversations/` folder when updating or reinstalling. To
 
 ## Choices and updates
 
-Q4_K_M reduces the model download to 2,740,937,888 bytes with a quality tradeoff versus full precision. The 8,192-token context keeps memory use bounded. Reasoning is disabled for straightforward conversational replies; no character instructions are injected. No image projector is installed, so this setup is text-only.
+Q4_K_M reduces the model download to 2,740,937,888 bytes with a quality tradeoff versus full precision. The 16,384-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
@@ -69,7 +69,7 @@ Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the st
 
 The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
-The context remains 8,192 tokens with a 1,024-token combined thinking-and-answer allowance and a 256-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
+The context is 16,384 tokens with a 2,048-token combined thinking-and-answer allowance and a 512-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
 ## Verification
 

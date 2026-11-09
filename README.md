@@ -15,7 +15,7 @@ Setup downloads and verifies the pinned runtime and model. Subsequent chat runs 
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, an 8,192-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 16,384-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
 See [context policy and verified behavior](docs/native-linux/context.md) for allowances, trimming, cache preparation, and limitations. The older direct-inference checkpoint is documented separately at [Baseline 1](docs/native-linux/baseline.md) and Git tag `baseline-v1`.
 

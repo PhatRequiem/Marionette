@@ -161,7 +161,7 @@ class Preparation:
     def work(self, api, capacity, reserve):
         started = time.monotonic()
         try:
-            incoming = min(1024, capacity // 8)
+            incoming = min(2048, capacity // 8)
             probe = [{'role': 'user', 'content': ''}]
             candidate = self.history.copy()
             tokens = api.count(candidate + probe)
@@ -196,11 +196,11 @@ class Preparation:
 
 
 def chat(api, capacity):
-    reserve = min(1024, capacity // 4)
+    reserve = min(2048, capacity // 4)
     history = []
     pending = None
     log(f'Context policy: capacity={capacity}, reply_budget={reserve}, '
-        f'next_message_allowance={min(1024, capacity // 8)}; no setup report.')
+        f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     print(f'Ready. Context limit: {capacity}; thinking + answer allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
     while True:
         try:
