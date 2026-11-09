@@ -69,7 +69,7 @@ Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the st
 
 The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
-The context is 16,384 tokens with a 2,048-token combined thinking-and-answer allowance and a 512-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
+The context is 16,384 tokens with a 2,048-token combined thinking-and-answer allowance and a 1,024-token thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
 ## Verification
 

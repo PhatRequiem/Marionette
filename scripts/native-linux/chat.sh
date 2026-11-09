@@ -72,7 +72,7 @@ finish() {
 }
 trap finish EXIT
 COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan0}"
-    --gpu-layers all --ctx-size 16384 --jinja --reasoning on --reasoning-format deepseek --reasoning-budget 512
+    --gpu-layers all --ctx-size 16384 --jinja --reasoning on --reasoning-format deepseek --reasoning-budget 1024
     "$@"
     --host 127.0.0.1 --port 0 --parallel 1 --no-webui --no-context-shift
     --log-colors off --no-log-jsonl --verbose --log-prefix --log-timestamps)

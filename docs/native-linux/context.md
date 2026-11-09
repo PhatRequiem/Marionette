@@ -2,7 +2,7 @@
 
 `src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report, setup JSON file, personality file, or application system message is generated. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
 
-Thinking is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. The server caps thinking at 512 tokens; both thinking and the answer consume the shared generation allowance. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
+Thinking is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. The server caps thinking at 1,024 tokens; both thinking and the answer consume the shared generation allowance. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
 
 ## Between-turn preparation
 
