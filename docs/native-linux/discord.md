@@ -23,7 +23,7 @@ This uses [uv](https://docs.astral.sh/uv/getting-started/installation/) (already
 The local configuration requires both `DISCORD_ALLOWED_USER_ID` and `DISCORD_BOT_TOKEN` and file permissions `600`. Missing or invalid configuration stops launch before loading the model. To edit it:
 
 ```bash
-nano data/discord/.env
+nvim data/discord/.env
 ```
 
 ## Start and stop
@@ -35,17 +35,17 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-After she is ready, run this from another shell or your desktop command runner:
+After she is ready, open one additional terminal and run:
 
 ```bash
 /home/phatkitty/Projects/Marionette/scripts/native-linux/discord.sh
 ```
 
-It opens a fourth terminal, **Marionette — Discord connection**, and attaches to the running conversation. Wait for **Discord ready**, then DM the bot from your allowed account. The shell used to issue the command can be closed afterward. Your computer must stay awake and connected.
+Discord runs in that same terminal and attaches to the running conversation; it does not open another window. You now have four terminals: main chat, two model/server logs, and Discord. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 
-- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating; terminal replies stay in the terminal, and DM replies go to Discord only.
+- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating. Main chat displays Discord messages in neon green as `[Discord · numeric user ID]`, thinking in white, and answers in pink. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The sender label is display/log metadata, not an added model instruction, and does not authorize other users.
 - `/clear` from either input clears the shared model history, not saved logs or Discord messages.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
@@ -56,7 +56,7 @@ The main chat owns the model and conversation. A Unix socket at `data/session/ch
 
 ## Local logs and verification
 
-The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including thinking and accepted Discord turns. Discord turns are recorded in these diagnostics without interrupting the terminal prompt.
+The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including thinking and accepted Discord turns. The terminal transcript now also includes the labeled Discord exchanges and their thinking. Remote requests are queued for the main terminal thread to render between local turns, then the local input prompt is shown again.
 
 Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its own terminal displays connection status, timestamped user/final-answer records, and delivery outcomes. It contains no model thinking. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 

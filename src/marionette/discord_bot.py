@@ -98,7 +98,7 @@ class DMChat(discord.Client):
             transcript('user', text, message.id)
             try:
                 async with message.channel.typing():
-                    answer, finish = await request(self.address, text)
+                    answer, finish = await request(self.address, text, message.author.id)
                     transcript('assistant', answer, message.id)
                     for part in chunks(answer):
                         await message.channel.send(part, suppress_embeds=True,

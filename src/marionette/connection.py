@@ -25,8 +25,12 @@ class LocalConnection:
                     message = request['message']
                     if not isinstance(message, str) or not message.strip():
                         raise ValueError('A text message is required.')
-                    log('Discord input: ' + json.dumps(message, ensure_ascii=False))
-                    answer, finish = turn(message)
+                    sender_id = request['sender_id']
+                    if (not isinstance(sender_id, str) or not sender_id.isascii()
+                            or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
+                        raise ValueError('A numeric Discord sender ID is required.')
+                    log(f'Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
+                    answer, finish = turn(message, sender_id=sender_id)
                     log('Discord answer: ' + json.dumps(answer, ensure_ascii=False))
                     result = {'answer': answer, 'finish': finish}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
@@ -55,11 +59,11 @@ class LocalConnection:
         self.path.unlink(missing_ok=True)
 
 
-async def request(address, message):
+async def request(address, message, sender_id):
     """No generation timeout: a 32K thinking response can legitimately take minutes."""
     reader, writer = await asyncio.open_unix_connection(str(address), limit=4 * MAX_REQUEST)
     try:
-        payload = (json.dumps({'message': message}) + '\n').encode()
+        payload = (json.dumps({'message': message, 'sender_id': str(sender_id)}) + '\n').encode()
         if len(payload) > MAX_REQUEST:
             raise ValueError('Message is too large for the local connection.')
         writer.write(payload)

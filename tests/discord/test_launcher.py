@@ -66,16 +66,13 @@ raise SystemExit(adapter.main())
                     time.sleep(.02)
                 self.assertEqual(address.stat().st_mode & 0o777, 0o600)
                 children = Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text()
-                # Fake desktop launcher records that the optional connection opens its own window.
-                subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')], env=env,
-                               capture_output=True, timeout=10)
-                self.assertIn('Discord connection', (root / 'viewer-calls.txt').read_text())
                 for _ in range(2):
-                    result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh'), '--run'],
+                    result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')],
                         env=env, capture_output=True, text=True, timeout=15)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIsNone(main.poll())
                     self.assertEqual(Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text(), children)
+                self.assertFalse((root / 'viewer-calls.txt').exists())
                 logs = list(fixture.logs.glob('*-discord.txt'))
                 self.assertEqual(len(logs), 2)
                 for log in logs:
@@ -83,7 +80,9 @@ raise SystemExit(adapter.main())
                     self.assertNotIn('PRIVATE_THOUGHT', log.read_text())
                 main.communicate('terminal still works\n/exit\n', timeout=10)
                 self.assertEqual(main.returncode, 0)
-                self.assertIn('PRIVATE_THOUGHT', output_path.read_text())
+                self.assertIn('[Discord · 123]\nSynthetic Discord hello', output_path.read_text())
+                self.assertIn('Thinking:\nPRIVATE_THOUGHT', output_path.read_text())
+                self.assertIn('Answer:\nSynthetic reply.', output_path.read_text())
                 self.assertFalse(address.exists())
                 result = subprocess.run(['bash', str(root / 'scripts/native-linux/discord.sh')],
                                         env=env, capture_output=True, text=True, timeout=10)

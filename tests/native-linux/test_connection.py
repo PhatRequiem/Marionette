@@ -1,5 +1,8 @@
 """Shared history, serialization, and private local connection lifecycle."""
 import asyncio
+import io
+import json
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -28,14 +31,14 @@ class ConnectionTests(unittest.TestCase):
         conversation = session.Conversation(api, 65536)
         with tempfile.TemporaryDirectory() as directory, patch.object(session, 'log'):
             address = Path(directory) / 'chat.sock'
-            with connection.LocalConnection(address, conversation.turn, lambda _: None):
+            with connection.LocalConnection(address, lambda message, **_: conversation.turn(message), lambda _: None):
                 conversation.turn('terminal first', display=True)
-                result = asyncio.run(connection.request(address, 'discord second'))
+                result = asyncio.run(connection.request(address, 'discord second', 123))
                 self.assertEqual(result, ('answer', 'stop'))
                 conversation.turn('terminal third', display=True)
                 self.assertEqual([m['content'] for m in api.sent[-1]],
                     ['terminal first', 'answer', 'discord second', 'answer', 'terminal third'])
-                asyncio.run(connection.request(address, '/clear'))
+                asyncio.run(connection.request(address, '/clear', 123))
                 conversation.turn('fresh terminal', display=True)
                 self.assertEqual(api.sent[-1], [{'role': 'user', 'content': 'fresh terminal'}])
                 conversation.pending.result()
@@ -71,3 +74,34 @@ class ConnectionTests(unittest.TestCase):
             self.assertFalse(first.is_alive() or second.is_alive())
             self.assertEqual([m['content'] for m in api.sent[-1]], ['terminal', 'answer', 'discord'])
             conversation.pending.result()
+
+    def test_discord_display_has_sender_colors_and_only_returns_answer(self):
+        api = session.API('http://127.0.0.1:1')
+        conversation = session.Conversation(api, 65536)
+        events = [
+            {'choices': [{'delta': {'reasoning_content': 'Private thinking.'}}]},
+            {'choices': [{'delta': {'content': 'Final answer.'}, 'finish_reason': 'stop'}]},
+        ]
+        stream = io.BytesIO((''.join('data: ' + json.dumps(e) + '\n\n' for e in events)
+                             + 'data: [DONE]\n\n').encode())
+        output = io.StringIO()
+        result = []
+        with patch.object(api, 'open', return_value=stream), patch.object(api, 'count', return_value=10), \
+             patch.object(session, 'log'), patch('sys.stdout', output), \
+             patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
+            worker = threading.Thread(target=lambda: result.append(
+                conversation.submit_discord('Hello from Discord', sender_id='123')))
+            worker.start()
+            # Wait for the queued request without arbitrary timing assumptions.
+            item = conversation.incoming.get(timeout=2)
+            conversation.incoming.put(item)
+            self.assertTrue(conversation.display_discord())
+            worker.join(2)
+            self.assertFalse(worker.is_alive())
+            conversation.pending.result()
+        self.assertEqual(result, [('Final answer.', 'stop')])
+        rendered = output.getvalue()
+        self.assertIn(session.COLORS['input'] + '[Discord · 123]\nHello from Discord', rendered)
+        self.assertIn(session.COLORS['data'] + 'Thinking:\nPrivate thinking.', rendered)
+        self.assertIn(session.COLORS['reply'] + 'Final answer.', rendered)
+        self.assertEqual(conversation.history[0]['content'], 'Hello from Discord')

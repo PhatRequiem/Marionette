@@ -48,7 +48,8 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.api = FakeAPI()
         self.conversation = session.Conversation(self.api, 65536)
-        async def request(address, text):
+        async def request(address, text, sender_id):
+            self.assertEqual(sender_id, 123)
             return self.conversation.turn(text)
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)

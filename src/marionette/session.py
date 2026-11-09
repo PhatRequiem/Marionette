@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Terminal chat with an owned local server and between-turn cache preparation."""
+from concurrent.futures import Future
+import queue
+import select
 import http.client
 import json
 import os
@@ -207,6 +210,42 @@ class Conversation:
         self.history = []
         self.pending = None
         self.lock = threading.Lock()
+        self.incoming = queue.Queue()
+
+    def submit_discord(self, message, *, sender_id):
+        # The terminal thread owns rendering, including while awaiting local input.
+        future = Future()
+        self.incoming.put((message, sender_id, future))
+        while not self.api.closing.wait(.1):
+            if future.done():
+                return future.result()
+        raise RuntimeError('Session is closing.')
+
+    def display_discord(self):
+        try:
+            message, sender_id, future = self.incoming.get_nowait()
+        except queue.Empty:
+            return False
+        print('\n')
+        color('input')
+        print(f'[Discord · {sender_id}]\n{message}\n', flush=True)
+        color('data')
+        try:
+            answer, finish = self.turn(message, display=True)
+            if message.strip() == '/clear':
+                print(answer)
+            if finish == 'length':
+                color('data')
+                print('\n[Thinking and answer reached their shared token allowance.]')
+            future.set_result((answer, finish))
+        except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
+            color('data')
+            print(f'\nDiscord request failed: {error}')
+            future.set_exception(error)
+        finally:
+            color('data')
+            print('\n')
+        return True
 
     def turn(self, message, *, display=False):
         with self.lock:
@@ -225,7 +264,7 @@ class Conversation:
                 f'{self.capacity}; removed_exchanges={removed}.')
             if removed:
                 log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
-            # Preserve the terminal streaming interface; external inputs stay quiet.
+            # The terminal renders both local and queued Discord turns.
             if display:
                 answer, finish = self.api.reply(candidate, self.reserve)
             else:
@@ -238,13 +277,20 @@ class Conversation:
             return answer, finish
 
 
-def terminal(conversation):
+def terminal(conversation, *, external=False):
     while True:
         try:
             print()
             color('input')
             print('> ', end='', flush=True)
             try:
+                if external:
+                    while True:
+                        if conversation.display_discord():
+                            color('input')
+                            print('> ', end='', flush=True)
+                        if select.select([sys.stdin], [], [], .1)[0]:
+                            break
                 message = input()
             finally:
                 color('data')
@@ -285,11 +331,14 @@ def chat(api, capacity):
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
         from connection import LocalConnection
-        connection = LocalConnection(address, conversation.turn, log)
+        connection = LocalConnection(address, conversation.submit_discord, log)
     else:
         connection = nullcontext()
-    with connection:
-        terminal(conversation)
+    try:
+        with connection:
+            terminal(conversation, external=bool(address))
+    finally:
+        api.closing.set()
 
 
 def run(command):
