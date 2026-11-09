@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('client', ROOT / 'scripts/native-linux/session.py')
+spec = importlib.util.spec_from_file_location('client', ROOT / 'src/marionette/session.py')
 client = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client)
 
@@ -66,7 +66,7 @@ class ClientTests(unittest.TestCase):
                 output_path = Path(directory) / 'terminal.txt'
                 with output_path.open('w') as output:
                     process = subprocess.Popen(
-                        [sys.executable, str(ROOT / 'scripts/native-linux/session.py'),
+                        [sys.executable, str(ROOT / 'src/marionette/session.py'),
                          sys.executable, str(ROOT / 'tests/native-linux/fake_server.py')],
                         stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
                         text=True, cwd=directory)

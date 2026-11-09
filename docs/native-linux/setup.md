@@ -13,6 +13,12 @@ The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unslot
 
 The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of `runtime/llama.cpp/`, and rerun setup to restore it from the verified archive.
 
+## Source layout
+
+Application code lives in `src/marionette/`: `session.py` owns chat and the local server, and `log_router.py` formats and routes diagnostics. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
+
+`scripts/native-linux/` contains operational entry points: `setup.py`, `chat.sh`, and `view-log.sh`. The pinned `downloads.json` stays beside setup. Tests live in `tests/native-linux/`; runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
+
 ## Operation
 
 For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
@@ -59,7 +65,7 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 ## Runtime decision
 
-Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `session.py`. The client requires no third-party Python packages or persistent service. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
+Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client requires no third-party Python packages or persistent service. The client handles typed messages, streams replies, and retains only the conversation that fits. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
 The model's native template is used with reasoning disabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 

@@ -21,7 +21,8 @@ See [context policy and verified behavior](docs/native-linux/context.md) for all
 
 ## Folder map
 
-- `scripts/native-linux/`: setup, terminal client, logging, launch, and pinned download manifest.
+- `src/marionette/`: application code—terminal chat, rollover, and diagnostic log processing.
+- `scripts/native-linux/`: installation, chat launcher, log-window launcher, and pinned download manifest.
 - `docs/native-linux/`: setup requirements, operation, and decisions.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.

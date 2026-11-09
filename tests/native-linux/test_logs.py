@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('router', ROOT / 'scripts/native-linux/log-router.py')
+spec = importlib.util.spec_from_file_location('router', ROOT / 'src/marionette/log_router.py')
 router = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(router)
 

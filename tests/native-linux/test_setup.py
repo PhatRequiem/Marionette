@@ -70,8 +70,12 @@ class LauncherTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         scripts = self.root / 'scripts/native-linux'
         scripts.mkdir(parents=True)
-        for name in ['chat.sh', 'view-log.sh', 'session.py', 'log-router.py']:
+        for name in ['chat.sh', 'view-log.sh']:
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
+        source = self.root / 'src/marionette'
+        source.mkdir(parents=True)
+        for name in ['session.py', 'log_router.py']:
+            shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
         runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
@@ -134,6 +138,13 @@ class LauncherTests(unittest.TestCase):
         result = self.run_chat('--version')
         self.assertEqual(result.returncode, 0)
         self.assertIn('synthetic runtime', result.stdout)
+        self.assertFalse(self.logs.exists())
+
+    def test_missing_source_fails_before_creating_logs(self):
+        (self.root / 'src/marionette/session.py').unlink()
+        result = self.run_chat()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('Application source missing', result.stderr)
         self.assertFalse(self.logs.exists())
 
     def test_external_server_override_rejected_before_launch(self):

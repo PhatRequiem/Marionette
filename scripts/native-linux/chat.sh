@@ -25,6 +25,12 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
+for source in session.py log_router.py; do
+    if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
+        echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
+        exit 1
+    fi
+done
 # The client owns server lifetime and structured messages.
 for arg in "$@"; do
     case "${arg%%=*}" in
@@ -47,7 +53,7 @@ SERVER_FILE="${CHAT_FILE%-chat.txt}-server.txt"
 MODEL_FILE="${CHAT_FILE%-chat.txt}-model.txt"
 (set -o noclobber; : > "$SERVER_FILE"; : > "$MODEL_FILE")
 # One writer assigns event IDs before routing; no raw debug file is created.
-exec 3> >(python "$ROOT/scripts/native-linux/log-router.py" "$SERVER_FILE" "$MODEL_FILE")
+exec 3> >(python "$ROOT/src/marionette/log_router.py" "$SERVER_FILE" "$MODEL_FILE")
 ROUTER_PID=$!
 finish() {
     local status=$?
@@ -100,7 +106,7 @@ done
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.
 # The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
-printf -v RECORD_COMMAND '%q ' python -u "$ROOT/scripts/native-linux/session.py" \
+printf -v RECORD_COMMAND '%q ' python -u "$ROOT/src/marionette/session.py" \
     "${COMMAND[@]}"
 RECORD_COMMAND+=' 2>&3 3>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
