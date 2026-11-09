@@ -70,27 +70,21 @@ class API:
     def reply(self, messages, reserve, *, on_delta=None):
         working = messages.copy()
         remaining = reserve
-        for round_number in range(3):
-            if round_number == 2:
-                working = [{'role': 'system', 'content':
-                    'The read_logs lookup limit for this turn has been reached. '
-                    'Answer the user now using the evidence already returned, stating any uncertainty. '
-                    'Do not request another tool or print tool-call syntax.'}] + working
+        while True:
             allowance = remaining
-            if round_number:
+            if working != messages:
                 prompt_tokens = self.count(working)
                 allowance = min(allowance, self.capacity - prompt_tokens - 1)
                 chat_event('context', prompt_tokens=prompt_tokens, context_capacity=self.capacity,
                            reply_allowance=max(0, allowance), phase='before_tool_continuation')
             if allowance <= 0:
                 raise RuntimeError('Log review reached the context or generation allowance.')
-            message, finish, used = self._stream(working, allowance, on_delta=on_delta,
-                                                allow_tools=round_number < 2)
+            message, finish, used = self._stream(working, allowance, on_delta=on_delta)
             calls = message.get('tool_calls', [])
             if not calls:
                 return message['content'], finish
-            if self.log_reader is None or round_number >= 2 or len(calls) != 1:
-                raise RuntimeError('Log review requires one tool call at a time, at most two per turn.')
+            if self.log_reader is None or len(calls) != 1:
+                raise RuntimeError('Log review requires one tool call at a time.')
             if used is None:
                 # Conservatively count all generated fields if the server omitted usage.
                 used = len(self.tokenize(json.dumps(message)))
@@ -117,13 +111,12 @@ class API:
                  'error': result.get('error')}))
             working += [message, {'role': 'tool', 'tool_call_id': call['id'],
                                   'name': 'read_logs', 'content': encoded}]
-        raise RuntimeError('Log review did not produce a final answer.')
 
-    def _stream(self, messages, reserve, *, on_delta=None, allow_tools=True):
+    def _stream(self, messages, reserve, *, on_delta=None):
         body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
                                       'stream_options': {'include_usage': True}}
         if self.log_reader is not None:
-            body['tool_choice'] = 'auto' if allow_tools else 'none'
+            body['tool_choice'] = 'auto'
         pieces, thoughts, finish = [], [], None
         calls, used = {}, None
         completed = False
@@ -149,11 +142,9 @@ class API:
                             message['reasoning_content'] = ''.join(thoughts)
                         elif finish == 'tool_calls':
                             raise RuntimeError('Missing tool-call data.')
-                        if not allow_tools and '<tool_call>' in message['content']:
+                        if '<tool_call>' in message['content']:
                             completed = False
-                            raise RuntimeError('Model requested another lookup after the limit; no final answer was accepted.')
-                        if not allow_tools and on_delta is not None and message['content']:
-                            on_delta('answer', message['content'])
+                            raise RuntimeError('Model returned unparsed tool syntax; no final answer was accepted.')
                         return message, finish, used
                     event = json.loads(payload)
                     if 'error' in event:
@@ -179,7 +170,7 @@ class API:
                             thoughts.append(reasoning)
                         text = delta.get('content') or ''
                         if text:
-                            if on_delta is not None and allow_tools:
+                            if on_delta is not None:
                                 on_delta('answer', text)
                             pieces.append(text)
                         finish = choice.get('finish_reason') or finish

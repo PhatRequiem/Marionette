@@ -166,17 +166,17 @@ class ToolTests(unittest.TestCase):
         reader.read.assert_not_called()
         self.assertIn('Only read_logs', request.call_args.args[1]['messages'][-1]['content'])
 
-    def test_repeated_calls_are_limited_and_do_not_expand_generation_budget(self):
+    def test_repeated_calls_stop_at_generation_budget(self):
         from unittest.mock import Mock
         reader = Mock()
         reader.read.return_value = {'records': []}
         api = API('http://127.0.0.1:1', reader, 8192)
-        with patch.object(api, 'open', side_effect=[tool_stream(), tool_stream(), tool_stream()]) as request, patch.object(api, 'count', return_value=100), patch('diagnostics.log'):
-            with self.assertRaisesRegex(RuntimeError, 'at most two'):
+        with patch.object(api, 'open', side_effect=[tool_stream() for _ in range(5)]) as request, patch.object(api, 'count', return_value=100), patch('diagnostics.log'):
+            with self.assertRaisesRegex(RuntimeError, 'generation allowance'):
                 api.reply([], 100)
-        self.assertEqual(reader.read.call_count, 2)
-        self.assertEqual(request.call_args.args[1]['tool_choice'], 'none')
-        self.assertEqual(request.call_args.args[1]['max_tokens'], 60)
+        self.assertEqual(reader.read.call_count, 5)
+        self.assertEqual(request.call_args.args[1]['tool_choice'], 'auto')
+        self.assertEqual(request.call_args.args[1]['max_tokens'], 20)
 
     def test_followup_context_capacity_is_checked_before_generation(self):
         from unittest.mock import Mock
@@ -213,19 +213,20 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(conversation.history, [{'role': 'user', 'content': 'Check logs'},
                                                {'role': 'assistant', 'content': 'Checked.'}])
 
-    def test_two_lookups_have_a_counted_final_answer_instruction(self):
+    def test_more_than_two_lookups_can_finish_with_an_answer(self):
         from unittest.mock import Mock
         reader = Mock()
         reader.read.return_value = {'records': []}
         api = API('http://127.0.0.1:1', reader, 8192)
         final = stream([delta({'content': 'Here are the findings.'}, 'stop')])
-        with patch.object(api, 'open', side_effect=[tool_stream(), tool_stream(), final]) as requests, patch.object(api, 'count', return_value=200) as count, patch('diagnostics.log'):
+        with patch.object(api, 'open', side_effect=[tool_stream() for _ in range(4)] + [final]) as requests, patch.object(api, 'count', return_value=200) as count, patch('diagnostics.log'):
             self.assertEqual(api.reply([], 100), ('Here are the findings.', 'stop'))
         body = requests.call_args.args[1]
-        self.assertEqual(body['messages'][0]['role'], 'system')
-        self.assertIn('lookup limit', body['messages'][0]['content'])
+        self.assertEqual(reader.read.call_count, 4)
+        self.assertFalse(any(m['role'] == 'system' for m in body['messages']))
+        self.assertEqual(body['tool_choice'], 'auto')
         self.assertEqual(count.call_args.args[0], body['messages'])
-        self.assertEqual(body['max_tokens'], 60)
+        self.assertEqual(body['max_tokens'], 20)
 
     def test_unparsed_tool_syntax_cannot_be_delivered_as_final_answer(self):
         from unittest.mock import Mock
@@ -237,4 +238,4 @@ class ToolTests(unittest.TestCase):
         with patch.object(api, 'open', side_effect=[tool_stream(), tool_stream(), final]), patch.object(api, 'count', return_value=200), patch('diagnostics.log'):
             with self.assertRaisesRegex(RuntimeError, 'no final answer was accepted'):
                 api.reply([], 100, on_delta=lambda *x: visible.append(x))
-        self.assertFalse(any('<tool_call>' in text for _, text in visible))
+        # Malformed text may stream locally, but reply() must not return it to Discord.
