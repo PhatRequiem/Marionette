@@ -15,6 +15,13 @@ import urllib.error
 import urllib.request
 
 LOG_LOCK = threading.Lock()
+COLORS = {'input': '\033[92m', 'data': '\033[97m',
+          'reply': '\033[38;2;255;128;191m', 'reset': '\033[0m'}
+
+
+def color(kind):
+    if sys.stdout.isatty() and os.environ.get('TERM') != 'dumb':
+        print(COLORS[kind], end='', flush=True)
 
 
 def log(message):
@@ -153,14 +160,20 @@ def chat(api, report, path, capacity):
     print(f'Ready. Context limit: {capacity}; reply allowance: {reserve} tokens. /clear starts fresh; /exit quits.')
     while True:
         try:
+            print()
+            color('input')
             print('> ', end='', flush=True)
-            message = input()
+            try:
+                message = input()
+            finally:
+                color('data')
         except EOFError:
             return
         if not message.strip():
             continue
         if message.strip() == '/exit':
             return
+        print()
         if message.strip() == '/clear':
             history = [system]
             log('Chat history cleared; setup report retained.')
@@ -174,7 +187,11 @@ def chat(api, report, path, capacity):
             log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < {capacity}; removed_exchanges={removed}.')
             if removed:
                 print(f'[Context rollover: leaving out {removed} oldest exchange(s); setup report retained.]')
-            answer, finish = api.reply(candidate, reserve)
+            color('reply')
+            try:
+                answer, finish = api.reply(candidate, reserve)
+            finally:
+                color('data')
             print()
             log(f'Reply completed: finish_reason={finish}.')
             if report['delivery'] != 'supplied_with_first_message':
@@ -213,6 +230,7 @@ def run(model_path, command):
     reader = threading.Thread(target=diagnostics, daemon=True)
     reader.start()
     try:
+        color('data')
         print('Loading model...', flush=True)
         deadline = time.monotonic() + 180
         while not ready.wait(.1):
@@ -265,4 +283,6 @@ if __name__ == '__main__':
         log(f'Client error: {error}')
         print(f'Chat could not continue: {error}', file=sys.stdout)
         status = 1
+    finally:
+        color('reset')
     raise SystemExit(status)

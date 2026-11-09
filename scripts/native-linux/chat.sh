@@ -61,6 +61,7 @@ finish() {
         printf 'Chat exited with status %s. Details: %s\n' "$status" "$MODEL_FILE" >&2
     fi
     trap - EXIT
+    if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[0m'; fi
     exit "$status"
 }
 trap finish EXIT
@@ -77,6 +78,7 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     printf '%s\n' "$MARIONETTE_RUNTIME_VERSION"
     script --version
 } >&3 2>&1
+if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
 printf 'Conversation log: %s\nConnections and requests: %s\nModel processing: %s\n' "$CHAT_FILE" "$SERVER_FILE" "$MODEL_FILE"
 printf 'Setup report: %s (generated after model loading)\n' "${CHAT_FILE%-chat.txt}-setup.json"
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'

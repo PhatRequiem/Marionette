@@ -11,6 +11,8 @@ cd /home/phatkitty/Projects/Marionette
 
 Two log terminals open: **Connections and requests** and **Model processing**. In the chat terminal, wait for the `>` prompt, then type your message and press **Enter**.
 
+Your prompt and typed input are green, status information is white, and her replies are pink. Blank lines separate input, replies, and turns. Colors reset when chat exits; plain-output terminals remain uncolored. The chat transcript retains terminal color codes, while diagnostic logs keep their existing readable format.
+
 ## While chatting
 
 - **Exit:** type `/exit`, or press **Ctrl+D** at an empty chat prompt.
