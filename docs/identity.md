@@ -24,7 +24,7 @@ All profiles still share one history, budget, and rollover policy. This adds no 
 
 ## Command permissions
 
-`permissions.py` separately authorizes commands using the resolved person UUID and saved `owner_uuid`. `/clear` is owner-only, whether sent from the Phat terminal profile or its linked Discord account. Another profile cannot clear shared history merely because it exists. Unlinked service senders fail identity lookup; linked non-owners receive a permission-denied reply, with history unchanged and no model generation. Missing identities and unknown commands are denied by the permission function. `conversation.py` calls this check before clearing or adopting pending history.
+`permissions.py` separately authorizes commands using the resolved person UUID and saved `owner_uuid`. `/clear` is owner-only, whether sent from the Phat terminal profile or its linked Discord account. Another profile cannot clear shared history merely because it exists. Unlinked service senders fail identity lookup; linked non-owners receive a permission-denied reply, with history unchanged and no model generation. Missing identities and unknown commands are denied by the permission function. `conversation.py` routes `/clear` to `commands.py`, which checks authorization before changing history or waiting for pending preparation. `permissions.py` decides who may execute it; `commands.py` performs the action.
 
 This is deliberately limited to `/clear`, the current shared-history command. `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
 

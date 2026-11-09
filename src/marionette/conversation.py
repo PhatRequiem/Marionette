@@ -8,7 +8,7 @@ import time
 import diagnostics
 from context import Preparation, fit_history
 from identity import message_with_identity
-from permissions import require_command
+from commands import execute_clear, recognize
 
 
 class Conversation:
@@ -43,21 +43,11 @@ class Conversation:
                 sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
                 identity = self.profiles.resolve(source, sender_id)
                 diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
-            command = message.strip()
-            if command == '/clear':
-                owner_uuid = self.profiles.data['owner_uuid'] if self.profiles else None
-                try:
-                    require_command(command, identity, owner_uuid)
-                except PermissionError as error:
-                    diagnostics.log(f'Command denied: {command}; {error}')
-                    return str(error), 'stop'
+            if recognize(message, source) == 'clear':
+                return execute_clear(self, identity), 'stop'
             if self.pending is not None:
                 self.history = self.pending.result()
                 self.pending = None
-            if command == '/clear':
-                self.history = []
-                diagnostics.log('Chat history cleared.')
-                return 'Chat history cleared.', 'stop'
             candidate, removed, tokens = fit_history(
                 self.history, message_with_identity(message, identity) if identity else message,
                 self.api.count, self.capacity, self.reserve)

@@ -6,6 +6,7 @@ import sys
 import time
 
 import diagnostics
+from commands import HELP_TEXT, recognize
 from style import COLORS, enabled, paint
 
 
@@ -86,7 +87,7 @@ def display_discord(conversation):
     color('data')
     try:
         answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id))
-        if message.strip() == '/clear':
+        if recognize(message, 'discord') == 'clear':
             color('meta')
             print(answer)
         if finish == 'length':
@@ -125,20 +126,20 @@ def run(conversation, *, external=False):
                 color('data')
         except EOFError:
             return
-        command = message.strip()
-        if not command:
+        command = recognize(message, 'terminal')
+        if not message.strip():
             continue
-        if command == '/exit':
+        if command == 'exit':
             return
         print()
-        if command == '/clear':
+        if command == 'clear':
             answer, _ = conversation.turn('/clear')
             color('meta')
             print(answer)
             color('data')
             continue
-        if message.startswith('/'):
-            print('Available commands: /clear and /exit.')
+        if command == 'help':
+            print(HELP_TEXT)
             continue
         try:
             try:

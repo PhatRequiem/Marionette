@@ -35,6 +35,7 @@ Start with these files, in order:
 | [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
 | [inference.py](src/marionette/inference.py) | Local HTTP requests, token counting, cache requests, and streamed response parsing |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
+| [commands.py](src/marionette/commands.py) | Command recognition and shared-history actions |
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
