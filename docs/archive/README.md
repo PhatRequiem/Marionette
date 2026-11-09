@@ -1,0 +1,5 @@
+# Archived documentation
+
+Retired guides belong here when they remain useful as references. Mark each document as historical, record when it was retired, and link to its current replacement where one exists. Update relative links when moving a document.
+
+Current guides live directly under `docs/`. Experiment reports and historical verification results stay in `docs/experiments/`.

@@ -46,3 +46,4 @@ There is no third raw debug file or filtered temporary log. The launcher waits f
 
 Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy the backed-up `.txt` files (and any historical `-setup.json` files) for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.
 
+Completed sessions may be moved manually into `data/conversations/archive/`. Stop the relevant chat and Discord connection first, then keep all matching chat/server/model files and associated Discord files together. Archived files remain readable through the same log viewer; they are not automatically loaded as memory.

@@ -56,3 +56,18 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
 See [native Linux setup and operation](docs/setup.md) and [licenses](docs/licenses.md).
+
+## Archives
+
+Keep inactive material separate from current files:
+
+| Folder | Contents |
+|---|---|
+| `data/models/archive/` | Unused model weights, including the previous Q4_K_M model |
+| `data/conversations/archive/` | Completed sessions moved out of the current log listing |
+| `docs/archive/` | Retired guides; current guides remain directly under `docs/` |
+| `visual design/archive/` | Superseded visual references |
+
+Archiving is manual; nothing is automatically moved or deleted. Move all related session files together only after chat and Discord have stopped. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout.
+
+Use Git history for retired source, scripts, and tests; do not keep duplicate old code in the active tree. Experiment reports stay under `docs/experiments/`. Runtime versions already have versioned directories; keep the manifest-selected runtime in place. Archives on the same disk are not backups.

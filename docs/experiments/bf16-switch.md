@@ -2,7 +2,7 @@
 
 November 9, 2026. Switched the default language weights from Q4_K_M to BF16 at the same pinned Unsloth revision, `e87f176479d0855a907a41277aca2f8ee7a09523`. The [published BF16 file](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/blob/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-BF16.gguf) is 8,424,393,632 bytes. Setup downloaded it and verified SHA-256 `9e6e2841a75f503ccb330831832fd7861266e187e0dbf149a954219ccb8c197a`.
 
-BF16 is a 16-bit floating-point weight format, not 4-bit quantization. Runtime metadata reports 4.21 billion language-model parameters, 249 BF16 tensors and 177 F32 tensors. The model remains text-only here; no vision projector was added. The previous Q4 file remains local but is no longer selected by the manifest.
+BF16 is a 16-bit floating-point weight format, not 4-bit quantization. Runtime metadata reports 4.21 billion language-model parameters, 249 BF16 tensors and 177 F32 tensors. The model remains text-only here; no vision projector was added. The previous Q4 file is retained locally in `data/models/archive/` and is no longer selected by the manifest.
 
 ## Verified on RX 7900 XT
 
