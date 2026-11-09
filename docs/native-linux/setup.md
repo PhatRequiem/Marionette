@@ -21,7 +21,7 @@ Application code lives in `src/marionette/`: `session.py` owns chat and the loca
 
 ## Operation
 
-For everyday launch, chat, and exit commands, see [Chat in the terminal](chat.md).
+For everyday launch, chat, and exit commands, see [STARTUP.md](../../STARTUP.md).
 
 The launcher resolves paths relative to itself and can be invoked from any directory. It uses util-linux `script` to record the terminal and `flock` to prevent duplicate sessions, with a Python terminal client and `llama-server` running in the foreground. Two separate desktop terminals follow the saved connections/requests and model-processing logs. The client starts its own HTTP server process on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the connections/requests log.
 

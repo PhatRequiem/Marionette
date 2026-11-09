@@ -66,4 +66,4 @@ Ask her to remember a made-up word, ask for it again, then exit with Ctrl+D. Con
 
 ## Change discipline
 
-Keep the short [launch guide](../chat.md) focused on daily use. Put technical changes in [setup and operation](../setup.md), update the manifest and license inventory when dependencies change, and rerun the relevant checks before committing. Use this baseline document to distinguish verified behavior from proposed features.
+Keep the short [launch guide](../../../STARTUP.md) focused on daily use. Put technical changes in [setup and operation](../setup.md), update the manifest and license inventory when dependencies change, and rerun the relevant checks before committing. Use this baseline document to distinguish verified behavior from proposed features.

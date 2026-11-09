@@ -28,20 +28,7 @@ nvim data/discord/.env
 
 ## Start and stop
 
-Launch her normally. This opens terminal chat and its two existing log windows:
-
-```bash
-cd /home/phatkitty/Projects/Marionette
-./scripts/native-linux/chat.sh
-```
-
-After she is ready, open one additional terminal and run:
-
-```bash
-/home/phatkitty/Projects/Marionette/scripts/native-linux/discord.sh
-```
-
-Discord runs in that same terminal and attaches to the running conversation; it does not open another window. You now have four terminals: main chat, two model/server logs, and Discord. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
+Follow [STARTUP.md](../../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 

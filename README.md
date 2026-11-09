@@ -4,14 +4,9 @@ Local terminal chat with Qwen3.5 4B using a small Python terminal client and lla
 
 ## Quick start
 
-From this checkout on x86_64 Linux:
+Follow [STARTUP.md](STARTUP.md) to launch her in the terminal and optionally connect Discord. It lists the steps in order and explains how to stop each part.
 
-```bash
-python scripts/native-linux/setup.py
-./scripts/native-linux/chat.sh
-```
-
-Setup downloads and verifies the pinned runtime and model. Subsequent chat runs are offline. See the short [terminal chat guide](docs/native-linux/chat.md) for everyday launch and exit commands.
+For a new installation, see [local setup](docs/native-linux/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
 Optional phone access: [Discord DM setup](docs/native-linux/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It allows only your configured user ID, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
@@ -41,6 +36,7 @@ In `session.py`, `run()` owns the server, `Conversation` owns shared history and
 
 ## Folder map
 
+- `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
 - `docs/native-linux/`: setup requirements, operation, and decisions.
