@@ -27,7 +27,7 @@ For everyday launch, chat, and exit commands, see [STARTUP.md](../STARTUP.md).
 
 The launcher resolves paths relative to itself and can be invoked from any directory. It uses util-linux `script` to record the terminal and `flock` to prevent duplicate sessions, with a Python terminal client and `llama-server` running in the foreground. Two separate desktop terminals follow the saved connections/requests and model-processing logs. The client starts its own HTTP server process on `127.0.0.1` at a temporary port. It stops with the chat process; no separate daemon or systemd unit is installed. Other local programs can reach this endpoint while chat is running. It has no API authentication; do not expose it to the network. The address is saved in the connections/requests log.
 
-- No personality file or generated setup report is used. See [context rollover](context.md) for preparation, budgeting, and failure behavior.
+- No personality file or generated setup report is used. See [context rollover](context.md) for trimming, budgeting, and failure behavior.
 - Model context lasts only for this process. Dated transcripts are saved for the user; they are not automatically fed back into the model. No memory database or cross-database migration exists.
 - Chat uses `--offline` for model loading; the loopback HTTP connection still operates. No hosted API or login is needed.
 - Each session has a shared timestamp and unique suffix with `-chat.txt`, `-server.txt`, and `-model.txt` endings under `data/conversations/`. The chat transcript captures echoed messages, replies, and CLI startup/status output. Terminal color codes, carriage returns, and backspaces may remain.
@@ -57,7 +57,7 @@ When updating, change the download manifest, launcher paths, setup behavior if n
 
 Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the Python client in `src/marionette/session.py`. The client uses pinned Qwen-Agent dependencies for model responses and requires no persistent service. See [integration details](qwen-agent.md). At startup, select a saved terminal profile or add a new one; [identity mapping](identity.md) explains the private UUID registry and Discord link. The client handles typed messages, streams replies, and retains only the conversation that fits. `commands.py` recognizes `/clear` for terminal and Discord and `/exit` for terminal only. Terminal input beginning with an unknown slash command shows command help; Discord text other than `/clear` continues through normal chat. Authorization remains in `permissions.py`, while terminal printing stays in `terminal.py`. `/clear` and `/exit` are the only commands; file attachments and `/regen` are not part of this base.
 
-The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
+The model's native template is used with thinking enabled. No setup report or custom system message is supplied. See [context rollover](context.md) for token budgeting and failure behavior. Context shifting is disabled; Qwen-Agent trims the structured conversation when submitting each request while keeping the model loaded.
 
 The context is 65,536 tokens with a 32,768-token combined thinking-and-answer allowance and no separate thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
@@ -67,6 +67,8 @@ Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co
 
 Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. Also run `runtime/discord/bin/python -m unittest discover -s tests/discord -v` when the optional Discord environment is installed. The saved [baseline](baseline.md) is historical; current integration checks are recorded in [Qwen-Agent integration](qwen-agent.md).
 
-The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
+Historical client checks used isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 
 For the current weight format and smoke-test result, see [Q4 return verification](experiments/q4-return.md). [BF16 measurements](experiments/bf16-switch.md) and earlier Q4 experiments are historical.
+
+Current Qwen-Agent trimming checks and their limits are recorded in [Qwen-Agent integration](qwen-agent.md). Historical background-preparation timings do not apply to this policy.

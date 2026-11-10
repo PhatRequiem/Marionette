@@ -1,6 +1,5 @@
 """Local llama.cpp HTTP requests, exact tokenization, and response streaming."""
 import json
-import secrets
 import threading
 import urllib.error
 import urllib.request
@@ -17,7 +16,7 @@ class API:
     def __init__(self, address):
         self.address = address
         self.closing = threading.Event()
-        self.worker = None
+        self.capacity = 65536
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -51,39 +50,37 @@ class API:
         prompt = self.json('/apply-template', self.body(messages))['prompt']
         return len(self.tokenize(prompt))
 
-    def prepare(self, messages):
-        # Render with a following user turn so the template treats the last reply
-        # as history (Qwen formats its final assistant turn differently).
-        marker = 'MARIONETTE_NEXT_INPUT_' + secrets.token_hex(16)
-        prompt = self.json('/apply-template', self.body(messages +
-                           [{'role': 'user', 'content': marker}]))['prompt']
-        if prompt.count(marker) != 1:
-            raise RuntimeError('Cannot locate next-message boundary in chat template.')
-        prefix = prompt.split(marker)[0]
-        tokens = self.tokenize(prefix)
-        # Leave the boundary token for the real input in case tokenization merges it.
-        result = self.json('/completion', {'prompt': tokens[:-1], 'n_predict': 0,
-                                          'cache_prompt': True})
-        diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
-
     def reply(self, messages, reserve, *, on_delta=None):
         # Qwen-Agent owns message conversion and streamed reasoning/answer assembly.
-        # Marionette owns exact context fitting; disable the framework's rough trimming.
+        # Let the framework trim; verify the actual formatted size before inference.
         model = TextChatAtOAI({'model': 'Qwen3.5-4B', 'model_server': self.address + '/v1',
-            'api_key': 'EMPTY', 'generate_cfg': {'use_raw_api': True, 'max_input_tokens': 0,
+            'api_key': 'EMPTY', 'generate_cfg': {'use_raw_api': True, 'max_input_tokens': self.capacity - reserve - 1,
                 'max_retries': 0, 'seed': -1, 'max_tokens': reserve,
                 'stream_options': {'include_usage': True},
                 'extra_body': {'chat_template_kwargs': {'enable_thinking': True}}}})
         finish = None
+        retained = None
         answer, reasoning = '', ''
         # The framework drops finish/usage metadata. Observe SDK chunks without
         # implementing another SSE parser, and reject incomplete generations.
         with OpenAI(base_url=self.address + '/v1', api_key='EMPTY', max_retries=0,
                     http_client=httpx.Client(trust_env=False, timeout=120)) as client:
             def create(**kwargs):
-                nonlocal finish
+                nonlocal finish, retained
                 if self.closing.is_set():
                     raise RuntimeError('Session is closing.')
+                retained = kwargs['messages']
+                if not retained or retained[-1] != messages[-1]:
+                    raise ValueError('This message is too large. Shorten the message; history is unchanged.')
+                tokens = self.count(retained)
+                allowance = min(reserve, self.capacity - tokens - 1)
+                if allowance <= 0:
+                    raise ValueError('The formatted prompt exceeds context capacity; history is unchanged. Use /clear or shorten the message.')
+                kwargs['max_tokens'] = allowance
+                diagnostics.log(f'Qwen-Agent history: messages_before={len(messages)}; '
+                    f'messages_after={len(retained)}; changed={retained != messages}.')
+                diagnostics.log(f'Prompt budget: {tokens} tokens + {allowance} reply allowance < '
+                    f'{self.capacity}; trimming=Qwen-Agent.')
                 with client.chat.completions.create(**kwargs) as response:
                     for chunk in response:
                         if self.closing.is_set():
@@ -113,4 +110,7 @@ class API:
             raise RuntimeError('Response ended without a completion status; partial reply was not kept.')
         if reasoning:
             diagnostics.log('Reasoning: ' + json.dumps(reasoning, ensure_ascii=False))
+        if answer.strip():
+            # Commit only successful, nonempty replies; caller passed a private candidate.
+            messages[:] = retained
         return answer, finish

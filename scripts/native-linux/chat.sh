@@ -25,7 +25,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
+for source in commands.py inference.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -117,7 +117,7 @@ done
 
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.
-# The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
+# The coordinator keeps runtime diagnostics separate; Qwen-Agent trims request history.
 printf -v RECORD_COMMAND '%q ' "$AGENT_PYTHON" -u "$ROOT/src/marionette/session.py" \
     "${COMMAND[@]}"
 RECORD_COMMAND+=' 2>&3 3>&-'

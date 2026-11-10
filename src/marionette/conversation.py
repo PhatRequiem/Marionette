@@ -6,7 +6,6 @@ import threading
 import time
 
 import diagnostics
-from context import Preparation, fit_history
 from identity import message_with_identity
 from commands import execute_clear, recognize
 
@@ -16,9 +15,9 @@ class Conversation:
     def __init__(self, api, capacity, profiles=None, terminal_profile=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.api, self.capacity = api, capacity
+        self.api.capacity = capacity
         self.reserve = min(32768, capacity // 2)
         self.history = []
-        self.pending = None
         self.lock = threading.Lock()
         self.incoming = queue.Queue()
 
@@ -45,21 +44,12 @@ class Conversation:
                 diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
             if recognize(message, source) == 'clear':
                 return execute_clear(self, identity), 'stop'
-            if self.pending is not None:
-                self.history = self.pending.result()
-                self.pending = None
-            candidate, removed, tokens = fit_history(
-                self.history, message_with_identity(message, identity) if identity else message,
-                self.api.count, self.capacity, self.reserve)
-            diagnostics.log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
-                f'{self.capacity}; removed_exchanges={removed}.')
-            if removed:
-                diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
+            candidate = self.history + [{'role': 'user', 'content':
+                message_with_identity(message, identity) if identity else message}]
             # The caller decides how streamed reasoning and answers are displayed.
             answer, finish = self.api.reply(candidate, self.reserve, on_delta=on_delta)
             if not answer.strip():
                 raise RuntimeError('Model produced no final answer.')
             diagnostics.log(f'Reply completed: finish_reason={finish}.')
             self.history = candidate + [{'role': 'assistant', 'content': answer}]
-            self.pending = Preparation(self.api, self.history, self.capacity, self.reserve)
             return answer, finish

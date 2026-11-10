@@ -26,9 +26,6 @@ def execute_clear(conversation, identity):
     except PermissionError as error:
         diagnostics.log(f'Command denied: /clear; {error}')
         return str(error)
-    if conversation.pending is not None:
-        conversation.pending.result()
-        conversation.pending = None
     conversation.history = []
     diagnostics.log('Chat history cleared.')
     return 'Chat history cleared.'

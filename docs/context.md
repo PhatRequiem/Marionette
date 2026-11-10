@@ -1,35 +1,27 @@
-# Context rollover and preparation
+# Conversation history and context
 
-`src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report, setup JSON file, personality file, or application system message is generated. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
+`conversation.py` owns one shared terminal/Discord history and serializes turns. `inference.py` delegates trimming and streaming to Qwen-Agent 0.0.34. The custom `context.py` and background cache-preparation worker have been removed.
 
-Reasoning is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate reasoning cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
+## Budget and trimming
 
-`conversation.py` owns history and serializes turns; `context.py` implements fitting and preparation. `inference.py` uses Qwen-Agent for responses and calls the local server directly for native template counting and cache preparation. Qwen-Agent rough history truncation is disabled; see [adapter details](qwen-agent.md). `terminal.py` handles user input and displays streamed reasoning/answers through a callback, so context and inference code have no terminal UI dependency.
+The normal context capacity remains 65,536 tokens. Reasoning and the answer share up to 32,768 tokens; smaller test contexts reserve half their capacity. Qwen-Agent receives an input budget of capacity minus that allowance minus one spare token: normally 32,767.
 
-## Between-turn preparation
+Qwen-Agent counts message text with its bundled tokenizer. It removes oldest material first and can partially shorten an older message at the boundary, rather than always removing whole exchanges. This is not a summary or persistent memory. There is no separate next-input reserve, log-review window, or background preparation request.
 
-The total context is 65,536 tokens. The client reserves 2,048 tokens for the next input and 32,768 for reasoning and its answer, inside that total. With the full input allowance, retained history and formatting must fit below 30,720 tokens. Smaller contexts use one eighth of capacity for the input allowance and one half for replies, capped at 2,048 and 32,768 respectively.
+Its estimate does not include the exact loaded model's chat-template overhead. Before generation, the adapter formats the actual trimmed messages through llama.cpp `/apply-template` and counts them through `/tokenize`. It limits generation to the smaller of the configured allowance and actual remaining space, keeping one spare token. If no generation space remains, it rejects the request without changing history.
 
-After each successful reply, one worker checks the formatted history plus the next-turn formatting. If the allowances would no longer fit, it removes oldest complete user/reply pairs until the history uses at most 75% of capacity and both allowances fit with one spare token. It then processes the retained prefix through `/completion` with `n_predict: 0` and prompt caching enabled. No preparation reply is added to history or printed.
+The latest user message, including sender metadata, must remain unchanged. If the framework would shorten it, the request is rejected and the user is asked to shorten it. Older message text, including old identity labels, can be shortened by the framework.
 
-The prefix is produced using the native chat template with a temporary next-user marker. Only the text before that marker is tokenized and prepared; the marker never goes to inference. The final boundary token is left for the actual input to avoid token merging differences. This also ensures Qwen treats the last assistant reply as historical, matching the next real request.
+## History and failures
 
-Input remains available during preparation. Before submitting the next message, the client waits for its worker if necessary, then adopts the prepared history. There is only one inference request at a time. Preparation errors retain the original history and are logged; the next request can fall back to ordinary trimming. `/clear` waits for any preparation and discards all history. Exit shuts down the owned server, including pending preparation.
+After a successful nonempty answer, the client saves the exact trimmed messages sent to inference plus the final answer. Removed material therefore does not return on the next turn. A failed or empty response leaves the previous history unchanged. Only answers enter history; reasoning is displayed and logged locally. Discord receives only answers.
 
-## Per-message safety and limitations
+Owner-authorized `/clear` clears the shared history. No logs are read back into context, and no tools, personality prompt, setup report, or file-reading access are enabled. The owned loopback server stops when chat exits.
 
-Each user message carries [sender metadata](identity.md) as part of its user-role content, counted within the existing budget. Metadata stays with that exchange and is removed with it during rollover; there is no separate identity context window.
+## Timing and visibility
 
-Every actual input is formatted with `/apply-template` and counted with `/tokenize`, including special tokens. If the message exceeds the reserved input space, it is still accepted when it fits: oldest complete exchanges are removed as needed to leave the reply allowance and one spare token. A message that cannot fit by itself is rejected without truncation. Failed streams do not add partial replies or the failed input to history.
+Trimming and prompt evaluation happen when a message is submitted. There is no between-turn cache warmup. This simplifies the client but can put rollover processing back on the response path; it does not promise the former preparation latency. llama.cpp still manages its normal prompt cache.
 
-The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
+Launch commands, log files, log windows, timestamps, and shared event numbers are unchanged. Diagnostics record Qwen-Agent message counts, whether history changed, the exact prompt budget, actual runtime token usage, and completion status. The viewer retains support for older preparation entries in saved logs.
 
-## Logs and checks
-
-The optional [Discord transport](discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
-
-Each chat session saves `-chat.txt`, `-server.txt`, and `-model.txt`; each optional Discord connection also saves its own `-discord.txt`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
-
-Run `runtime/agent/bin/python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
-
-Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](experiments/q4-return.md). This switch does not change rollover policy.
+See [Qwen-Agent integration](qwen-agent.md) for validation and dependencies, [logs](logs.md) for log formats, and [historical preparation measurements](experiments/idle-rollover.md) for the removed policy. Those historical timings are not measurements of the current implementation.
