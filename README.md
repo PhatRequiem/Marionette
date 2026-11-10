@@ -12,7 +12,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent streams model reasoning and answers through our client; the client still owns conversation history and rollover. See [Qwen-Agent integration](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; BF16 is retained locally in `data/models/archive/`. See [Q4 return verification](docs/experiments/q4-return.md).
 
@@ -33,7 +33,7 @@ Start with these files, in order:
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
 | [conversation.py](src/marionette/conversation.py) | Shared history, sequential turns, identity resolution, and permission checks |
 | [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
-| [inference.py](src/marionette/inference.py) | Local HTTP requests, token counting, cache requests, and streamed response parsing |
+| [inference.py](src/marionette/inference.py) | Qwen-Agent response adapter, exact token counting, and local cache requests |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and shared-history actions |
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
@@ -45,6 +45,7 @@ Start with these files, in order:
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
+| [setup-agent.sh](scripts/native-linux/setup-agent.sh) | Install the pinned Qwen-Agent environment used by main chat |
 | [setup-discord.sh](scripts/native-linux/setup-discord.sh) | Install pinned Discord dependencies and create the local credential template if missing |
 | [tests/core](tests/core) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
@@ -64,6 +65,7 @@ Start with these files, in order:
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
 - `data/session/`: private socket for optional connections to the running chat; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
+- `runtime/agent/`: isolated, hash-locked Qwen-Agent dependencies for main chat; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: optional Discord transport tests—owner filtering, delivery, attachment to main chat, and reasoning isolation.
 - `data/models/`: local model weights; ignored by Git.

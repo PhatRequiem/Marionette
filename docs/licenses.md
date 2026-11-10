@@ -7,7 +7,7 @@ The local runtime and application dependencies are free and open source. Termina
 | Component | Verified version | License / evidence |
 |---|---|---|
 | llama.cpp, ggml, bundled server libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
-| Python (setup, manifest loading, terminal client, and log routing; standard library for terminal mode) | 3.14.8 | PSF-2.0 |
+| Python (setup, manifest loading, terminal client, and log routing; Qwen-Agent environment for model responses) | 3.14.8 | PSF-2.0 |
 | util-linux (`script` recorder, `flock` locks) | 2.42.4 | util-linux package: BSD-2-Clause, BSD-3-Clause, BSD-4-Clause-UC, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-or-later, ISC, LGPL-2.1-or-later, public domain; installed license texts under `/usr/share/licenses/util-linux/` |
 | xdg-terminal-exec (default terminal launcher) | 0.14.3 | GPL-3.0-or-later, verified in `/usr/bin/xdg-terminal-exec` |
 | Kitty (configured log terminal) | 0.49.2 | GPL-3.0-only |
@@ -83,6 +83,83 @@ Pinned dependencies and installed distribution license metadata/texts were check
 | multidict | 7.2.1 | Apache-2.0 |
 | propcache | 0.5.4 | Apache-2.0 |
 | yarl | 1.25.1 | Apache-2.0 |
-| uv (optional setup/lock maintenance) | 0.13.7 | MIT OR Apache-2.0; [upstream licenses](https://github.com/astral-sh/uv#license) |
+| uv (setup/lock maintenance) | 0.13.7 | MIT OR Apache-2.0; [upstream licenses](https://github.com/astral-sh/uv#license) |
 
 `flock` comes from the already listed util-linux package; `tee` comes from GNU coreutils. No voice dependencies are requested; audioop-lts is an upstream dependency on this Python version.
+
+## Qwen-Agent model-request environment
+
+Qwen-Agent 0.0.34 is Apache-2.0 (verified from the installed license). Its local API mode requires no hosted subscription, login, or paid feature. `runtime/agent/` contains the dependencies installed from `scripts/native-linux/agent-requirements.txt`; no RAG, GUI, MCP, or execution extras were requested. Some transitive packages support unused capabilities, but remain installation requirements. NumPy, SoundFile, tqdm, and python-dateutil are explicit import-time requirements omitted by upstream's minimal metadata.
+
+The following inventory was checked against installed distribution metadata and license files. The lock pins all versions and hashes. SoundFile includes libsndfile and media libraries under LGPL/BSD terms; its `licensing/license_notes.md` records components and source locations. NumPy's installed license includes OpenBLAS/LAPACK and GCC runtime notices (including the GCC runtime exception). Installing these dependencies does not enable audio, cloud calls, or code execution.
+
+| Package | Version | License |
+|---|---|---|
+| aiohappyeyeballs | 2.7.1 | PSF-2.0 |
+| aiohttp | 3.14.5 | Apache-2.0 AND MIT |
+| aiosignal | 1.4.0 | Apache-2.0 |
+| annotated-doc | 0.0.5 | MIT |
+| annotated-types | 0.8.0 | MIT |
+| anyio | 4.16.0 | MIT |
+| attrs | 26.1.0 | MIT |
+| certifi | 2026.10.23 | MPL-2.0 |
+| cffi | 2.1.1 | MIT-0 |
+| charset-normalizer | 3.5.2 | MIT |
+| click | 8.5.1 | BSD-3-Clause |
+| cryptography | 50.0.2 | Apache-2.0 OR BSD-3-Clause |
+| dashscope | 2.0.4 | Apache-2.0 |
+| dotenv | 0.9.9 | MIT (installed LICENSE) |
+| eval_type_backport | 0.4.0 | MIT |
+| fastapi | 0.162.2 | MIT |
+| frozenlist | 1.8.0 | Apache-2.0 |
+| h11 | 0.16.0 | MIT |
+| httpcore | 1.0.9 | BSD-3-Clause |
+| httpcore2 | 2.16.0 | BSD-3-Clause |
+| httpx | 0.28.1 | BSD-3-Clause |
+| httpx-sse | 0.4.3 | MIT |
+| httpx2 | 2.16.0 | BSD-3-Clause |
+| idna | 3.20 | BSD-3-Clause |
+| jiter | 0.19.0 | MIT |
+| json5 | 0.17.3 | Apache-2.0 |
+| jsonlines | 4.0.0 | BSD-3-Clause |
+| jsonschema | 4.26.0 | MIT |
+| jsonschema-specifications | 2025.9.1 | MIT |
+| markdown-it-py | 4.2.0 | MIT |
+| mdurl | 0.1.2 | MIT |
+| multidict | 7.2.1 | Apache-2.0 |
+| numpy | 2.5.4 | BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0; bundled OpenBLAS/LAPACK and GCC runtime notices apply |
+| openai | 3.48.0 | Apache-2.0 |
+| opentelemetry-api | 1.45.2 | Apache-2.0 |
+| opentelemetry-sdk | 1.45.2 | Apache-2.0 |
+| opentelemetry-semantic-conventions | 0.66b2 | Apache-2.0 |
+| pillow | 13.0.0 | MIT-CMU |
+| propcache | 0.5.4 | Apache-2.0 |
+| pycparser | 3.12 | BSD-3-Clause |
+| pydantic | 2.14.3 | MIT |
+| pydantic_core | 2.50.4 | MIT |
+| Pygments | 2.21.0 | BSD-2-Clause |
+| python-dateutil | 4.0.0 | BSD-3-Clause |
+| python-dotenv | 1.2.4 | BSD-3-Clause |
+| PyYAML | 6.0.3 | MIT |
+| qwen-agent | 0.0.34 | Apache-2.0 (installed LICENSE) |
+| referencing | 0.37.0 | MIT |
+| regex | 2026.11.9 | Apache-2.0 AND CNRI-Python |
+| requests | 2.34.2 | Apache-2.0 |
+| rich | 15.0.0 | MIT |
+| rpds-py | 2026.9.1 | MIT |
+| shellingham | 1.5.4 | ISC |
+| sniffio | 1.3.1 | MIT OR Apache-2.0 |
+| soundfile | 0.14.0 | BSD-3-Clause; bundled libsndfile/media libraries: LGPL/BSD |
+| starlette | 1.10.0 | BSD-3-Clause |
+| tenacity | 9.2.1 | Apache-2.0 |
+| tiktoken | 0.14.0 | MIT |
+| tqdm | 4.70.1 | MPL-2.0 AND MIT |
+| truststore | 0.10.5 | MIT |
+| typer | 0.29.0 | MIT |
+| typing-inspection | 0.4.5 | MIT |
+| typing_extensions | 4.16.0 | PSF-2.0 |
+| tzdata | 2026.6 | Apache-2.0 |
+| urllib3 | 2.8.0 | MIT |
+| uvicorn | 0.54.0 | BSD-3-Clause |
+| websocket-client | 1.9.2 | Apache-2.0 |
+| yarl | 1.25.1 | Apache-2.0 |

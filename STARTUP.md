@@ -32,6 +32,8 @@ Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. O
 
 ## First-time setup
 
+For an existing checkout updated to Qwen-Agent, run `./scripts/native-linux/setup-agent.sh` once before launching.
+
 If the model or runtime is missing, follow [local setup](docs/setup.md). Before the first Discord connection, follow [Discord setup](docs/discord.md). These are one-time steps, not required on every launch.
 
 Future launchable features should be added below the required main-chat step, in dependency order, with their command and a clear required/optional label. Keep technical configuration in the component guides.

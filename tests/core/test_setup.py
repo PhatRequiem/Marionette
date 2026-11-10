@@ -79,6 +79,9 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
+        agent = self.root / 'runtime/agent'
+        agent.parent.mkdir(parents=True, exist_ok=True)
+        agent.symlink_to(ROOT / 'runtime/agent', target_is_directory=True)
         runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
         runtime.parent.mkdir(parents=True)
         runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/core/fake_server.py').read_text())

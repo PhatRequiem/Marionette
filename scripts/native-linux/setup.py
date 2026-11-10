@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import urllib.request
@@ -73,7 +74,7 @@ def install_runtime(archive, destination, executable_name):
 def main():
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("This pinned runtime requires x86_64 Linux.")
-    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date", "flock", "mkdir", "chmod")
+    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date", "flock", "mkdir", "chmod", "uv")
     missing = [command for command in required if shutil.which(command) is None]
     if missing:
         raise SystemExit("Install required system commands first: " + ", ".join(missing))
@@ -95,6 +96,7 @@ def install():
     destination = ROOT / "runtime/llama.cpp" / spec["version"]
     install_runtime(archive, destination, spec["executable"])
     download(MANIFEST["model"], ROOT / "data/models" / MANIFEST["model"]["filename"])
+    subprocess.run(["bash", str(ROOT / "scripts/native-linux/setup-agent.sh")], check=True)
     print("Setup complete. Run ./scripts/native-linux/chat.sh", flush=True)
 
 

@@ -16,7 +16,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
 import discord_bot as bot
 from conversation import Conversation
-from inference import API
 import terminal
 from style import COLORS
 from identity import Profiles
@@ -215,14 +214,3 @@ class ConfigAndStreamingTests(unittest.TestCase):
             p.write_text('DISCORD_ALLOWED_USER_ID=\nDISCORD_BOT_TOKEN=synthetic-secret\n')
             with self.assertRaises(ValueError):
                 bot.read_config(p)
-
-    def test_reasoning_is_logged_but_never_returned_or_printed(self):
-        events = [ {'choices': [{'delta': {'reasoning_content': 'PRIVATE_REASONING'}}]},
-                   {'choices': [{'delta': {'content': 'PUBLIC_ANSWER'}, 'finish_reason': 'stop'}]} ]
-        stream = io.BytesIO((''.join('data: '+json.dumps(e)+'\n\n' for e in events)+'data: [DONE]\n\n').encode())
-        api = API('http://127.0.0.1:1')
-        with patch.object(api, 'open', return_value=stream), patch('diagnostics.log') as logged, contextlib.redirect_stdout(io.StringIO()) as output:
-            result = api.reply([{'role': 'user', 'content': 'test'}], 32768, on_delta=None)
-        self.assertEqual(result, ('PUBLIC_ANSWER', 'stop'))
-        self.assertEqual(output.getvalue(), '')
-        logged.assert_called_once_with('Reasoning: "PRIVATE_REASONING"')
