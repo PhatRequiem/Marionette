@@ -12,13 +12,13 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent streams model reasoning and answers through our client; Qwen-Agent also trims history, while the client retains the resulting conversation. See [Qwen-Agent integration](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent streams model reasoning and answers through our client; the client still owns conversation history and rollover. See [Qwen-Agent integration](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; BF16 is retained locally in `data/models/archive/`. See [Q4 return verification](docs/experiments/q4-return.md).
 
 The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
-See [context policy and verified behavior](docs/context.md) for allowances, trimming, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
+See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
 Terminal profiles and linked Discord accounts now use permanent person UUIDs; see [identities](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Conversation history is still shared.
 
@@ -32,7 +32,8 @@ Start with these files, in order:
 | [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
 | [conversation.py](src/marionette/conversation.py) | Shared history, sequential turns, identity resolution, and permission checks |
-| [inference.py](src/marionette/inference.py) | Qwen-Agent trimming/response adapter and exact token counting |
+| [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
+| [inference.py](src/marionette/inference.py) | Qwen-Agent response adapter, exact token counting, and local cache requests |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and shared-history actions |
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |

@@ -41,7 +41,7 @@ def chat(api, capacity):
     terminal.show_profile(selected)
     conversation = Conversation(api, capacity, profiles, selected)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
-        f'history_trimming=Qwen-Agent; no setup report.')
+        f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
@@ -108,6 +108,8 @@ def run(command):
             except subprocess.TimeoutExpired:
                 child.kill()
                 child.wait()
+        if api is not None and api.worker is not None:
+            api.worker.join(timeout=5)
         reader.join(timeout=5)
         child.stdout.close()
         diagnostics.log('Local server stopped.')

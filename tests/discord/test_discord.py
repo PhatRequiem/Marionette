@@ -70,6 +70,8 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(patch.stopall)
 
     async def asyncTearDown(self):
+        if self.conversation.pending:
+            await asyncio.to_thread(self.conversation.pending.result)
         await self.client.close()
 
     async def test_only_owner_one_to_one_dms_and_no_duplicate_events(self):

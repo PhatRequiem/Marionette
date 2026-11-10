@@ -66,7 +66,7 @@ class IdentityTests(unittest.TestCase):
             Profiles(self.path)
         self.assertEqual(self.path.read_text(), '{broken')
 
-    def test_metadata_is_retained_and_logs_actual_sender(self):
+    def test_metadata_is_counted_retained_and_logs_actual_sender(self):
         class API:
             closing = threading.Event()
             def count(self, messages):
@@ -80,11 +80,14 @@ class IdentityTests(unittest.TestCase):
         conversation = Conversation(api, 8192, self.profiles, owner)
         with patch('diagnostics.log') as logged:
             conversation.turn('terminal hello')
+            conversation.pending.result()
             conversation.turn('discord hello', source='discord', sender_id='123')
+            conversation.pending.result()
             users = [m['content'] for m in api.sent if m['role'] == 'user']
             metadata = [json.loads(m.split('\n', 1)[1].split('\n\nMessage:\n')[0]) for m in users]
             self.assertEqual([m['source'] for m in metadata], ['terminal', 'discord'])
             self.assertEqual(metadata[0]['person_uuid'], metadata[1]['person_uuid'])
+            self.assertEqual(api.counted[0], api.sent[0])
             self.assertTrue(any('Sender identity:' in str(call) for call in logged.call_args_list))
             conversation.turn('/clear')
             self.assertEqual(conversation.history, [])
@@ -92,9 +95,13 @@ class IdentityTests(unittest.TestCase):
                 conversation.turn('unknown', source='discord', sender_id='456')
 
     def test_identity_overhead_counts_toward_input_limit(self):
-        from inference import API
-        api = API('http://127.0.0.1:1')
-        conversation = Conversation(api, 64, self.profiles, self.profiles.profiles[0])
+        class API:
+            closing = threading.Event()
+            def count(self, messages):
+                return sum(len(m['content']) for m in messages)
+            def reply(self, *args, **kwargs):
+                raise AssertionError('Oversized metadata plus input must not reach generation')
+        conversation = Conversation(API(), 256, self.profiles, self.profiles.profiles[0])
         with patch('diagnostics.log'), self.assertRaisesRegex(ValueError, 'Shorten'):
             conversation.turn('short')
         self.assertEqual(conversation.history, [])

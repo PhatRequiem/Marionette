@@ -51,6 +51,7 @@ class ConnectionTests(unittest.TestCase):
                 conversation.turn('fresh terminal', on_delta=terminal.ReplyDisplay())
                 self.assertEqual(len(api.sent[-1]), 1)
                 self.assertTrue(api.sent[-1][0]['content'].endswith('Message:\nfresh terminal'))
+                conversation.pending.result()
             self.assertFalse(address.exists())
             self.assertFalse(api.closing.is_set())
 
@@ -82,6 +83,7 @@ class ConnectionTests(unittest.TestCase):
             first.join(3); second.join(3)
             self.assertFalse(first.is_alive() or second.is_alive())
             self.assertEqual([m['content'] for m in api.sent[-1]], ['terminal', 'answer', 'discord'])
+            conversation.pending.result()
 
     def test_discord_display_has_sender_colors_and_only_returns_answer(self):
         api = API('http://127.0.0.1:1')
@@ -109,6 +111,7 @@ class ConnectionTests(unittest.TestCase):
             self.assertTrue(terminal.display_discord(conversation))
             worker.join(2)
             self.assertFalse(worker.is_alive())
+            conversation.pending.result()
         self.assertEqual(result, [('Final answer.', 'stop')])
         rendered = output.getvalue()
         self.assertIn(COLORS['meta'] + '[Discord · ' + COLORS['ids'] + '123' + COLORS['meta'] + ']\n', rendered)

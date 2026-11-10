@@ -1,4 +1,4 @@
-"""Conversation policy: framework trimming, exact budgets, and failed turns."""
+"""Conversation policy: idle preparation, exact budgets, and failed turns."""
 import importlib.util
 import io
 import json
@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT / 'src/marionette'))
 spec = importlib.util.spec_from_file_location('client', ROOT / 'src/marionette/session.py')
 client = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(client)
+import context
 import inference
 import terminal
 from style import COLORS
@@ -48,7 +49,6 @@ class ClientTests(unittest.TestCase):
                      http_client=httpx.Client(transport=httpx.MockTransport(handle)))
         output = io.StringIO()
         api = inference.API('http://127.0.0.1:1')
-        api.count = lambda messages: 10
         with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log') as logged, patch('sys.stdout', output), patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
             answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024, on_delta=terminal.ReplyDisplay())
         self.assertEqual((answer, finish), ('Four.', 'stop'))
@@ -59,7 +59,7 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(sent[0]['messages'], [{'role': 'user', 'content': 'Two plus two?'}])
         self.assertEqual(sent[0]['max_tokens'], 1024)
         self.assertNotIn('tools', sent[0])
-        logged.assert_any_call('Reasoning: "Check the sum."')
+        logged.assert_called_once_with('Reasoning: "Check the sum."')
 
     def test_agent_preserves_usage_finish_and_rejects_partial_streams(self):
         for finish in ('stop', 'length', None):
@@ -75,7 +75,6 @@ class ClientTests(unittest.TestCase):
                     http_client=httpx.Client(transport=httpx.MockTransport(lambda request:
                         httpx.Response(200, headers={'content-type': 'text/event-stream'}, text=payload))))
                 api = inference.API('http://localhost')
-                api.count = lambda messages: 10
                 with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log') as logged:
                     if finish:
                         self.assertEqual(api.reply([{'role': 'user', 'content': 'hello'}], 100), ('PUBLIC', finish))
@@ -85,7 +84,7 @@ class ClientTests(unittest.TestCase):
                             api.reply([{'role': 'user', 'content': 'hello'}], 100)
                     self.assertTrue(any('"total_tokens": 15' in call.args[0] for call in logged.call_args_list))
 
-    def test_agent_trims_and_commits_exact_sent_history_without_tools(self):
+    def test_agent_uses_exact_messages_without_trimming_or_tools(self):
         messages = [{'role': 'user', 'content': 'old ' * 60000},
                     {'role': 'assistant', 'content': 'previous answer'},
                     {'role': 'user', 'content': 'Sender metadata: synthetic discord user. Hello'}]
@@ -96,13 +95,8 @@ class ClientTests(unittest.TestCase):
                 text='data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
         sdk = OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
             http_client=httpx.Client(transport=httpx.MockTransport(handle)))
-        original = [m.copy() for m in messages]
-        api = inference.API('http://localhost')
-        api.count = lambda messages: 10
-        with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log'):
-            self.assertEqual(api.reply(messages, 32768), ('Hi', 'stop'))
-        self.assertNotEqual(messages, original)
-        self.assertEqual(messages[-1], original[-1])
+        with patch('inference.OpenAI', return_value=sdk):
+            self.assertEqual(inference.API('http://localhost').reply(messages, 32768), ('Hi', 'stop'))
         self.assertEqual(captured[0]['messages'], messages)
         self.assertEqual(captured[0]['seed'], -1)
         self.assertNotIn('tools', captured[0])
@@ -120,7 +114,31 @@ class ClientTests(unittest.TestCase):
             api = FakeAPI()
             with patch('builtins.input', side_effect=['1', 'hello', '/exit']), patch('diagnostics.log'), patch('sys.stdout', io.StringIO()):
                 client.chat(api, capacity)
+                api.worker.join()
             self.assertEqual(api.reserve, expected)
+
+    def test_rollover_removes_whole_exchanges(self):
+        history = []
+        for i in range(8):
+            history += [{'role': 'user', 'content': str(i)}, {'role': 'assistant', 'content': str(i)}]
+        original = history.copy()
+        fitted, removed, tokens = context.fit_history(history, 'new', lambda messages: len(messages)*10, 85, 20)
+        self.assertEqual(history, original)
+        self.assertEqual(removed, 6)
+        self.assertEqual([m['role'] for m in fitted], ['user', 'assistant', 'user', 'assistant', 'user'])
+        self.assertEqual(fitted[0]['content'], '6')
+        self.assertLess(tokens + 20, 85)
+
+    def test_oversized_message_does_not_mutate_history(self):
+        history = [{'role': 'user', 'content': 'old'}, {'role': 'assistant', 'content': 'answer'}]
+        original = history.copy()
+        with self.assertRaisesRegex(ValueError, 'Shorten'):
+            context.fit_history(history, 'huge', lambda _: 100, 100, 20)
+        self.assertEqual(history, original)
+
+    def test_exact_boundary_reserves_spare_token(self):
+        with self.assertRaises(ValueError):
+            context.fit_history([], 'new', lambda _: 80, 100, 20)
 
     def test_failed_stream_not_kept_and_clear_starts_empty(self):
         class FakeAPI:
@@ -172,3 +190,68 @@ class ClientTests(unittest.TestCase):
                         if process.poll() is None:
                             process.terminate()
                             process.communicate(timeout=10)
+
+
+
+class PreparationTests(unittest.TestCase):
+    def history(self):
+        return [{'role': role, 'content': str(i)} for i in range(8)
+                for role in ('user', 'assistant')]
+
+    def test_idle_rollover_prepares_before_committing_and_waits_for_early_input(self):
+        started, release = threading.Event(), threading.Event()
+        history = self.history()
+        class FakeAPI:
+            closing = threading.Event()
+            def count(self, messages):
+                return len(messages) * 10
+            def prepare(self, messages):
+                self.prepared = messages.copy()
+                started.set()
+                release.wait(3)
+        api = FakeAPI()
+        with patch('diagnostics.log'):
+            pending = context.Preparation(api, history, 200, 50)
+            self.assertTrue(started.wait(2))
+            self.assertIs(pending.history, history)
+            self.assertTrue(pending.thread.is_alive())
+            release.set()
+            result = pending.result()
+        self.assertEqual(len(history), 16)
+        self.assertEqual(len(result), 10)
+        self.assertEqual(result, api.prepared)
+        self.assertEqual(result[0]['role'], 'user')
+        self.assertEqual(result[-1]['role'], 'assistant')
+
+    def test_preparation_failure_retains_original_history(self):
+        class FakeAPI:
+            closing = threading.Event()
+            def count(self, messages):
+                return len(messages) * 10
+            def prepare(self, messages):
+                raise RuntimeError('synthetic cache failure')
+        history = self.history()
+        with patch('diagnostics.log') as logged:
+            pending = context.Preparation(FakeAPI(), history, 200, 50)
+            self.assertIs(pending.result(), history)
+            self.assertTrue(any('synthetic cache failure' in call.args[0] for call in logged.call_args_list))
+
+    def test_no_prefill_when_next_turn_has_room(self):
+        class FakeAPI:
+            closing = threading.Event()
+            def count(self, messages):
+                return 20
+            def prepare(self, messages):
+                raise AssertionError('unnecessary prefill')
+        history = self.history()
+        with patch('diagnostics.log'):
+            pending = context.Preparation(FakeAPI(), history, 8192, 512)
+            self.assertIs(pending.result(), history)
+
+    def test_prepare_excludes_marker_and_leaves_token_boundary(self):
+        api = inference.API('http://127.0.0.1:1')
+        with patch.object(inference.secrets, 'token_hex', return_value='test'), patch.object(api, 'json', side_effect=[{'prompt': 'historyMARIONETTE_NEXT_INPUT_testend'}, {'tokens': [1, 2, 3]}, {'timings': {}}]) as request, patch('diagnostics.log'):
+            api.prepare(self.history())
+        self.assertEqual(request.call_args_list[1].args[1]['content'], 'history')
+        self.assertEqual(request.call_args_list[2].args,
+                         ('/completion', {'prompt': [1, 2], 'n_predict': 0, 'cache_prompt': True}))
