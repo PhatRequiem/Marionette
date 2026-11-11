@@ -85,7 +85,7 @@ The launcher resolves paths relative to itself and can be invoked from any direc
 - The launcher records exact arguments, runtime/recorder versions, start/end and exit status. Runtime `--verbose --log-prefix --log-timestamps` remains unchanged. Terminal control bytes and all original diagnostic bytes are retained.
 - Python must provide its standard-library `sqlite3` module (verified SQLite 3.54.0 on this host). Core setup imports it; both environment setup scripts verify it. No pip package or download-manifest change is needed.
 - `MARIONETTE_LOG_DIR` selects a separate database directory for synthetic tests. `MARIONETTE_DATA_DIR` selects synthetic identities/characters in direct client tests. No tests should use personal profiles.
-- Data remains private and Git-ignored. There is no retention cap. A forced kill can leave an incomplete session. Use [SQLite backup/export](storage.md), not a plain copy of a live database; WAL sidecars may hold committed records.
+- Data remains private and Git-ignored. Diagnostics use [20 MB logical batches with a 500 MB rolling payload budget and protected failure windows](log-retention.md); conversation and terminal/Discord transcript storage remains uncapped. A forced kill can leave an incomplete session. Use [SQLite backup/export](storage.md), not a plain copy of a live database; WAL sidecars may hold committed records.
 
 For log formats, colors, saved-file viewing, and recovery, see [Reading the logs](logs.md).
 

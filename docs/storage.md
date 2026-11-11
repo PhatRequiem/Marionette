@@ -4,7 +4,7 @@ Marionette stores new sessions in **`data/conversations/marionette.sqlite3`**. P
 
 ## What is stored
 
-Schema version 1 has three tables:
+Schema version 2 retains these primary tables (introduced in version 1):
 
 | Table | Contents |
 |---|---|
@@ -26,7 +26,9 @@ SQLite uses WAL mode, foreign keys, a 10-second lock timeout, and `synchronous=F
 
 Normal shutdown drains main-chat recorders before marking the session ended. Discord may append its final disconnect events afterward. A forced kill can leave no end timestamp; live diagnostic windows also watch the main launcher's PID. Stop both main chat and Discord before maintenance or a complete final-session export.
 
-Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Character notes remain automatically supplied. There is no new model log reader, memory search, automatic resume, or retention cap.
+Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Character notes remain automatically supplied. There is no new model log reader, memory search, or automatic resume. [Rolling diagnostic retention](log-retention.md) preserves conversations while expiring older diagnostics.
+
+Schema 2 also adds diagnostic batches, policy/sequence state, retained failures, shared error evidence, and a bounded recent-context ring. The [retention guide](log-retention.md) describes the 20 MB batches, 500 MB diagnostic payload budget, last 20 failures with surrounding events, and transactional upgrade from schema 1.
 
 ## View and export
 
@@ -51,7 +53,7 @@ mkdir -p data/conversations/exports
 ./scripts/native-linux/storage.sh view SESSION_UUID discord > data/conversations/exports/SESSION-discord.txt
 ```
 
-These are optional operator exports, not additional automatically saved logs. The snapshot utility still reads these text exports; it is not connected to the model.
+These are optional operator exports, not additional automatically saved logs. The snapshot utility reads these text exports or the database directly, including retained error evidence; it is not connected to the model.
 
 For a portable complete export including structured messages, schema, indexes, provenance, and exact BLOB bytes:
 

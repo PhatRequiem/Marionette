@@ -45,6 +45,7 @@ Start with these files, in order:
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
+| [retention.py](src/marionette/retention.py) | [Rolling diagnostic batches and protected error windows](docs/log-retention.md) |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |
 | [log_snapshot.py](src/marionette/log_snapshot.py) | Standalone [on-demand message diagnostics](docs/log-snapshots.md); not connected to the model |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |

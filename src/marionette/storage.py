@@ -16,6 +16,8 @@ import sys
 import time
 import uuid
 
+import retention
+
 SCHEMA = '''
 CREATE TABLE sessions (id TEXT PRIMARY KEY, started_at TEXT NOT NULL, ended_at TEXT);
 CREATE TABLE events (
@@ -42,7 +44,7 @@ def now():
 def open_read(path):
     connection = sqlite3.connect(Path(path).resolve().as_uri() + '?mode=ro', uri=True, timeout=10)
     connection.row_factory = sqlite3.Row
-    if connection.execute('PRAGMA user_version').fetchone()[0] != 1:
+    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2):
         connection.close()
         raise ValueError('Unsupported log database version.')
     return connection
@@ -57,7 +59,7 @@ class Store:
         self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, 1):
+        if version not in (0, 1, 2):
             self.db.close()
             raise ValueError('Unsupported log database version; original left unchanged.')
         if version == 0:
@@ -68,6 +70,14 @@ class Store:
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('PRAGMA synchronous=FULL')
         self.db.execute('PRAGMA foreign_keys=ON')
+        try:
+            with self.db:
+                self.db.execute('BEGIN IMMEDIATE')
+                if self.db.execute('PRAGMA user_version').fetchone()[0] == 1:
+                    retention.migrate(self.db)
+        except BaseException:
+            self.db.close()
+            raise
 
     def close(self):
         self.db.close()
@@ -81,14 +91,24 @@ class Store:
     def end(self, session):
         with self.db:
             self.db.execute('UPDATE sessions SET ended_at=? WHERE id=?', (now(), session))
+            self.db.execute("UPDATE failures SET state='incomplete' WHERE session_id=? AND state='collecting'", (session,))
 
     def event(self, session, stream, raw, category='both'):
         # Only explicit client/Discord IDs are attributed, never neighboring runtime lines.
         match = re.search(rb'Client: \[message ([^\]\r\n]+)\]|"log_message_id":\s*"([^"]+)"', raw)
         identifier = next((x.decode() for x in match.groups() if x), None) if match else None
         with self.db:
-            self.db.execute('INSERT INTO events(session_id, recorded_at, stream, category, message_id, raw) VALUES (?,?,?,?,?,?)',
-                            (session, now(), stream, category, identifier, raw))
+            self.db.execute('BEGIN IMMEDIATE')
+            policy = self.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
+            event_id, stamp = policy['next_event'], now()
+            self.db.execute('UPDATE retention_state SET next_event=next_event+1 WHERE id=1')
+            batch = retention.batch_for(self.db, len(raw), policy) if stream == 'diagnostic' else None
+            self.db.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?)',
+                            (event_id, session, stamp, stream, category, identifier, raw, batch))
+            retention.retain(self.db, (event_id,session,stamp,stream,category,identifier,raw), policy)
+            if stream == 'diagnostic':
+                retention.prune(self.db, policy)
+        return event_id
 
     def message(self, session, identifier, conversation, identity, source, sender, role, kind, content, status):
         with self.db:
@@ -184,6 +204,10 @@ def main():
     sub.add_parser('init')
     sub.add_parser('start')
     sub.add_parser('sessions')
+    sub.add_parser('retention', help='Diagnostic payload budget, batches, and protected evidence sizes')
+    sub.add_parser('errors', help='List the latest retained failures')
+    error = sub.add_parser('error', help='Read retained evidence for a failure')
+    error.add_argument('failure_id', type=int)
     end = sub.add_parser('end'); end.add_argument('session')
     capture_parser = sub.add_parser('capture')
     capture_parser.add_argument('session'); capture_parser.add_argument('stream', choices=['diagnostic', 'terminal', 'discord'])
@@ -208,7 +232,28 @@ def main():
         backup(args.database, args.destination)
     else:
         with closing(open_read(args.database)) as db:
-            if args.command == 'sessions':
+            if args.command in ('retention', 'errors', 'error'):
+                db.execute('BEGIN')
+            if args.command == 'retention':
+                policy = dict(db.execute('SELECT * FROM retention_state').fetchone())
+                policy['diagnostic_bytes'] = db.execute('SELECT coalesce(sum(bytes),0) FROM diagnostic_batches').fetchone()[0]
+                policy['retained_evidence_bytes'] = db.execute('SELECT coalesce(sum(length(raw)),0) FROM error_evidence').fetchone()[0]
+                policy['recent_context_bytes'] = db.execute('SELECT coalesce(sum(length(raw)),0) FROM recent_diagnostics').fetchone()[0]
+                print(json.dumps(policy))
+            elif args.command == 'errors':
+                for row in db.execute('SELECT * FROM failures ORDER BY last_error DESC'):
+                    print(json.dumps(dict(row)))
+            elif args.command == 'error':
+                failure = db.execute('SELECT * FROM failures WHERE id=?', (args.failure_id,)).fetchone()
+                if failure is None:
+                    raise ValueError('Unknown retained failure ID.')
+                print(json.dumps(dict(failure)), flush=True)
+                from log_router import format_event
+                for row in db.execute('SELECT e.*,f.relation FROM error_evidence e JOIN failure_events f USING(event_id) WHERE failure_id=? ORDER BY event_id', (args.failure_id,)):
+                    print(f"Evidence {row['event_id']} | {row['relation']} | truncated={bool(row['truncated'])} | original_bytes={row['original_bytes']}", flush=True)
+                    sys.stdout.buffer.write(format_event(row['event_id'], row['recorded_at'], row['raw']))
+                    sys.stdout.buffer.flush()
+            elif args.command == 'sessions':
                 for row in db.execute('SELECT * FROM sessions ORDER BY started_at'):
                     print(json.dumps(dict(row)))
             else:
@@ -216,7 +261,7 @@ def main():
                 db.execute('BEGIN')
                 for statement in db.iterdump():
                     print(statement)
-                print('PRAGMA user_version=1;')
+                print(f"PRAGMA user_version={db.execute('PRAGMA user_version').fetchone()[0]};")
 
 
 if __name__ == '__main__':

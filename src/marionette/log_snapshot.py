@@ -5,6 +5,7 @@ import json
 import math
 from pathlib import Path
 import re
+import sqlite3
 
 from diagnostics import message_id as validate_id
 
@@ -106,35 +107,49 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
     issues, matched = [], {}
     for path in paths:
         for number, stamp, text in diagnostic_events(path, issues):
-            tag = TAG.fullmatch(text)
-            if not tag or tag[1] != identifier:
-                continue
-            call_tags = CALL_TAGS.match(tag[2])
-            body = tag[2][call_tags.end():]
-            if body.startswith(('Message input:', 'Reasoning:', 'Discord input', 'Discord answer:',
-                                   'Character supplied:', 'Character updated:')):
-                continue
-            record = {'at': stamp, 'text': body, 'request': call_tags[1], 'tool': call_tags[2], 'sources': [f'{path.name}:event {number}']}
-            if number in matched:
-                old = matched[number]
-                if (old['at'], old['text'], old['request'], old['tool']) != (stamp, body, call_tags[1], call_tags[2]):
-                    raise ValueError('Conflicting copies of the same diagnostic event.')
-                old['sources'].extend(record['sources'])
-            else:
-                matched[number] = record
-            if len(matched) > MAX_MATCHES:
-                raise ValueError('Message exceeds the diagnostic event limit.')
+            collect_event(matched, identifier, number, stamp, text, f'{path.name}:event {number}')
     records = [matched[n] for n in sorted(matched)]
+    result = build_snapshot(records, identifier, conversation_id, next(iter(stems)), issues)
+    add_discord(result, discord_paths)
+    check_size(result)
+    return result
+
+
+def collect_event(matched, identifier, number, stamp, text, source):
+    tag = TAG.fullmatch(text)
+    if not tag or tag[1] != identifier:
+        return
+    call_tags = CALL_TAGS.match(tag[2])
+    body = tag[2][call_tags.end():]
+    if body.startswith(('Message input:', 'Reasoning:', 'Discord input', 'Discord answer:',
+                           'Character supplied:', 'Character updated:')):
+        return
+    record = {'at': stamp, 'text': body, 'request': call_tags[1], 'tool': call_tags[2], 'sources': [source]}
+    if number in matched:
+        old = matched[number]
+        if (old['at'], old['text'], old['request'], old['tool']) != (stamp, body, call_tags[1], call_tags[2]):
+            raise ValueError('Conflicting copies of the same diagnostic event.')
+        old['sources'].extend(record['sources'])
+    else:
+        matched[number] = record
+    if len(matched) > MAX_MATCHES:
+        raise ValueError('Message exceeds the diagnostic event limit.')
+
+
+def build_snapshot(records, identifier, conversation_id, session, issues, verified_scope=None):
     scopes = {r['text'][len('Conversation selected: '):-1] for r in records
               if r['text'].startswith('Conversation selected: ') and r['text'].endswith('.')}
     if not records:
         raise LookupError('Message ID not found in the supplied session logs.')
+    if not scopes and verified_scope == conversation_id:
+        scopes = {verified_scope}
+        issues.append('Conversation scope verified from stored messages; its diagnostic marker was rolled out.')
     if scopes != {conversation_id}:
         raise ValueError('Message conversation is missing, ambiguous, or outside the requested scope.')
 
     report = {
         'schema_version': 2, 'captured_at': datetime.now(timezone.utc).isoformat(),
-        'session': next(iter(stems)), 'message_id': identifier, 'conversation_id': conversation_id,
+        'session': session, 'message_id': identifier, 'conversation_id': conversation_id,
         'processing': {'status': 'unavailable', 'started_at': None, 'ended_at': None,
                        'elapsed_receipt_ms': None, 'finish_reason': None},
         'context': {'capacity_tokens': None, 'prompt_tokens': None,
@@ -246,10 +261,13 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
             issues.append('Receipt clock moved backwards; elapsed time is unavailable.')
     # A budget describes the last formatted prompt, not the post-generation context.
     issues.append('Context is the last recorded prompt budget before generation; usage is listed per model call, not summed.')
-    add_discord(report, discord_paths)
+    check_size(report)
+    return report
+
+
+def check_size(report):
     if len(json.dumps(report, ensure_ascii=True, allow_nan=False).encode()) > MAX_REPORT:
         raise ValueError('Snapshot exceeds the report size limit.')
-    return report
 
 
 def add_discord(report, paths):
@@ -297,16 +315,59 @@ def add_discord(report, paths):
             report['evidence'].append(detail)
 
 
+def database_snapshot(path, session, identifier, conversation_id):
+    """Read current and retained diagnostic evidence in one SQLite read snapshot."""
+    from contextlib import closing
+    from storage import open_read
+    if identifier is None:
+        raise ValueError('An explicit message ID is required.')
+    validate_id(identifier)
+    matched, issues = {}, ['Diagnostic history may have rolled out; retained error windows are partial evidence.']
+    with closing(open_read(path)) as db:
+        db.execute('BEGIN')
+        version = db.execute('PRAGMA user_version').fetchone()[0]
+        query = "SELECT id,recorded_at,raw,0 AS truncated,'events' AS origin FROM events WHERE session_id=? AND message_id=? AND stream='diagnostic'"
+        args = [session, identifier]
+        if version == 2:
+            query += " UNION ALL SELECT event_id,recorded_at,raw,truncated,'error_evidence' FROM error_evidence WHERE session_id=? AND message_id=? AND stream='diagnostic'"
+            args += [session, identifier]
+        for row in db.execute(query + ' ORDER BY id', args):
+            if row['truncated'] or len(row['raw']) > MAX_EVENT:
+                issues.append(f"Retained event {row['id']} was truncated or exceeds the reader size limit; excluded from field extraction.")
+                continue
+            collect_event(matched, identifier, row['id'], row['recorded_at'],
+                row['raw'].removesuffix(b'\n').decode('utf-8', errors='replace'),
+                f"{Path(path).name}:{row['origin']}:{row['id']}")
+        scopes = {row[0] for row in db.execute('SELECT DISTINCT conversation_id FROM messages WHERE session_id=? AND message_id=?', (session,identifier))}
+        verified = next(iter(scopes)) if len(scopes) == 1 else None
+        if scopes and scopes != {conversation_id}:
+            raise ValueError('Message is outside the requested conversation scope.')
+    result = build_snapshot([matched[n] for n in sorted(matched)], identifier, conversation_id, session, issues, verified)
+    result['limitations'] = [x for x in result['limitations'] if not x.startswith('Live files are read')]
+    result['limitations'].append('Database fields were read in one consistent read transaction; Discord delivery is available via retained error inspection or text exports.')
+    check_size(result)
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--message-id', required=True)
     parser.add_argument('--conversation-id', required=True)
     parser.add_argument('--discord-log', action='append', default=[])
-    parser.add_argument('logs', nargs='+')
+    parser.add_argument('--database')
+    parser.add_argument('--session')
+    parser.add_argument('logs', nargs='*')
     args = parser.parse_args()
     try:
-        result = snapshot(args.logs, args.message_id, args.conversation_id, discord_paths=args.discord_log)
-    except (ValueError, LookupError, OSError) as error:
+        if args.database:
+            if not args.session or args.logs or args.discord_log:
+                raise ValueError('Database mode needs --session and cannot be mixed with text files.')
+            result = database_snapshot(args.database, args.session, args.message_id, args.conversation_id)
+        else:
+            if args.session:
+                raise ValueError('--session requires --database.')
+            result = snapshot(args.logs, args.message_id, args.conversation_id, discord_paths=args.discord_log)
+    except (ValueError, LookupError, OSError, sqlite3.Error) as error:
         parser.exit(1, f'Snapshot unavailable: {error}\n')
     print(json.dumps(result, ensure_ascii=True, indent=2, allow_nan=False))
 

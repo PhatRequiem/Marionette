@@ -77,7 +77,7 @@ remain outside message scopes. A crash or forced process kill can leave a start
 without an end; that is incomplete evidence, not a successful turn.
 
 These IDs are not supplied to the model or saved in conversation history.
-An optional [on-demand snapshot utility](log-snapshots.md) can read exported views for an
+An optional [on-demand snapshot utility](log-snapshots.md) can read the database or exported views for an
 operator; it is not connected to the model and creates no new log file. Legacy text exports remain readable.
 Restart main chat and reconnect Discord to use the updated logging together.
 
@@ -146,3 +146,7 @@ Optional exported text views can be archived manually. They are not loaded as me
 Character profiles add `Character supplied`, `Character updated`, and `Character update rejected` client events to the existing diagnostic stream. Successful writes include the person UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No separate log file is created. See [character storage and verification](characters.md).
 
 `Conversation selected: terminal:<uuid>` or `discord:<account-id>` identifies each serialized turn in diagnostics; clear events also include that key. The main terminal labels both input sources and shows all conversations, although their model histories are separate. Cache save/restore, entry sizes, and evictions remain in runtime diagnostics.
+
+## Rolling retention and protected errors
+
+Diagnostics now use [20 MB logical batches and a 500 MB rolling budget](log-retention.md) in SQLite. The latest 20 recognized failures retain 20 preceding/following events separately. Conversations and terminal/Discord transcripts remain preserved. See that guide for completeness flags, read commands, migration, and physical disk-size limits.

@@ -7,7 +7,25 @@ prepares the extraction code for testing before any model connection is approved
 
 ## Run it
 
-First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. From the checkout, supply matching exported diagnostic files from one session, the full
+First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. For current SQLite logs, no text export is required:
+
+```bash
+./scripts/native-linux/log-snapshot.sh \
+  --database data/conversations/marionette.sqlite3 \
+  --session SESSION_UUID \
+  --message-id 'discord:INCOMING_MESSAGE_ID' \
+  --conversation-id 'discord:SENDER_ACCOUNT_ID'
+```
+
+Database mode reads one consistent transaction, merges current and retained
+error evidence, and reports missing/expired boundaries honestly. Matching stored
+messages can verify the conversation if the original diagnostic scope marker
+rolled out. Truncated protected evidence is noted and excluded from extraction.
+Database mode currently extracts diagnostic fields; inspect retained Discord
+failure evidence with `storage.sh error`, or supply exported Discord logs in
+text mode for delivery fields. Neither mode connects to the model.
+
+From the checkout, supply matching exported diagnostic files from one session, the full
 message ID, and the conversation ID shown in that message's log section:
 
 ```bash
