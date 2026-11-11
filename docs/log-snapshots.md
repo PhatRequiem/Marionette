@@ -44,7 +44,8 @@ snapshot.
 | Scope | Capture time, session name, message ID, conversation ID, schema version |
 | Processing | Recorded outcome, start/end receipt times, elapsed receipt milliseconds, finish reason |
 | Context | Last recorded prompt budget: capacity, prompt tokens, remaining space before generation, reply allowance, headroom after allowance and one spare token, input-time exchanges removed |
-| Model requests | One entry per recorded usage event, with prompt/completion/total tokens, reasoning count if provided, corresponding last budget, and source references |
+| Model requests | One entry per recorded usage event, with a full message/request ID when recorded, with prompt/completion/total tokens, reasoning count if provided, corresponding last budget, and source references |
+| Operations | Request/tool boundary events and tool identity records, including parent request, tool number, and original protocol ID when recorded |
 | Timing | First-token time, first-answer time, generation speed; currently unavailable from explicitly tagged records |
 | Model / connections | Reserved fields for model configuration and connection status; unavailable because session-wide raw events are not attributed to a message |
 | Cache preparation | Recorded section status and relevant preparation details |
@@ -57,6 +58,8 @@ or model reasoning. Diagnostic error text can still contain private information.
 It is diagnostic evidence, not trusted instructions or an automatic root-cause
 verdict. Empty error/warning lists mean no recognized matching records were found
 in the supplied files, not that all possible faults have been ruled out.
+
+Schema version 2 adds operation records and request/tool references. Earlier message-ID logs remain readable; missing child IDs are not guessed. The reader remains disconnected from the model.
 
 The same main diagnostic event appears in both server/model logs. Matching copies
 are merged, never counted twice; conflicting copies are rejected. Multiple model

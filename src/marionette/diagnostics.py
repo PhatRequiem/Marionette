@@ -8,6 +8,8 @@ import uuid
 
 _LOCK = threading.Lock()
 _MESSAGE = ContextVar('log_message_id', default=None)
+_REQUEST = ContextVar('log_request_id', default=None)
+_TOOL = ContextVar('log_tool_id', default=None)
 
 
 def message_id(value=None):
@@ -39,6 +41,27 @@ def message_scope(identifier, phase):
             _MESSAGE.reset(token)
 
 
+@contextmanager
+def operation_scope(kind, number, *, request=None):
+    """Small per-message ordinals; the message ID supplies global uniqueness."""
+    request_token = _REQUEST.set(number if kind == 'MODEL REQUEST' else request)
+    tool_token = _TOOL.set(number if kind == 'TOOL CALL' else None)
+    outcome = 'completed' if kind == 'MODEL REQUEST' else 'returned'
+    try:
+        log(f'---------- {kind} START ----------')
+        yield
+    except BaseException as error:
+        outcome = 'interrupted' if isinstance(error, (KeyboardInterrupt, SystemExit, GeneratorExit)) else 'failed'
+        log(f'{kind.title()} {outcome}: {type(error).__name__}: {error}')
+        raise
+    finally:
+        try:
+            log(f'---------- {kind} END | {outcome} ----------')
+        finally:
+            _TOOL.reset(tool_token)
+            _REQUEST.reset(request_token)
+
+
 def write(raw):
     with _LOCK:
         sys.stderr.buffer.write(raw)
@@ -48,4 +71,8 @@ def write(raw):
 def log(message):
     identifier = _MESSAGE.get()
     prefix = f'Client: [message {identifier}] ' if identifier else 'Client: '
+    if _REQUEST.get() is not None:
+        prefix += f'[request {_REQUEST.get():02d}] '
+    if _TOOL.get() is not None:
+        prefix += f'[tool {_TOOL.get():02d}] '
     write((prefix + message + '\n').encode())

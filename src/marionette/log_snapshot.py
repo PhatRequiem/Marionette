@@ -12,6 +12,8 @@ HEADER = re.compile(r'^\[event (\d+)\] \[([^\]]+)\](.*)\n$')
 TAG = re.compile(r'^Client: \[message ([^\]]+)\] (.*)$', re.S)
 BUDGET = re.compile(r'^(?:Prompt budget|Tool-loop prompt budget): (\d+) tokens \+ (\d+) reply allowance < (\d+)(?:; removed_exchanges=(\d+))?\.$')
 BOUNDARY = re.compile(r'^========== MESSAGE (START|END) \| (processing|cache preparation)(?: \| (completed|failed|interrupted|finished))? ==========$')
+CALL_TAGS = re.compile(r'^(?:\[request (\d+)\] )?(?:\[tool (\d+)\] )?')
+OPERATION = re.compile(r'^---------- (MODEL REQUEST|TOOL CALL) (START|END)(?: \| (completed|returned|failed|interrupted))? ----------$')
 MAX_SCAN = 512 * 1024 * 1024
 MAX_EVENT = 4 * 1024 * 1024
 MAX_MATCHES = 256
@@ -107,13 +109,15 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
             tag = TAG.fullmatch(text)
             if not tag or tag[1] != identifier:
                 continue
-            if tag[2].startswith(('Message input:', 'Reasoning:', 'Discord input', 'Discord answer:',
+            call_tags = CALL_TAGS.match(tag[2])
+            body = tag[2][call_tags.end():]
+            if body.startswith(('Message input:', 'Reasoning:', 'Discord input', 'Discord answer:',
                                    'Character supplied:', 'Character updated:')):
                 continue
-            record = {'at': stamp, 'text': tag[2], 'sources': [f'{path.name}:event {number}']}
+            record = {'at': stamp, 'text': body, 'request': call_tags[1], 'tool': call_tags[2], 'sources': [f'{path.name}:event {number}']}
             if number in matched:
                 old = matched[number]
-                if (old['at'], old['text']) != (stamp, tag[2]):
+                if (old['at'], old['text'], old['request'], old['tool']) != (stamp, body, call_tags[1], call_tags[2]):
                     raise ValueError('Conflicting copies of the same diagnostic event.')
                 old['sources'].extend(record['sources'])
             else:
@@ -129,7 +133,7 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
         raise ValueError('Message conversation is missing, ambiguous, or outside the requested scope.')
 
     report = {
-        'schema_version': 1, 'captured_at': datetime.now(timezone.utc).isoformat(),
+        'schema_version': 2, 'captured_at': datetime.now(timezone.utc).isoformat(),
         'session': next(iter(stems)), 'message_id': identifier, 'conversation_id': conversation_id,
         'processing': {'status': 'unavailable', 'started_at': None, 'ended_at': None,
                        'elapsed_receipt_ms': None, 'finish_reason': None},
@@ -138,7 +142,7 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
                     'headroom_after_reply_allowance_tokens': None, 'removed_exchanges': None},
         'model': {'name': None, 'weight_precision': None, 'runtime_version': None, 'reasoning_enabled': None},
         'connections': {'model_server': None, 'transport': None},
-        'model_requests': [],
+        'model_requests': [], 'operations': [],
         'timing': {'time_to_first_token_ms': None, 'time_to_first_answer_ms': None,
                    'generation_tokens_per_second': None},
         'cache_preparation': {'status': 'unavailable', 'details': []},
@@ -154,8 +158,21 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
     for record in records:
         text = record['text']
         detail = {'at': record['at'], 'sources': record['sources']}
+        if record['request'] is not None:
+            detail['model_request_id'] = f"{identifier}/request-{int(record['request']):02d}"
+        if record['tool'] is not None:
+            detail['tool_call_id'] = f"{identifier}/tool-{int(record['tool']):02d}"
         used = True
-        if match := BOUNDARY.fullmatch(text):
+        if match := OPERATION.fullmatch(text):
+            kind, edge, outcome = match.groups()
+            report['operations'].append(dict(detail, kind=kind, event=edge, outcome=outcome))
+        elif text.startswith('Tool call identity: '):
+            identity = json.loads(text.removeprefix('Tool call identity: '))
+            if not isinstance(identity, dict):
+                raise ValueError('Malformed tool call identity.')
+            report['operations'].append(dict(detail, kind='TOOL CALL', event='identity',
+                name=identity.get('name'), protocol_tool_call_id=identity.get('protocol_tool_call_id')))
+        elif match := BOUNDARY.fullmatch(text):
             edge, phase, outcome = match.groups()
             if (edge == 'START' and outcome is not None) or (edge == 'END' and outcome is None):
                 raise ValueError('Malformed message boundary.')
@@ -204,7 +221,8 @@ def snapshot(paths, identifier, conversation_id, *, discord_paths=()):
             if reason == 'length':
                 report['warnings'].append(dict(detail, message='Generation allowance reached.'))
         elif text.startswith(('Message failed:', 'Message interrupted:', 'Discord local request failed:',
-                              'Rollover preparation failed;')):
+                              'Rollover preparation failed;', 'Model Request failed:', 'Tool Call failed:',
+                              'Model Request interrupted:', 'Tool Call interrupted:')):
             report['errors'].append(dict(detail, message=text[:1500], truncated=len(text) > 1500))
         elif text.startswith(('Input-time rollover:', 'Rollover preparation stopped', 'Character update rejected:')):
             report['warnings'].append(dict(detail, message=text[:1500], truncated=len(text) > 1500))

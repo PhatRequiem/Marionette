@@ -95,6 +95,58 @@ Verification uses synthetic messages: unique terminal IDs, success/failure
 boundaries, preparation separation, correlation through the real local socket
 and queue, shared-file routing, viewer colors, and mocked Discord delivery.
 
+## Model requests and tool calls within a message
+
+Each message numbers its generation requests `01`, `02`, … and tool executions
+`01`, `02`, … separately. The full message ID remains on every related client
+record. Request and tool numbers restart for each message; use the message ID
+plus the child number as the complete reference, for example
+`discord:1234/request-02` and `discord:1234/tool-01`.
+
+The saved event header repeats these labels and marks section boundaries, so
+searching for `discord:1234` finds its records in either diagnostic file. A
+simplified view (omitting event numbers and timestamps) looks like:
+
+```text
+[message discord:1234] [MESSAGE START]
+[message discord:1234] [request 01] [MODEL REQUEST START]
+[message discord:1234] [request 01] ... prompt budget, usage, finish reason ...
+[message discord:1234] [request 01] [MODEL REQUEST END]
+[message discord:1234] [request 01] [tool 01] [TOOL CALL START]
+[message discord:1234] [request 01] [tool 01] ... tool name and protocol call ID ...
+[message discord:1234] [request 01] [tool 01] [TOOL CALL END]
+[message discord:1234] [request 02] [MODEL REQUEST START]
+[message discord:1234] [request 02] ... final generation ...
+[message discord:1234] [request 02] [MODEL REQUEST END]
+[message discord:1234] [MESSAGE END]
+```
+
+The reversible event body has explicit start/end banners too. Model request ends
+say `completed`, `failed`, or `interrupted`; a separate finish reason distinguishes
+`stop`, `length`, and `tool_calls`. A request number identifies an attempted model
+call, including one rejected during its budget check before HTTP transmission.
+Template/token-count requests and cache preparation are not generation requests.
+
+Tool records retain the request number that produced the call, plus a per-message
+tool number. `Tool call identity` records its name and the original protocol ID;
+protocol IDs are not replaced or inserted into prompts. Two calls to the same
+tool still get different numbers. Unknown tools and raised tool failures get
+closing failure banners. A normal tool return ends with `returned`, not a claim
+that the requested operation succeeded: the framework can return an error as text,
+and tools can return their own structured error results.
+
+Raw runtime records remain unchanged and are not assigned inferred child IDs.
+Child labels and section markers are also understood by the standalone snapshot
+reader. No snapshot tool is registered. Restart main chat to get the new request
+and tool labels; reconnect Discord after restarting. Existing saved logs remain
+readable and are not rewritten.
+
+Verification uses the real pinned Qwen-Agent loop with synthetic streamed HTTP
+responses: multi-call turns, repeated calls to the same tool, unchanged protocol
+IDs in tool results, failed/truncated streams, rejected tools, budget rejection,
+raised/returned tool errors, scope cleanup, lossless log routing, and snapshot
+correlation. These checks do not assert live-model tool-selection quality.
+
 ## Log storage and recovery
 
 Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy the backed-up `.txt` files (and any historical `-setup.json` files) for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.

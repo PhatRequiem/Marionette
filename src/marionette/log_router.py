@@ -64,6 +64,13 @@ def route(source, server, model):
 def format_event(number, now, line):
     """Readable blocks; no JSON parsing, truncation, or discarded source bytes."""
     header = f'[event {number:08d}] [{now}]'.encode()
+    # Repeat searchable IDs in the header without changing the reversible body.
+    tags = re.match(rb'Client: ((?:\[(?:message|request|tool) [^\]\r\n]+\] )+)', line)
+    if tags:
+        header += b' ' + tags[1].rstrip()
+        boundary = re.search(rb'(MESSAGE|MODEL REQUEST|TOOL CALL) (START|END)', line[tags.end():])
+        if boundary and line[tags.end():].startswith((b'========== ', b'---------- ')):
+            header += b' [' + boundary[1] + b' ' + boundary[2] + b']'
     if line == b'\n':
         return header + b' [blank line]\n'
     # Escape controls instead of letting them move the cursor or recolor the log.

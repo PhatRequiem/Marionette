@@ -90,6 +90,11 @@ class API:
         with OpenAI(base_url=self.address + '/v1', api_key='EMPTY', max_retries=0,
                     http_client=httpx.Client(trust_env=False, timeout=120)) as client:
             def create(**kwargs):
+                coordinator.request_number += 1
+                with diagnostics.operation_scope('MODEL REQUEST', coordinator.request_number):
+                    yield from create_request(**kwargs)
+
+            def create_request(**kwargs):
                 nonlocal finish
                 if self.closing.is_set():
                     raise RuntimeError('Session is closing.')
@@ -120,6 +125,7 @@ class API:
                 # Reject interrupted/truncated tool requests before the agent executes them.
                 if finish not in ('stop', 'length', 'tool_calls') or (requested_tool and finish != 'tool_calls'):
                     raise RuntimeError('Response ended without a completion status; partial reply was not kept.')
+                diagnostics.log(f'Model request finished: finish_reason={finish}.')
             # Adapter point in pinned Qwen-Agent 0.0.34; covered by HTTP-boundary tests.
             model._chat_complete_create = create
             try:

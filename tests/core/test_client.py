@@ -59,7 +59,8 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(sent[0]['messages'], [{'role': 'user', 'content': 'Two plus two?'}])
         self.assertEqual(sent[0]['max_tokens'], 1024)
         self.assertNotIn('tools', sent[0])
-        logged.assert_called_once_with('Reasoning: "Check the sum."')
+        self.assertEqual([call.args[0] for call in logged.call_args_list
+                          if call.args[0].startswith('Reasoning:')], ['Reasoning: "Check the sum."'])
 
     def test_agent_preserves_usage_finish_and_rejects_partial_streams(self):
         for finish in ('stop', 'length', None):

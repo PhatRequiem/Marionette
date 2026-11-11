@@ -21,7 +21,9 @@ class LogTests(unittest.TestCase):
                  b'0.01.253.522 W llama_context: warning\n',
                  b'0.01.253.523 I future_component: new message\n',
                  b'continuation with \xff original byte\n', b'\n', b'\x1b[32mcolored\x1b[0m backspace\b slash\\\n',
-                 b'0.02 D Parsed message: {"a":1,"a":2,"text":"' + b'long '*100 + b'"}\n', b'final partial line']
+                 b'0.02 D Parsed message: {"a":1,"a":2,"text":"' + b'long '*100 + b'"}\n', b'Client: [message discord:1234] [request 01] ---------- MODEL REQUEST START ----------\n',
+                 b'Client: [message discord:1234] [request 01] [tool 01] ---------- TOOL CALL END | returned ----------\n',
+                 b'final partial line']
         server, model = io.BytesIO(), io.BytesIO()
         router.route(io.BytesIO(b''.join(lines)), server, model)
         def events(output):

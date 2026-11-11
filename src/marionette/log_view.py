@@ -102,14 +102,16 @@ class DiagnosticView:
     def row(self, line):
         if line.startswith('[event '):
             self.kind, self.role = 'data', None
+            if re.search(r'\[(?:MESSAGE|MODEL REQUEST|TOOL CALL) (?:START|END)\]', line):
+                return 'meta'
             return 'muted'
         text = line.removeprefix('    | ').lstrip()
-        text = re.sub(r'^Client: \[message [^\]]+\] ', 'Client: ', text)
-        if text.startswith('Client: ========== MESSAGE'):
+        text = re.sub(r'^Client: (?:\[(?:message|request|tool) [^\]]+\] )+', 'Client: ', text)
+        if text.startswith(('Client: ========== MESSAGE', 'Client: ---------- MODEL REQUEST', 'Client: ---------- TOOL CALL')):
             self.kind = 'meta'
             return self.kind
         if re.match(r'\d[\d.]*\s+E\s', text) or text.startswith(('Client: Request failed:',
-                'Client: Discord local request failed:', 'Client: Client error:', 'Client: Message failed:')):
+                'Client: Discord local request failed:', 'Client: Client error:', 'Client: Message failed:', 'Client: Model Request failed:', 'Client: Tool Call failed:')):
             self.kind = 'error'
         elif re.match(r'\d[\d.]*\s+W\s', text):
             self.kind = 'warning'
@@ -166,14 +168,14 @@ def numeric_fields(text, colored):
 def diagnostic_row(line, kind, colored):
     # Split headings from content without changing any saved character.
     text = line.rstrip('\n')
-    match = re.match(r'(    \| Client: (?:\[message [^\]]+\] )?Discord input \[)([0-9]+)(\]: )(.*)', text)
+    match = re.match(r'(    \| Client: (?:\[(?:message|request|tool) [^\]]+\] )*Discord input \[)([0-9]+)(\]: )(.*)', text)
     if match:
         return (paint(match[1], 'meta', colored) + paint(match[2], 'ids', colored)
                 + paint(match[3], 'meta', colored) + paint(match[4], 'input', colored))
-    match = re.match(r'(    \| (?:Client: (?:\[message [^\]]+\] )?Discord answer: |"content"\s*:))(.*)', text)
+    match = re.match(r'(    \| (?:Client: (?:\[(?:message|request|tool) [^\]]+\] )*Discord answer: |"content"\s*:))(.*)', text)
     if match and kind == 'reply':
         return paint(match[1], 'answer_heading', colored) + paint(match[2], 'reply', colored)
-    match = re.match(r'(    \| (?:Client: (?:\[message [^\]]+\] )?Reasoning: |"reasoning_content"\s*:))(.*)', text)
+    match = re.match(r'(    \| (?:Client: (?:\[(?:message|request|tool) [^\]]+\] )*Reasoning: |"reasoning_content"\s*:))(.*)', text)
     if match:
         return paint(match[1], 'reasoning_heading', colored) + paint(match[2], 'data', colored)
     match = re.match(r'(    \|\s*"[^"\n]+"\s*:)(.*)', text)
@@ -197,6 +199,8 @@ def render(source, output, mode, colored):
                 output.write(rendered + '\n')
         else:
             kind = view.row(line)
+            if line.startswith('[event ') and kind == 'meta':
+                output.write('\n')
             if line.startswith(('    | Session started:', '    | Session ended:',
                                 '    | Client: Chat history cleared.', '    | Client: Rollover preparation')):
                 output.write('\n')

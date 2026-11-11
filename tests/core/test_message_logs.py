@@ -101,3 +101,19 @@ class MessageLogTests(unittest.TestCase):
         self.assertEqual(viewer.row(prefix + '========== MESSAGE START | processing =========='), 'meta')
         self.assertEqual(viewer.row(prefix + 'Runtime usage: {}'), 'tokens')
         self.assertEqual(viewer.row(prefix + 'Message failed: RuntimeError: test'), 'error')
+
+    def test_child_scope_cleanup_on_failure_and_interrupt(self):
+        records = []
+        with patch('diagnostics.write', side_effect=records.append):
+            with diagnostics.message_scope('discord:1234', 'processing'):
+                for error in (RuntimeError('synthetic'), KeyboardInterrupt()):
+                    with self.assertRaises(type(error)):
+                        with diagnostics.operation_scope('TOOL CALL', 1, request=2):
+                            raise error
+                diagnostics.log('parent event')
+            diagnostics.log('session event')
+        text = b''.join(records).decode()
+        self.assertIn('[message discord:1234] [request 02] [tool 01] Tool Call failed:', text)
+        self.assertIn('TOOL CALL END | interrupted', text)
+        self.assertIn('Client: [message discord:1234] parent event', text)
+        self.assertTrue(text.endswith('Client: session event\n'))

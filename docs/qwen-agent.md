@@ -17,7 +17,7 @@ Only registered tools can execute. Unknown tool names, interrupted tool streams,
 
 Reasoning stays in local display/logs. With tools enabled, intermediate assistant text is withheld until the final response so it is not mistaken for the answer. The character tool is registered on ordinary messages, so final answers are buffered while reasoning streams. Only the user message and final answer enter long-term session history; intermediate tool messages are available within that turn and are not retained for the next turn. Character notes persist separately. Failed turns leave conversation history unchanged, but successful character writes are not automatically undone.
 
-Tool starts/completions, each tool-loop prompt budget, model usage, and completed reasoning use the existing diagnostic stream. No extra log files are created. No tools are sent to Discord; it continues to receive final answers and existing status/error notices.
+Model-request and tool-call start/end markers, each tool-loop prompt budget, model usage, and completed reasoning use the existing diagnostic stream. [Per-message request/tool IDs](logs.md#model-requests-and-tool-calls-within-a-message) link each call and its outcome; tool identity records also preserve the protocol call ID. A tool ending with `returned` can contain an error result and does not certify domain success. No extra log files are created. No tools are sent to Discord; it continues to receive final answers and existing status/error notices.
 
 ## Setup and upgrades
 

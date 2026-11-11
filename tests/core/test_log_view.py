@@ -69,3 +69,13 @@ class ViewTests(unittest.TestCase):
         self.assertIn(COLORS['input'] + '"hello"', result)
         self.assertEqual(re.sub(r'\x1b\[[0-9;]*m', '', result), original)
         self.assertEqual(self.render(original, 'diagnostic', False), original)
+
+    def test_searchable_call_headers_have_spacing_and_boundary_color(self):
+        from log_router import format_event
+        raw = b'Client: [message discord:1234] [request 02] [tool 01] ---------- TOOL CALL START ----------\n'
+        event = format_event(12, '2026-11-10T12:00:00+00:00', raw).decode()
+        header = event.splitlines()[0]
+        self.assertIn('[message discord:1234] [request 02] [tool 01] [TOOL CALL START]', header)
+        colored = self.render(event, 'diagnostic')
+        self.assertTrue(colored.startswith('\n' + COLORS['meta'] + header))
+        self.assertEqual(self.render(event, 'diagnostic', False), '\n' + event)
