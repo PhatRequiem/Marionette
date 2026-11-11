@@ -12,7 +12,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [persistent identity and editable character sheet](docs/self-character.md) supply the system prompt; no setup report is supplied. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable self profile and character sheet](docs/self-character.md) start blank and supply system context only once filled; no setup report is supplied. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 

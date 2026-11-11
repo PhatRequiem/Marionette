@@ -1,6 +1,6 @@
 # Context rollover and preparation
 
-`src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report or setup JSON file is generated. The [self character sheet](self-character.md) supplies a system prompt that is prefilled at startup and refreshed before each ordinary turn. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
+`src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. No setup report or setup JSON file is generated. The [self character sheet](self-character.md) and editable profile name start blank. Once filled, they supply system context, prepared at startup and refreshed before each ordinary turn. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
 
 Reasoning is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate reasoning cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and displays final content in pink (buffered until final when tools are enabled), logs completed reasoning, and retains only final content in conversation history.
 

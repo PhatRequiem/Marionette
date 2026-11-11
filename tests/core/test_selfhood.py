@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from selfhood import Selfhood, UpdateSelf, INITIAL, INSTRUCTION
+from selfhood import Selfhood, UpdateSelf
 from inference import API
 from conversation import Conversation
 from characters import Characters, LIMIT
@@ -24,11 +24,10 @@ class SelfhoodTests(unittest.TestCase):
         self.store = Selfhood(self.path)
 
     def test_starting_reference_restore_and_revision_provenance(self):
-        reference = Path(__file__).resolve().parents[2] / 'docs/marionette-starting-sheet.md'
-        self.assertEqual(reference.read_text().rstrip('\n'), INITIAL)
         state = self.store.read()
-        self.assertLess(len(INITIAL), LIMIT)
-        self.store.save('Synthetic self description.', INITIAL)
+        self.assertEqual(state['revisions'][-1]['name'], '')
+        self.assertEqual(state['revisions'][-1]['content'], '')
+        self.store.save('Synthetic self description.', state['revisions'][-1], name='Test')
         reopened = Selfhood(self.path).read()
         self.assertEqual(reopened['uuid'], state['uuid'])
         self.assertEqual(reopened['revisions'][0], state['revisions'][0])
@@ -40,15 +39,18 @@ class SelfhoodTests(unittest.TestCase):
         self.assertEqual(Selfhood(backup).read(), reopened)
 
     def test_limits_stale_edits_and_failed_write_preserve_identity(self):
-        tool = UpdateSelf(self.store, INITIAL)
+        tool = UpdateSelf(self.store, self.store.read()['revisions'][-1])
         def call(**args): return json.loads(tool.call(json.dumps(args)))
         self.assertFalse(call(content='x'*(LIMIT+1))['success'])
-        self.assertFalse(call(content='')['success'])
+        self.assertTrue(call(content='')['success'])
+        self.assertFalse(call(name='x'*81)['success'])
+        self.assertFalse(call(name='bad\nname')['success'])
+        self.assertFalse(call()['success'])
         self.assertFalse(call(content='x', uuid='changed')['success'])
         self.assertTrue(call(content='é'*LIMIT)['success'])
-        self.store.save('external change', 'é'*LIMIT)
+        self.store.save('external change', self.store.read()['revisions'][-1], name='External')
         self.assertFalse(call(content='stale')['success'])
-        self.assertEqual(tool.content, 'external change')
+        self.assertEqual(tool.current['content'], 'external change')
         before = self.path.read_bytes()
         with patch('selfhood.os.replace', side_effect=OSError('disk failure')):
             self.assertFalse(call(content='new')['success'])
@@ -71,7 +73,7 @@ class SelfhoodTests(unittest.TestCase):
             if len(captured) == 1:
                 return response({'tool_calls': [{'index': 0, 'id': 'self_edit', 'type': 'function',
                     'function': {'name': 'update_self_character',
-                    'arguments': json.dumps({'content': 'Synthetic evolving self.'})}}]}, 'tool_calls')
+                    'arguments': json.dumps({'content': 'Synthetic evolving self.', 'name': 'Test'})}}]}, 'tool_calls')
             return response({'content': 'Done.'}, 'stop')
         def make_sdk(**kwargs):
             return OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
@@ -86,12 +88,11 @@ class SelfhoodTests(unittest.TestCase):
         with patch('inference.OpenAI', side_effect=make_sdk), patch('diagnostics.log'):
             convo.turn('synthetic edit request')
             convo.finish_preparation()
-            self.assertIn(INITIAL, captured[0]['messages'][0]['content'])
-            self.assertEqual(captured[0]['messages'][0]['role'], 'system')
+            self.assertFalse(any(m['role'] == 'system' for m in captured[0]['messages']))
             self.assertTrue(json.loads(captured[1]['messages'][-1]['content'])['success'])
             convo.turn('visitor', source='discord', sender_id='123')
             convo.finish_preparation()
-            self.assertEqual(captured[-1]['messages'][0]['content'], INSTRUCTION+'\n\nSynthetic evolving self.')
+            self.assertEqual(captured[-1]['messages'][0]['content'], 'Name: Test\n\nSynthetic evolving self.')
             convo.turn('/clear', source='discord', sender_id='123')
             convo.history = [{'role': role, 'content': 'old'} for _ in range(10)
                              for role in ('user', 'assistant')]
@@ -107,3 +108,32 @@ class SelfhoodTests(unittest.TestCase):
         self.path.write_text('{broken')
         with self.assertRaises(ValueError): Selfhood(self.path)
         self.assertEqual(self.path.read_text(), '{broken')
+
+    def test_partial_updates_clearing_and_migration(self):
+        state = self.store.read()
+        legacy = {'schema_version': 1, 'uuid': state['uuid'], 'revisions': [
+            {'content': 'Historical description.', 'source': 'original',
+             'created_at': state['revisions'][0]['created_at']}]}
+        self.path.write_text(json.dumps(legacy))
+        migrated = Selfhood(self.path)
+        state = migrated.read()
+        self.assertEqual(state['uuid'], legacy['uuid'])
+        self.assertEqual(state['schema_version'], 2)
+        self.assertEqual(state['revisions'][0]['content'], 'Historical description.')
+        api = API('http://localhost')
+        tool = migrated.bind(api)
+        result = json.loads(tool.call(json.dumps({'name': 'New name'})))
+        self.assertTrue(result['success'])
+        self.assertEqual(result['content'], 'Historical description.')
+        result = json.loads(tool.call(json.dumps({'content': ''})))
+        self.assertEqual(result['name'], 'New name')
+        self.assertEqual(migrated.bind(api).current['name'], 'New name')
+        self.assertEqual(api.system_prompt, 'Name: New name')
+        result = json.loads(tool.call(json.dumps({'name': ''})))
+        self.assertTrue(result['success'])
+        migrated.bind(api)
+        self.assertIsNone(api.system_prompt)
+        self.assertEqual(api.body([{'role': 'user', 'content': 'hi'}])['messages'],
+                         [{'role': 'user', 'content': 'hi'}])
+        self.assertEqual(migrated.read()['revisions'][0]['content'], 'Historical description.')
+        self.assertEqual(Selfhood(self.path).read(), migrated.read())
