@@ -80,7 +80,9 @@ Synthetic tests verify same-version SQLite backup restoration and SQL export/imp
 
 ## Fresh personal-data start
 
-The authorized November 11, 2026 reset removes previous local conversation/log files (including their archives), other identities, character notes, and stale session state. It preserves the owner UUID, Phat name and Discord link, credentials, application/configuration, models, runtimes, documentation, and historical development reports. Phat's Markdown restarts as `# Phat`; the database starts with no sessions/messages/events. This is a one-time reset, not automatic behavior on launch. File deletion is not a secure disk-erasure guarantee and does not delete Discord's hosted message history or backups elsewhere.
+Ask the development agent to **reset memory** using the [operator instruction](../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, character sheets, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
+
+This is not a model tool or runtime slash command. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
 
 SQLite is [public domain](https://sqlite.org/copyright.html). Design references: [WAL](https://sqlite.org/wal.html) and [Python SQLite interface/backup](https://docs.python.org/3/library/sqlite3.html). Installed versions are recorded in [licenses](licenses.md).
 
