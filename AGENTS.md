@@ -35,6 +35,17 @@ These instructions apply throughout this repository.
 - Record dependency versions, setup steps, and significant tradeoffs in project documentation so another maintainer can rebuild and operate Marionette.
 - When dependencies, download versions, paths, or setup requirements change, update the affected component's setup/bootstrap scripts, lockfiles, download manifests (including checksums), and rebuild instructions in the same change. Change the core bootstrap only when affected; verify the changed rebuild steps.
 
+## Shared AI infrastructure
+
+- Before downloading or installing an AI model or inference engine, check the existing shared libraries under `~/AI Infrastructure/`. Reuse a compatible installation or verified model file when available.
+- Verify compatibility using the required version, model variant, format, precision, and checksum where available. Matching filenames alone are not enough. Do not substitute a different model or precision without approval.
+- Store model weights under `~/AI Infrastructure/AI Local Models/<Provider>/<Family>/<Parameter Size>/<Variant>/`. Use appropriate variants such as `Instruct`, `Base`, `Heretic`, or `Embedding`, based on verified source information. Preserve original filenames and keep supporting files together.
+- Provider means the original model developer. Record the actual download publisher, source URL, revision, precision, and checksum in the shared library’s `catalog.json`. Keep distinct derivatives or revisions in separate subfolders.
+- Store inference engines under `~/AI Infrastructure/AI Apps/Inference Engines/<Category>/<Engine>/<Version>/`. Categories include `Language Models`, `Image Generation`, and `Speech`. Keep each installation’s bundled libraries and licenses together.
+- Preserve versions required by other projects. Do not overwrite, remove, or relocate shared files without checking their consumers and obtaining authorization for destructive changes.
+- Keep project-specific code, environments, credentials, conversations, profiles, and memories in their established project locations. System packages such as Vulkan and GPU drivers remain managed by Linux.
+- Make setup and launch scripts use the same shared locations. Setup should verify and reuse existing files before downloading replacements. Update relevant manifests and documentation, and verify setup and generation after changes.
+
 ## Model configuration and sampling
 
 On initial setup or changes to the model, weight precision, reasoning mode, or runtime, review the model publisher's official guidance for sampling, chat templates, token limits, and reasoning handling. Use the recommended sampling settings for the selected model, mode (thinking or non-thinking), and task. Do not silently inherit runtime defaults or the previous model's settings. Explain material quality, speed, and memory tradeoffs before selecting a default. Do not choose quantization solely because it is common or smaller. Verify the effective settings in the runtime logs, document the source and any deliberate deviations, and test generation before calling the change complete. If official recommendations are unavailable, state that explicitly and document the chosen settings.
@@ -48,7 +59,7 @@ On initial setup or changes to the model, weight precision, reasoning mode, or r
 
 Keep the project understandable without reading development chats.
 
-1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Keep application guides directly under `docs/`; keep platform-specific launch and setup scripts under `scripts/native-linux/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep actual tool names under `runtime/`.
+1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Keep application guides directly under `docs/`; keep platform-specific launch and setup scripts under `scripts/native-linux/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep project-specific tools under `runtime/` and shared inference engines in the shared AI infrastructure locations above.
 2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/experiments/`.
 3. **Repeatable scripts:** Save documented setup, start, and stop commands in `scripts/`, including supported background operation and logging.
 4. **Documented decisions:** Record significant architecture choices and their reasons in `docs/`, linked from the README.
