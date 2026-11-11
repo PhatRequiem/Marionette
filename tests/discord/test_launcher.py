@@ -19,6 +19,8 @@ class DiscordLauncherTests(unittest.TestCase):
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         root = fixture.root
+        fixture.env['SYNTHETIC_PROFILE_FILE'] = str(root / 'data/identities/profiles.json')
+        (root / 'runtime').mkdir(exist_ok=True)
         (root / 'runtime/discord').symlink_to(sys.prefix, target_is_directory=True)
         config = root / 'data/discord/.env'
         config.parent.mkdir()
@@ -51,16 +53,16 @@ async def synthetic_start(self, token):
 adapter.DMChat.start = synthetic_start
 raise SystemExit(adapter.main())
 ''')
-        runtime = root / 'runtime/llama.cpp/test/bin/completion'
+        runtime = fixture.runtime
         runtime.write_text(runtime.read_text().replace("{'content': 'Synthetic reply.'}",
             "{'reasoning_content': 'PRIVATE_THOUGHT', 'content': 'Synthetic reply.'}"))
         # Assert metadata at the HTTP inference boundary, not only in client history.
         runtime.write_text(runtime.read_text().replace(
             "        elif self.path == '/v1/chat/completions':",
             """        elif self.path == '/v1/chat/completions':
+            import os
             from pathlib import Path
-            profiles = json.loads(Path(__file__).resolve().parents[4].joinpath(
-                'data/identities/profiles.json').read_text())
+            profiles = json.loads(Path(os.environ['SYNTHETIC_PROFILE_FILE']).read_text())
             content = body['messages'][-1]['content']
             header, text = content.split('\\n\\nMessage:\\n', 1)
             identity = json.loads(header.split('\\n', 1)[1])

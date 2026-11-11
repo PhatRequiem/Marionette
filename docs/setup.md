@@ -11,7 +11,25 @@ python scripts/native-linux/setup.py
 
 The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-4B Q4_K_M GGUF, derived from Qwen/Qwen3.5-4B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 3 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
 
-The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of `runtime/llama.cpp/`, and rerun setup to restore it from the verified archive.
+The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of the [shared runtime folder](#shared-inference-runtime), and rerun setup to restore it from the verified archive.
+
+## Shared inference runtime
+
+Setup and chat use `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/` for the inference engine. The manifest's runtime `directory`, `version`, and `executable` select `b12211/llama-b12211/llama-server` inside that folder. Keep the whole version directory together: it includes the executables, bundled Vulkan backend libraries, library links, and licenses. System Vulkan and GPU driver packages remain managed by Linux.
+
+Setup creates a missing version from the checksum-verified archive, or verifies an existing installation without overwriting it. The archive cache remains in the checkout's `data/downloads/`. The November 10, 2026 move preserved all 62 installed files/library links; its local record is `llama.cpp/relocation-2026-11-10.json`. No compatibility link is left in `runtime/llama.cpp/`. Historical checkpoints retain their original paths.
+
+To use a different app library, set `MARIONETTE_APPS_DIR` to its absolute root for both setup and chat. It replaces the `AI Apps` folder, not the `llama.cpp` folder:
+
+```bash
+export MARIONETTE_APPS_DIR="/path/to/AI Apps"
+python scripts/native-linux/setup.py
+./scripts/native-linux/chat.sh
+```
+
+Leave it unset for the default above. Each project pins its runtime version independently; keep versions needed by other applications. Stop all users of a version before moving or repairing it. Sharing the installation does not create a shared running server: Marionette still starts and stops its own loopback server with each chat.
+
+Relocation verification (November 10, 2026): checksums, permissions, and library links matched before and after the move. Setup verified the shared installation and model without downloading replacements. A fresh runtime installation into a temporary app library and a launcher version check also passed, using the retained archive. All 55 automated checks passed (43 core, 12 mocked Discord), along with shell syntax and diff checks. A synthetic-profile GPU chat loaded the relocated runtime with the existing Q4 model at 65,536 context, answered `2 + 2` with `4`, and stopped its server cleanly. Runtime version, model, and sampling settings are unchanged; this is a relocation and functional check, not a new performance or long-session evaluation.
 
 ## Shared model storage
 
@@ -27,7 +45,7 @@ python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
 
-Leave the variable unset to use the default home folder. Runtime binaries and their download archive stay inside the checkout; models are outside Git. Each project chooses its own model and settings even when sharing weights. Do not replace or move shared files while applications are using them.
+Leave the variable unset to use the default home folder. The llama.cpp runtime uses the [shared app library](#shared-inference-runtime); its verified download archive remains in `data/downloads/`. Models and shared runtime binaries are outside Git. Each project chooses its own model and settings even when sharing weights. Do not replace or move shared files while applications are using them.
 
 The shared library is organized as `Provider/Family/Size/Variant/`, keeping original filenames. Provider means the original developer; conversion publishers are recorded separately in the library's `catalog.json`. The current layout is:
 
@@ -52,7 +70,7 @@ Historical reports and the fixed `baseline-v3` tag still describe the previous c
 
 Application code lives in `src/marionette/`: `session.py` composes the application and owns the local server. Terminal UI, conversation handling, context policy, and inference requests live in their own modules; see the [code map](../README.md#reviewing-the-code). `diagnostics.py` serializes diagnostic writes, and `log_router.py` formats and routes them. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
 
-`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/core/`; optional Discord transport tests live in `tests/discord/`. Runtime binaries and private data remain outside source under `runtime/` and `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
+`scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/core/`; optional Discord transport tests live in `tests/discord/`. llama.cpp lives in the shared app library; the optional Discord environment stays under `runtime/discord/`, and private data stays under `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
 
 ## Operation
 

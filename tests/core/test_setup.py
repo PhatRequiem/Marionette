@@ -63,17 +63,22 @@ class SetupTests(unittest.TestCase):
             setup.install_runtime(archive, destination, 'bin/completion')
         self.assertEqual(executable.read_bytes(), b'changed')
 
-    def test_setup_uses_shared_model_library(self):
+    def test_setup_uses_shared_model_and_app_libraries(self):
         home = self.root / 'synthetic home'
         for override in ['', str(self.root / 'custom model library')]:
-            with self.subTest(override=override), patch.dict(os.environ, MARIONETTE_MODELS_DIR=override), \
+            with self.subTest(override=override), patch.dict(os.environ, MARIONETTE_MODELS_DIR=override, MARIONETTE_APPS_DIR=override), \
                     patch.object(Path, 'home', return_value=home), patch.object(setup, 'ROOT', self.root), \
-                    patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime'):
+                    patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime') as install_runtime:
                 setup.install()
                 model = setup.MANIFEST['model']
                 expected_root = Path(override) if override else home / 'AI Infrastructure' / 'AI Local Models'
                 self.assertEqual(download.call_args.args, (model, expected_root / model['directory'] / model['filename']))
                 self.assertFalse((self.root / 'data/models').exists())
+                runtime = setup.MANIFEST['runtime']
+                expected_apps = Path(override) if override else home / 'AI Infrastructure' / 'AI Apps'
+                archive = self.root / 'data/downloads' / runtime['url'].rsplit('/', 1)[-1]
+                self.assertEqual(install_runtime.call_args.args, (archive, expected_apps / runtime['directory'] / runtime['version'], runtime['executable']))
+                self.assertFalse((self.root / 'runtime/llama.cpp').exists())
 
 
 class LauncherTests(unittest.TestCase):
@@ -89,13 +94,14 @@ class LauncherTests(unittest.TestCase):
         source.mkdir(parents=True)
         for name in ['commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
-        manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
+        manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
-        runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
+        self.home = self.root / 'synthetic home'
+        self.runtime = self.home / 'AI Infrastructure/AI Apps' / manifest['runtime']['directory'] / 'test/bin/completion'
+        runtime = self.runtime
         runtime.parent.mkdir(parents=True)
         runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/core/fake_server.py').read_text())
         runtime.chmod(0o755)
-        self.home = self.root / 'synthetic home'
         self.model = self.home / 'AI Infrastructure/AI Local Models/Language/test/test.gguf'
         model = self.model
         model.parent.mkdir(parents=True)
@@ -107,7 +113,7 @@ class LauncherTests(unittest.TestCase):
         viewer.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$VIEWER_CALLS"\nexit 2\n')
         viewer.chmod(0o755)
         self.logs = self.root / 'private logs'
-        self.env = dict(os.environ, HOME=str(self.home), MARIONETTE_MODELS_DIR='', PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb', VIEWER_CALLS=str(self.root / 'viewer-calls.txt'))
+        self.env = dict(os.environ, HOME=str(self.home), MARIONETTE_MODELS_DIR='', MARIONETTE_APPS_DIR='', PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb', VIEWER_CALLS=str(self.root / 'viewer-calls.txt'))
         self.launcher = scripts / 'chat.sh'
 
     def run_chat(self, *args):
@@ -175,6 +181,17 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn(str(target), next(self.logs.glob('*-model.txt')).read_text())
         self.assertFalse((self.root / 'data/models').exists())
+
+    def test_custom_shared_runtime_with_spaces(self):
+        apps = self.root / 'custom app library'
+        target = apps / 'Inference Engines/Language Models/llama.cpp/test/bin/completion'
+        target.parent.mkdir(parents=True)
+        self.runtime.rename(target)
+        self.env['MARIONETTE_APPS_DIR'] = str(apps)
+        result = self.run_chat()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Synthetic reply.', next(self.logs.glob('*-chat.txt')).read_text())
+        self.assertFalse((self.root / 'runtime/llama.cpp').exists())
 
     def test_missing_source_fails_before_creating_logs(self):
         (self.root / 'src/marionette/session.py').unlink()

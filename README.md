@@ -59,7 +59,7 @@ Start with these files, in order:
 - `docs/`: setup requirements, operation, and decisions.
 - `docs/ideas/`: [discussion-only ideas](docs/ideas/README.md), separate from approved work and current behavior.
 - `docs/licenses.md`: active dependency versions and licenses.
-- `runtime/llama.cpp/`: downloaded runtime and bundled licenses; ignored by Git.
+- `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/setup.md#shared-inference-runtime).
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
 - `data/session/`: private socket for optional connections to the running chat; ignored by Git.

@@ -6,7 +6,7 @@ The local runtime and application dependencies are free and open source. Termina
 
 | Component | Verified version | License / evidence |
 |---|---|---|
-| llama.cpp, ggml, bundled server libraries | b12211, commit 7d7f02875 | MIT; bundled `runtime/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
+| llama.cpp, ggml, bundled server libraries | b12211, commit 7d7f02875 | MIT; bundled `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/b12211/llama-b12211/LICENSE`, [upstream](https://github.com/ggml-org/llama.cpp/blob/b12211/LICENSE) |
 | Python (setup, manifest loading, terminal client, and log routing; standard library for terminal mode) | 3.14.8 | PSF-2.0 |
 | util-linux (`script` recorder, `flock` locks) | 2.42.4 | util-linux package: BSD-2-Clause, BSD-3-Clause, BSD-4-Clause-UC, GPL-2.0-only, GPL-2.0-or-later, GPL-3.0-or-later, ISC, LGPL-2.1-or-later, public domain; installed license texts under `/usr/share/licenses/util-linux/` |
 | xdg-terminal-exec (default terminal launcher) | 0.14.3 | GPL-3.0-or-later, verified in `/usr/bin/xdg-terminal-exec` |

@@ -1,5 +1,6 @@
 {
   "runtime": {
+    "directory": "Inference Engines/Language Models/llama.cpp",
     "version": "b12211",
     "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12211/llama-b12211-bin-ubuntu-vulkan-x64.tar.gz",
     "sha256": "9759acd293d3738f39d3ceed740bd3125d87dfb492ef8c4f00114d3393d37942",

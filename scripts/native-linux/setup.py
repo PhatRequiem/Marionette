@@ -92,7 +92,8 @@ def install():
     spec = MANIFEST["runtime"]
     archive = ROOT / "data/downloads" / spec["url"].rsplit("/", 1)[-1]
     download(spec, archive)
-    destination = ROOT / "runtime/llama.cpp" / spec["version"]
+    apps_root = Path(os.environ.get("MARIONETTE_APPS_DIR") or Path.home() / "AI Infrastructure" / "AI Apps").expanduser().resolve()
+    destination = apps_root / spec["directory"] / spec["version"]
     install_runtime(archive, destination, spec["executable"])
     models_root = Path(os.environ.get("MARIONETTE_MODELS_DIR") or Path.home() / "AI Infrastructure" / "AI Local Models").expanduser().resolve()
     model = MANIFEST["model"]
