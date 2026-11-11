@@ -20,7 +20,7 @@ The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a delibera
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
-Terminal profiles and linked Discord accounts now use permanent person UUIDs; see [identities](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Conversation history is still shared.
+Terminal profiles and linked accounts use permanent person UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Conversation history is still shared.
 
 ## Reviewing the code
 

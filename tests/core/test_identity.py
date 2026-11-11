@@ -46,7 +46,7 @@ class IdentityTests(unittest.TestCase):
         with patch('builtins.input', side_effect=['bad', '2', 'Guest']), patch('sys.stdout', io.StringIO()):
             guest = select_profile(self.profiles)
         self.assertNotEqual(guest['uuid'], self.profiles.data['owner_uuid'])
-        self.assertIsNone(guest['discord_id'])
+        self.assertEqual(guest['linked_accounts'], [])
         restored = Profiles(self.path)
         with patch('builtins.input', return_value='2'), patch('sys.stdout', io.StringIO()):
             self.assertEqual(select_profile(restored), guest)
@@ -105,3 +105,85 @@ class IdentityTests(unittest.TestCase):
         with patch('diagnostics.log'), self.assertRaisesRegex(ValueError, 'Shorten'):
             conversation.turn('short')
         self.assertEqual(conversation.history, [])
+
+    def test_v1_migration_preserves_identity_and_backup_and_is_idempotent(self):
+        owner = str(uuid.uuid4())
+        legacy = {'version': 1, 'owner_uuid': owner, 'profiles': [
+            {'uuid': owner, 'name': 'Legacy', 'discord_id': '123'}]}
+        self.path.write_text(json.dumps(legacy))
+        original = self.path.read_bytes()
+        migrated = Profiles(self.path)
+        profile = migrated.profiles[0]
+        self.assertEqual(migrated.data['schema_version'], 2)
+        self.assertEqual(profile['uuid'], owner)
+        self.assertEqual(profile['linked_accounts'], [{'service': 'discord', 'account_id': '123'}])
+        self.assertIsNone(profile['created_at'])
+        self.assertIsNone(profile['timezone'])
+        self.assertIsNone(profile['preferred_name'])
+        self.assertIsNotNone(profile['updated_at'])
+        backup = self.path.with_name('profiles.v1.backup.json')
+        self.assertEqual(backup.read_bytes(), original)
+        self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
+        saved = self.path.read_bytes()
+        Profiles(self.path)
+        self.assertEqual(self.path.read_bytes(), saved)
+        restored = self.root / 'old-backup/profiles.json'
+        restored.parent.mkdir()
+        restored.write_bytes(backup.read_bytes())
+        self.assertEqual(Profiles(restored).resolve('discord', '123')['person_uuid'], owner)
+
+    def test_new_fields_and_timestamp_updates(self):
+        profile = self.profiles.add('Test')
+        created = profile['created_at']
+        updated = profile['updated_at']
+        self.profiles.save()
+        self.assertEqual(profile['updated_at'], updated)
+        profile.update(preferred_name='Tester', timezone='America/New_York')
+        profile['linked_accounts'].append({'service': 'future_chat', 'account_id': 'test-account'})
+        self.profiles.save()
+        self.assertEqual(profile['created_at'], created)
+        self.assertNotEqual(profile['updated_at'], updated)
+        identity = Profiles(self.path).resolve('terminal', profile['uuid'])
+        self.assertEqual(identity['preferred_name'], 'Tester')
+        self.assertEqual(identity['timezone'], 'America/New_York')
+        with self.assertRaisesRegex(ValueError, 'Unknown message source'):
+            self.profiles.resolve('future_chat', 'test-account')
+
+    def test_invalid_metadata_and_duplicate_accounts_rejected_without_writing(self):
+        import copy
+        original = self.path.read_bytes()
+        valid = copy.deepcopy(self.profiles.data)
+        for change in ({'timezone': 'Imaginary/Nowhere'}, {'created_at': 'yesterday'},
+                       {'updated_at': '2026-01-01T00:00:00'}, {'preferred_name': '\x1b'},
+                       {'linked_accounts': [{'service': 'terminal', 'account_id': 'x'}]},
+                       {'linked_accounts': [{'service': 'discord', 'account_id': '123'},
+                                            {'service': 'discord', 'account_id': '0123'}]}):
+            with self.subTest(change=change):
+                self.profiles.data = copy.deepcopy(valid)
+                self.profiles.profiles[0].update(change)
+                with self.assertRaises(ValueError):
+                    self.profiles.save()
+                self.assertEqual(self.path.read_bytes(), original)
+        self.profiles.data = valid
+        self.profiles.data['schema_version'] = 999
+        with self.assertRaises(ValueError):
+            self.profiles.save()
+
+    def test_invalid_legacy_and_failed_migration_keep_original_file(self):
+        from unittest.mock import patch
+        owner = str(uuid.uuid4())
+        legacy = {'version': 1, 'owner_uuid': owner, 'profiles': [
+            {'uuid': owner, 'name': 'Legacy', 'discord_id': '123'}]}
+        self.path.write_text(json.dumps(legacy))
+        original = self.path.read_bytes()
+        with patch('identity.os.replace', side_effect=OSError('synthetic disk failure')):
+            with self.assertRaises(OSError):
+                Profiles(self.path)
+        self.assertEqual(self.path.read_bytes(), original)
+        Profiles(self.path)  # Retry may reuse the matching backup.
+        legacy['profiles'][0]['discord_id'] = 'invalid'
+        self.path.write_text(json.dumps(legacy))
+        invalid = self.path.read_bytes()
+        with self.assertRaises(ValueError):
+            Profiles(self.path)
+        self.assertEqual(self.path.read_bytes(), invalid)

@@ -56,7 +56,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         profiles = Profiles(Path(temporary.name) / 'profiles.json')
-        profiles.profiles[0]['discord_id'] = '123'
+        profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
         async def request(address, text, sender_id):
             self.assertEqual(sender_id, 123)

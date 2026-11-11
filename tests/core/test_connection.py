@@ -37,7 +37,7 @@ class ConnectionTests(unittest.TestCase):
         conversation = Conversation(api, 65536)
         with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
             profiles = Profiles(Path(directory) / 'profiles.json')
-            profiles.profiles[0]['discord_id'] = '123'
+            profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
             conversation = Conversation(api, 65536, profiles, profiles.profiles[0])
             address = Path(directory) / 'chat.sock'
             with connection.LocalConnection(address, lambda message, sender_id, **_: conversation.turn(message, source='discord', sender_id=sender_id), lambda _: None):

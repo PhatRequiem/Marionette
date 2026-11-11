@@ -28,9 +28,9 @@ class PermissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log') as logged:
             profiles = Profiles(Path(directory) / 'profiles.json')
             owner = profiles.profiles[0]
-            owner['discord_id'] = '123'
+            owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
             guest = profiles.add('Guest')
-            guest['discord_id'] = '456'
+            guest['linked_accounts'] = [{'service': 'discord', 'account_id': '456'}]
             conversation = Conversation(API(), 8192, profiles, guest)
             history = [{'role': 'user', 'content': 'keep'}, {'role': 'assistant', 'content': 'kept'}]
             conversation.history = history
