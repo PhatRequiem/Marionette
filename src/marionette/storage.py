@@ -29,11 +29,11 @@ CREATE INDEX events_session ON events(session_id, id);
 CREATE INDEX events_message ON events(session_id, message_id, id);
 CREATE TABLE messages (
  id INTEGER PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
- message_id TEXT NOT NULL, conversation_id TEXT NOT NULL, person_uuid TEXT,
+ message_id TEXT NOT NULL, conversation_id TEXT NOT NULL, contact_uuid TEXT,
  source TEXT NOT NULL, sender_id TEXT, recorded_at TEXT NOT NULL,
  role TEXT NOT NULL, kind TEXT NOT NULL, content TEXT NOT NULL, status TEXT NOT NULL);
 CREATE INDEX messages_conversation ON messages(session_id, conversation_id, id);
-CREATE INDEX messages_person ON messages(person_uuid, recorded_at);
+CREATE INDEX messages_contact ON messages(contact_uuid, recorded_at);
 PRAGMA user_version=1;
 '''
 
@@ -67,7 +67,7 @@ def event_message_id(stream, raw):
 def open_read(path):
     connection = sqlite3.connect(Path(path).resolve().as_uri() + '?mode=ro', uri=True, timeout=10)
     connection.row_factory = sqlite3.Row
-    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2):
+    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3):
         connection.close()
         raise ValueError('Unsupported log database version.')
     return connection
@@ -87,7 +87,7 @@ class Store:
             self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, 1, 2):
+        if version not in (0, 1, 2, 3):
             self.db.close()
             raise ValueError('Unsupported log database version; original left unchanged.')
         if version == 0:
@@ -103,6 +103,13 @@ class Store:
                 self.db.execute('BEGIN IMMEDIATE')
                 if self.db.execute('PRAGMA user_version').fetchone()[0] == 1:
                     retention.migrate(self.db)
+                if self.db.execute('PRAGMA user_version').fetchone()[0] == 2:
+                    columns = {row[1] for row in self.db.execute('PRAGMA table_info(messages)')}
+                    if 'person_uuid' in columns:
+                        self.db.execute('ALTER TABLE messages RENAME COLUMN person_uuid TO contact_uuid')
+                    self.db.execute('DROP INDEX IF EXISTS messages_person')
+                    self.db.execute('CREATE INDEX IF NOT EXISTS messages_contact ON messages(contact_uuid, recorded_at)')
+                    self.db.execute('PRAGMA user_version=3')
         except BaseException:
             self.db.close()
             raise
@@ -138,9 +145,9 @@ class Store:
 
     def message(self, session, identifier, conversation, identity, source, sender, role, kind, content, status):
         with self.db:
-            self.db.execute('''INSERT INTO messages(session_id,message_id,conversation_id,person_uuid,
+            self.db.execute('''INSERT INTO messages(session_id,message_id,conversation_id,contact_uuid,
                 source,sender_id,recorded_at,role,kind,content,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
-                (session, identifier, conversation, (identity or {}).get('person_uuid'), source,
+                (session, identifier, conversation, (identity or {}).get('contact_uuid'), source,
                  sender, now(), role, kind, content, status))
 
 

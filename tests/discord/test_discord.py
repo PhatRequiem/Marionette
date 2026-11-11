@@ -18,7 +18,7 @@ import discord_bot as bot
 from conversation import Conversation
 import terminal
 from style import COLORS
-from identity import Profiles
+from contacts import ContactProfiles
 
 
 @contextlib.asynccontextmanager
@@ -55,7 +55,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.api = FakeAPI()
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        profiles = Profiles(Path(temporary.name) / 'profiles.json')
+        profiles = ContactProfiles(Path(temporary.name) / 'profiles.json')
         profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
         async def request(address, text, sender_id, *, message_id=None):
@@ -108,7 +108,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         await self.client.on_message(other)
         self.assertEqual(len(self.api.requests), 2)
         metadata = json.loads(self.api.requests[-1][-1]['content'].split('\n', 1)[1].split('\n\nMessage:')[0])
-        self.assertNotEqual(metadata['person_uuid'], self.conversation.profiles.data['owner_uuid'])
+        self.assertNotEqual(metadata['contact_uuid'], self.conversation.profiles.data['owner_uuid'])
         self.assertNotIn('owner message', str(self.api.requests[-1]))
         self.assertEqual(len(self.api.requests[-1]), 1)
         denied = message(number=3, owner=456, channel=other.channel, content='/clear')

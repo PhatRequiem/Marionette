@@ -29,7 +29,7 @@ The pinned URLs and checksums live in [downloads.json](../scripts/native-linux/d
 ## Behavior to preserve
 
 - Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally connect Discord. Main chat opens two diagnostic windows; Discord uses a fourth terminal.
-- Choose **Phat** or **Add new profile** at startup. Profiles persist in private JSON; each message includes source, sender ID, display name, and person UUID. A selected terminal profile is identification, not authentication. See [identities and permissions](identity.md).
+- Choose **Phat** or **Add new profile** at startup. Profiles persist in private JSON; each message includes source, sender ID, display name, and person UUID. A selected terminal profile is identification, not authentication. See [identities and permissions](contacts.md).
 - Terminal and Discord messages share one conversation and generate sequentially. Main chat shows the Discord sender ID, incoming text, reasoning, and answer.
 - Oldest complete exchanges are removed when needed. Cache preparation happens after replies, with exact input checks before the next generation. See [context policy](context.md).
 - Each main session saves chat, server, and model text logs; each Discord connection adds its own log. Diagnostic events have timestamps and shared event numbers; unknown entries and errors appear in both diagnostic logs. See [log formats and colors](logs.md).

@@ -36,7 +36,7 @@ class StorageTests(unittest.TestCase):
         self.store.event(self.session, 'diagnostic', b'model only\n', 'model')
         self.store.event(self.session, 'terminal', 'hello 🌷\r\b'.encode())
         self.store.event(self.session, 'discord', b'{"log_message_id":"discord:1234", "sender_id":"42"}\n')
-        self.store.message(self.session, 'discord:1234', 'discord:42', {'person_uuid': 'synthetic'},
+        self.store.message(self.session, 'discord:1234', 'discord:42', {'contact_uuid': 'synthetic'},
                            'discord', '42', 'user', 'input', 'hello 🌷', 'received')
 
     def test_raw_bytes_shared_views_and_indexed_correlation(self):
@@ -88,7 +88,7 @@ class StorageTests(unittest.TestCase):
         with closing(sqlite3.connect(Path(self.temp.name) / 'imported.sqlite3')) as imported:
             imported.executescript(dump)
             self.assertEqual(self.rows(imported), self.rows(self.store.db))
-            self.assertEqual(imported.execute('PRAGMA user_version').fetchone()[0], 2)
+            self.assertEqual(imported.execute('PRAGMA user_version').fetchone()[0], 3)
 
     def test_concurrent_writers_and_reader(self):
         failures = []

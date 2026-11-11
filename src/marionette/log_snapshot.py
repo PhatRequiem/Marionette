@@ -122,6 +122,7 @@ def collect_event(matched, identifier, number, stamp, text, source):
     call_tags = CALL_TAGS.match(tag[2])
     body = tag[2][call_tags.end():]
     if body.startswith(('Message input:', 'Reasoning:', 'Discord input', 'Discord answer:',
+                           'Contact notes supplied:', 'Contact notes updated:',
                            'Character supplied:', 'Character updated:')):
         return
     record = {'at': stamp, 'text': body, 'request': call_tags[1], 'tool': call_tags[2], 'sources': [source]}
@@ -239,12 +240,12 @@ def build_snapshot(records, identifier, conversation_id, session, issues, verifi
                               'Rollover preparation failed;', 'Model Request failed:', 'Tool Call failed:',
                               'Model Request interrupted:', 'Tool Call interrupted:')):
             report['errors'].append(dict(detail, message=text[:1500], truncated=len(text) > 1500))
-        elif text.startswith(('Input-time rollover:', 'Rollover preparation stopped', 'Character update rejected:')):
+        elif text.startswith(('Input-time rollover:', 'Rollover preparation stopped', 'Contact notes update rejected:', 'Character update rejected:')):
             report['warnings'].append(dict(detail, message=text[:1500], truncated=len(text) > 1500))
         elif text.startswith(('Rollover preparation ', 'Prepared cache timings:', 'Preparation wait after input:')):
             report['cache_preparation']['details'].append(dict(detail, message=text[:1500]))
         else:
-            used = False  # Exclude conversation prose, character notes, and reasoning.
+            used = False  # Exclude conversation prose, contact notes, and reasoning.
         if used:
             report['evidence'].append(detail)
     if starts > 1 or ends > 1:
@@ -328,7 +329,7 @@ def database_snapshot(path, session, identifier, conversation_id):
         version = db.execute('PRAGMA user_version').fetchone()[0]
         query = "SELECT id,recorded_at,raw,0 AS truncated,'events' AS origin FROM events WHERE session_id=? AND message_id=? AND stream='diagnostic'"
         args = [session, identifier]
-        if version == 2:
+        if version in (2, 3):
             query += " UNION ALL SELECT event_id,recorded_at,raw,truncated,'error_evidence' FROM error_evidence WHERE session_id=? AND message_id=? AND stream='diagnostic'"
             args += [session, identifier]
         for row in db.execute(query + ' ORDER BY id', args):

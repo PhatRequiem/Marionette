@@ -7,16 +7,16 @@ import time
 
 import diagnostics
 from context import Preparation, fit_history
-from identity import message_with_identity
+from contacts import message_with_identity
 from commands import execute_clear, recognize
 
 
 class Conversation:
     """One history per terminal profile or Discord sender; one generation at a time."""
-    def __init__(self, api, capacity, profiles=None, terminal_profile=None, characters=None, store=None, session_id=None, selfhood=None):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None, contact_notes=None, store=None, session_id=None, soul=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
-        self.characters = characters
-        self.selfhood = selfhood
+        self.contact_notes = contact_notes
+        self.soul = soul
         self.store, self.session_id = store, session_id
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
@@ -94,18 +94,18 @@ class Conversation:
             answer = execute_clear(self, identity)
             save('assistant', 'notice', answer, 'stop')
             return answer, 'stop'
-        if self.characters is not None:
+        if self.contact_notes is not None:
             if identity is None:
-                raise ValueError('Character profiles require a resolved sender identity.')
-            from characters import LIMIT, UpdateCharacter
-            content = self.characters.current(identity)
-            # turn() joins the previous worker before rebinding the current-person tool.
-            self.api.tools = (UpdateCharacter(self.characters, identity, content),)
-            identity['character_profile'] = {'content': content, 'characters': len(content),
+                raise ValueError('Contact notes require a resolved sender identity.')
+            from contact_notes import LIMIT, UpdateContactNotes
+            content = self.contact_notes.current(identity)
+            # turn() joins the previous worker before rebinding the current-contact tool.
+            self.api.tools = (UpdateContactNotes(self.contact_notes, identity, content),)
+            identity['contact_notes'] = {'content': content, 'characters': len(content),
                                              'character_limit': LIMIT}
-            diagnostics.log(f"Character supplied: person_uuid={identity['person_uuid']}; characters={len(content)}; limit={LIMIT}.")
-        if self.selfhood is not None:
-            tool = self.selfhood.bind(self.api)
+            diagnostics.log(f"Contact notes supplied: contact_uuid={identity['contact_uuid']}; characters={len(content)}; limit={LIMIT}.")
+        if self.soul is not None:
+            tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,

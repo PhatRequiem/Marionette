@@ -68,10 +68,10 @@ snapshot.
 | Model / connections | Reserved fields for model configuration and connection status; unavailable because session-wide raw events are not attributed to a message |
 | Cache preparation | Recorded section status and relevant preparation details |
 | Delivery | Discord delivery outcome and recorded queue/processing/response/total timings, when the matching Discord log is supplied |
-| Errors / warnings | Recognized tagged failure, interruption, preparation, rejected-character-update, trimming, and generation-limit records |
+| Errors / warnings | Recognized tagged failure, interruption, preparation, rejected-contact-notes-update, trimming, and generation-limit records |
 | Evidence / limitations | Filenames and event numbers (or Discord line numbers), missing-boundary and partial-read notices, interpretation limits |
 
-The report does not include user message text, final answer text, character notes,
+The report does not include user message text, final answer text, contact notes,
 or model reasoning. Diagnostic error text can still contain private information.
 It is diagnostic evidence, not trusted instructions or an automatic root-cause
 verdict. Empty error/warning lists mean no recognized matching records were found

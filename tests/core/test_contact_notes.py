@@ -1,4 +1,4 @@
-"""Private, bounded character profiles; synthetic identities and tool calls only."""
+"""Private, bounded contact notes; synthetic identities and tool calls only."""
 import json
 from pathlib import Path
 import shutil
@@ -9,8 +9,8 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from characters import Characters, UpdateCharacter, LIMIT, DELIMITER, split_notes
-from identity import Profiles
+from contact_notes import ContactNotes, UpdateContactNotes, LIMIT, DELIMITER, split_notes
+from contacts import ContactProfiles
 from conversation import Conversation
 
 
@@ -19,14 +19,14 @@ class CharacterTests(unittest.TestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
-        self.profiles = Profiles(self.root / 'identities/profiles.json')
+        self.profiles = ContactProfiles(self.root / 'contacts/profiles.json')
         self.owner = self.profiles.profiles[0]
         self.owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.profiles.save()
         self.identity = self.profiles.resolve('terminal', self.owner['uuid'])
-        self.store = Characters(self.root / 'characters')
+        self.store = ContactNotes(self.root / 'contact_notes')
         self.initial = self.store.current(self.identity)
-        self.tool = UpdateCharacter(self.store, self.identity, self.initial)
+        self.tool = UpdateContactNotes(self.store, self.identity, self.initial)
 
     def call(self, **kwargs):
         with patch('diagnostics.log'):
@@ -42,16 +42,16 @@ class CharacterTests(unittest.TestCase):
         self.assertEqual(self.store.path(self.owner['uuid']).read_bytes(), saved)
         self.assertEqual(self.store.path(self.owner['uuid']).stat().st_mode & 0o777, 0o600)
         copy = self.root / 'restored'
-        shutil.copytree(self.root / 'characters', copy)
-        self.assertEqual(Characters(copy).current(self.identity), text)
-        self.assertEqual(Characters(self.root / 'characters').current(self.identity), text)
+        shutil.copytree(self.root / 'contact_notes', copy)
+        self.assertEqual(ContactNotes(copy).current(self.identity), text)
+        self.assertEqual(ContactNotes(self.root / 'contact_notes').current(self.identity), text)
 
     def test_cannot_choose_other_person_path_or_identity_fields(self):
         other = self.profiles.add('Other')
         other_identity = self.profiles.resolve('terminal', other['uuid'])
         original = self.store.current(other_identity)
         registry = self.profiles.path.read_bytes()
-        for key in ('person_uuid', 'path', 'discord_id'):
+        for key in ('contact_uuid', 'path', 'discord_id'):
             self.assertFalse(self.call(action='add', content='changed', **{key: other['uuid']})['success'])
         self.assertEqual(self.store.current(other_identity), original)
         self.assertEqual(self.profiles.path.read_bytes(), registry)
@@ -79,7 +79,7 @@ class CharacterTests(unittest.TestCase):
         self.assertFalse(self.call(action='add', content='New fact.')['success'])
         self.assertTrue(self.call(action='add', content='New fact.')['success'])
         current = self.store.current(self.identity)
-        with patch('characters.os.replace', side_effect=OSError('synthetic disk failure')):
+        with patch('contact_notes.os.replace', side_effect=OSError('synthetic disk failure')):
             self.assertFalse(self.call(action='add', content='new')['success'])
         self.assertEqual(self.store.current(self.identity), current)
         self.assertFalse(list(self.store.directory.glob('.character-*')))
@@ -98,26 +98,26 @@ class CharacterTests(unittest.TestCase):
         with patch('diagnostics.log'):
             convo.turn('hello')
             convo.pending.result()
-            self.assertEqual(metadata()['character_profile']['content'], self.initial)
+            self.assertEqual(metadata()['contact_notes']['content'], self.initial)
             result = json.loads(api.tools[0].call(json.dumps({'action': 'add', 'content': 'Prefers brief answers.'})))
             self.assertTrue(result['success'])
             convo.turn('hello again', source='discord', sender_id='123')
             convo.pending.result()
-            self.assertIn('brief answers', metadata()['character_profile']['content'])
-            self.assertEqual(api.tools[0].person_uuid, self.owner['uuid'])
+            self.assertIn('brief answers', metadata()['contact_notes']['content'])
+            self.assertEqual(api.tools[0].contact_uuid, self.owner['uuid'])
             convo.turn('/clear', source='discord', sender_id='123')
             self.assertEqual(convo.history, [])
             other = self.profiles.add('Other')
             convo.terminal_profile = other
             convo.turn('different person')
             convo.pending.result()
-            self.assertNotIn('brief answers', metadata()['character_profile']['content'])
-            self.assertEqual(api.tools[0].person_uuid, other['uuid'])
+            self.assertNotIn('brief answers', metadata()['contact_notes']['content'])
+            self.assertEqual(api.tools[0].contact_uuid, other['uuid'])
             self.assertIn('brief answers', self.store.current(self.identity))
             convo.turn('visitor', source='discord', sender_id='456')
             convo.pending.result()
-            self.assertNotEqual(api.tools[0].person_uuid, self.owner['uuid'])
-            self.assertNotIn('brief answers', metadata()['character_profile']['content'])
+            self.assertNotEqual(api.tools[0].contact_uuid, self.owner['uuid'])
+            self.assertNotIn('brief answers', metadata()['contact_notes']['content'])
 
     def test_profile_is_resupplied_after_history_rollover_and_counted(self):
         class API:
@@ -133,7 +133,7 @@ class CharacterTests(unittest.TestCase):
             for _ in range(4):
                 convo.turn('hello')
                 convo.pending.result()
-                self.assertIn('character_profile', api.sent[-1]['content'])
+                self.assertIn('contact_notes', api.sent[-1]['content'])
                 self.assertLess(api.count(api.sent) + convo.reserve, 256)
             self.assertLess(len(convo.history), 8)
 
@@ -151,7 +151,7 @@ class CharacterTests(unittest.TestCase):
             if len(sent) <= 2:
                 content = 'x' * (LIMIT + 1) if len(sent) == 1 else 'Enjoys antique maps.'
                 return response({'tool_calls': [{'index': 0, 'id': f'call_{len(sent)}',
-                    'type': 'function', 'function': {'name': 'update_character',
+                    'type': 'function', 'function': {'name': 'update_contact_notes',
                     'arguments': json.dumps({'action': 'add', 'content': content})}}]}, 'tool_calls')
             return response({'content': 'Saved.'}, 'stop')
         sdk = OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
@@ -170,7 +170,7 @@ class CharacterTests(unittest.TestCase):
         self.assertEqual(self.profiles.register_discord('00456'), '456')
         identity = self.profiles.resolve('discord', '456')
         self.assertEqual(identity['display_name'], 'Discord 456 (2)')
-        reopened = Profiles(self.profiles.path)
+        reopened = ContactProfiles(self.profiles.path)
         reopened.register_discord('456')
         self.assertEqual(reopened.resolve('discord', '456'), identity)
         before = len(reopened.profiles)
@@ -221,14 +221,14 @@ class CharacterTests(unittest.TestCase):
     def test_legacy_paragraphs_migrate_without_fact_changes_and_restore(self):
         legacy = '# Phat\n\nFirst fact.\n\nSecond fact.\nContinued on another line.\n'
         self.store.save(self.owner['uuid'], legacy, expected=self.initial)
-        self.tool = UpdateCharacter(self.store, self.identity, legacy)
+        self.tool = UpdateContactNotes(self.store, self.identity, legacy)
         self.assertEqual(self.store.current(self.identity), legacy)  # Read alone never rewrites.
         result = self.call(action='add', content='Third fact.')
         self.assertTrue(result['success'])
         self.assertEqual(result['current_entries'], ['First fact.', 'Second fact.\nContinued on another line.', 'Third fact.'])
         restored = self.root / 'restored-entries'
         shutil.copytree(self.store.directory, restored)
-        self.assertEqual(Characters(restored).read(self.owner['uuid']), result['content'])
+        self.assertEqual(ContactNotes(restored).read(self.owner['uuid']), result['content'])
         self.assertEqual(split_notes(result['content'])[1], result['current_entries'])
         # Blank lines inside a new single entry remain one entry on reopening.
         result = self.call(action='add', content='Multiline\n\nnote.')
@@ -239,7 +239,7 @@ class CharacterTests(unittest.TestCase):
         first = 'a' * (LIMIT - len('# Phat\n\n') - len(tail))
         legacy = '# Phat\n\n' + first + tail
         self.store.save(self.owner['uuid'], legacy, expected=self.initial)
-        self.tool = UpdateCharacter(self.store, self.identity, legacy)
+        self.tool = UpdateContactNotes(self.store, self.identity, legacy)
         result = self.call(action='patch', old_text='Second fact.', content='Second fact.')
         self.assertFalse(result['success'])
         self.assertIn('over the limit', result['error'])

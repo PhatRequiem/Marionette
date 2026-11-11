@@ -13,7 +13,7 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. Profiles persist between launches; see [identities](docs/identity.md). You can now chat in this terminal.
+This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/contacts.md). You can now chat in this terminal.
 
 ## 2. Connect Discord — optional
 
@@ -30,7 +30,7 @@ Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. O
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
-- **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved SQLite records remain. Every new main-chat launch also starts fresh model history; character notes persist.
+- **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved SQLite records remain. Every new main-chat launch also starts fresh model history; contact notes persist.
 
 ## First-time setup
 

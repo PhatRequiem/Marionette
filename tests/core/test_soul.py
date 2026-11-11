@@ -1,4 +1,4 @@
-"""Self identity persistence and prompt integration using isolated synthetic state."""
+"""Soul persistence and prompt integration using isolated synthetic state."""
 import json
 from pathlib import Path
 import shutil
@@ -8,38 +8,38 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from selfhood import Selfhood, UpdateSelf
+from soul import Soul, UpdateSoul
 from inference import API
 from conversation import Conversation
-from characters import Characters, LIMIT
-from identity import Profiles
+from contact_notes import ContactNotes, LIMIT
+from contacts import ContactProfiles
 
 
-class SelfhoodTests(unittest.TestCase):
+class SoulTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
-        self.path = self.root / 'self/identity.json'
-        self.store = Selfhood(self.path)
+        self.path = self.root / 'soul/profile.json'
+        self.store = Soul(self.path)
 
     def test_starting_reference_restore_and_revision_provenance(self):
         state = self.store.read()
         self.assertEqual(state['revisions'][-1]['name'], '')
         self.assertEqual(state['revisions'][-1]['content'], '')
         self.store.save('Synthetic self description.', state['revisions'][-1], name='Test')
-        reopened = Selfhood(self.path).read()
+        reopened = Soul(self.path).read()
         self.assertEqual(reopened['uuid'], state['uuid'])
         self.assertEqual(reopened['revisions'][0], state['revisions'][0])
-        self.assertEqual(reopened['revisions'][1]['source'], 'update_self_character')
+        self.assertEqual(reopened['revisions'][1]['source'], 'update_soul')
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
         backup = self.root / 'restored/identity.json'
         backup.parent.mkdir()
         shutil.copy2(self.path, backup)
-        self.assertEqual(Selfhood(backup).read(), reopened)
+        self.assertEqual(Soul(backup).read(), reopened)
 
     def test_limits_stale_edits_and_failed_write_preserve_identity(self):
-        tool = UpdateSelf(self.store, self.store.read()['revisions'][-1])
+        tool = UpdateSoul(self.store, self.store.read()['revisions'][-1])
         def call(**args): return json.loads(tool.call(json.dumps(args)))
         self.assertFalse(call(content='x'*(LIMIT+1))['success'])
         self.assertTrue(call(content='')['success'])
@@ -52,7 +52,7 @@ class SelfhoodTests(unittest.TestCase):
         self.assertFalse(call(content='stale')['success'])
         self.assertEqual(tool.current['content'], 'external change')
         before = self.path.read_bytes()
-        with patch('selfhood.os.replace', side_effect=OSError('disk failure')):
+        with patch('soul.os.replace', side_effect=OSError('disk failure')):
             self.assertFalse(call(content='new')['success'])
         self.assertEqual(self.path.read_bytes(), before)
         self.assertFalse(list(self.path.parent.glob('.self-*')))
@@ -61,9 +61,9 @@ class SelfhoodTests(unittest.TestCase):
         import httpx
         from openai import OpenAI
         from test_coordination import response
-        profiles = Profiles(self.root / 'identities/profiles.json')
+        profiles = ContactProfiles(self.root / 'contacts/profiles.json')
         owner = profiles.profiles[0]
-        chars = Characters(self.root / 'characters')
+        chars = ContactNotes(self.root / 'contact_notes')
         api = API('http://localhost')
         captured = []
         # Exercise the real API/Coordinator path; only HTTP and tokenization are synthetic.
@@ -72,7 +72,7 @@ class SelfhoodTests(unittest.TestCase):
             captured.append(body)
             if len(captured) == 1:
                 return response({'tool_calls': [{'index': 0, 'id': 'self_edit', 'type': 'function',
-                    'function': {'name': 'update_self_character',
+                    'function': {'name': 'update_soul',
                     'arguments': json.dumps({'content': 'Synthetic evolving self.', 'name': 'Test'})}}]}, 'tool_calls')
             return response({'content': 'Done.'}, 'stop')
         def make_sdk(**kwargs):
@@ -84,7 +84,7 @@ class SelfhoodTests(unittest.TestCase):
             counted.append(full)
             return len(full)*10
         api.count = count
-        convo = Conversation(api, 256, profiles, owner, chars, selfhood=self.store)
+        convo = Conversation(api, 256, profiles, owner, chars, soul=self.store)
         with patch('inference.OpenAI', side_effect=make_sdk), patch('diagnostics.log'):
             convo.turn('synthetic edit request')
             convo.finish_preparation()
@@ -106,7 +106,7 @@ class SelfhoodTests(unittest.TestCase):
 
     def test_invalid_state_is_not_reinitialized(self):
         self.path.write_text('{broken')
-        with self.assertRaises(ValueError): Selfhood(self.path)
+        with self.assertRaises(ValueError): Soul(self.path)
         self.assertEqual(self.path.read_text(), '{broken')
 
     def test_partial_updates_clearing_and_migration(self):
@@ -115,7 +115,7 @@ class SelfhoodTests(unittest.TestCase):
             {'content': 'Historical description.', 'source': 'original',
              'created_at': state['revisions'][0]['created_at']}]}
         self.path.write_text(json.dumps(legacy))
-        migrated = Selfhood(self.path)
+        migrated = Soul(self.path)
         state = migrated.read()
         self.assertEqual(state['uuid'], legacy['uuid'])
         self.assertEqual(state['schema_version'], 2)
@@ -136,4 +136,4 @@ class SelfhoodTests(unittest.TestCase):
         self.assertEqual(api.body([{'role': 'user', 'content': 'hi'}])['messages'],
                          [{'role': 'user', 'content': 'hi'}])
         self.assertEqual(migrated.read()['revisions'][0]['content'], 'Historical description.')
-        self.assertEqual(Selfhood(self.path).read(), migrated.read())
+        self.assertEqual(Soul(self.path).read(), migrated.read())

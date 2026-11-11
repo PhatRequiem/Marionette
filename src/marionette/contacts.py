@@ -14,7 +14,7 @@ def valid_name(name):
     return isinstance(name, str) and 0 < len(name.strip()) <= 80 and all(c.isprintable() for c in name)
 
 
-class Profiles:
+class ContactProfiles:
     def __init__(self, path):
         self.path = Path(path)
         self._saved = None
@@ -92,7 +92,7 @@ class Profiles:
                 for link in profile['linked_accounts']:
                     service, account = link['service'], link['account_id']
                     require(isinstance(service, str) and re.fullmatch(r'[a-z][a-z0-9_-]{0,39}', service))
-                    require(service != 'terminal')  # Terminal identity is the person UUID.
+                    require(service != 'terminal')  # Terminal identity is the contact UUID.
                     require(isinstance(account, str) and 0 < len(account) <= 256
                             and account == account.strip() and all(c.isprintable() for c in account))
                     if service == 'discord':
@@ -206,7 +206,7 @@ class Profiles:
         if profile is None:
             raise ValueError('Sender has no linked profile.')
         return {'source': source, 'sender_id': sender_id,
-                'display_name': profile['name'], 'person_uuid': profile['uuid'],
+                'display_name': profile['name'], 'contact_uuid': profile['uuid'],
                 'preferred_name': profile['preferred_name'] or profile['name'],
                 'timezone': profile['timezone']}
 

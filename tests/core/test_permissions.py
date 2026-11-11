@@ -7,14 +7,14 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from identity import Profiles
+from contacts import ContactProfiles
 from permissions import require_command
 from conversation import Conversation
 
 
 class PermissionTests(unittest.TestCase):
     def test_default_deny_and_only_own_conversation(self):
-        identity = {'person_uuid': 'person', 'source': 'discord', 'sender_id': '123'}
+        identity = {'contact_uuid': 'person', 'source': 'discord', 'sender_id': '123'}
         for command, sender, key in [('/clear', None, 'discord:123'),
                 ('/clear', identity, 'discord:456'),
                 ('/clear', identity, 'terminal:person'),
@@ -27,7 +27,7 @@ class PermissionTests(unittest.TestCase):
         class API:
             closing = threading.Event()
         with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
-            profiles = Profiles(Path(directory) / 'profiles.json')
+            profiles = ContactProfiles(Path(directory) / 'profiles.json')
             owner = profiles.profiles[0]
             owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
             conversation = Conversation(API(), 8192, profiles, owner)

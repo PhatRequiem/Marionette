@@ -16,9 +16,10 @@ import diagnostics
 import terminal
 from connection import LocalConnection
 from conversation import Conversation
-from identity import Profiles
-from characters import Characters
-from selfhood import Selfhood
+from contacts import ContactProfiles
+from data_migration import migrate_personal_paths
+from contact_notes import ContactNotes
+from soul import Soul
 from inference import API
 from storage import Store
 
@@ -36,18 +37,19 @@ def observe(line, facts):
 
 def chat(api, capacity, store=None, session_id=None):
     data = Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
-    profiles = Profiles(data / 'identities/profiles.json')
+    migrate_personal_paths(data)
+    profiles = ContactProfiles(data / 'contacts/profiles.json')
     profiles.link_owner(data / 'discord/.env')
     try:
         selected = terminal.select_profile(profiles)
     except EOFError:
         return
     terminal.show_profile(selected)
-    selfhood = Selfhood(data / 'self/identity.json')
-    api.tools = (selfhood.bind(api),)
+    soul = Soul(data / 'soul/profile.json')
+    api.tools = (soul.bind(api),)
     api.prepare([])
-    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'),
-                                store, session_id, selfhood=selfhood)
+    conversation = Conversation(api, capacity, profiles, selected, ContactNotes(data / 'contact_notes'),
+                                store, session_id, soul=soul)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)

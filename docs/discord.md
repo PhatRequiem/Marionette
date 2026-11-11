@@ -32,8 +32,8 @@ Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally run 
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 
-- Each Discord sender and the terminal have separate histories, with the same per-conversation context budget and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and person UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](identity.md). New Discord senders receive their own saved UUID and character profile; identities are never merged by name. Only that conversation’s messages and the current person’s character profile are supplied to the model. Linked terminal/Discord accounts share character notes but not history.
-- `/clear` clears only the sender’s originating conversation, not saved character notes, logs, or Discord messages. Every DM sender may clear their own conversation.
+- Each Discord sender and the terminal have separate histories, with the same per-conversation context budget and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and contact UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](contacts.md). New Discord senders receive their own saved UUID and contact notes; identities are never merged by name. Only that conversation’s messages and the current contact’s contact notes are supplied to the model. Linked terminal/Discord accounts share contact notes but not history.
+- `/clear` clears only the sender’s originating conversation, not saved contact notes, logs, or Discord messages. Every DM sender may clear their own conversation.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
 - After a temporary disconnect, a successful Discord Gateway resume replays missed events. This differs from stopping the bot or reconnecting without a resumable session: the application does not fetch missed message history in those cases, so you may need to resend. In-process duplicate/older message events are ignored per DM channel, so activity in another channel does not discard a valid message. See [Discord's resume behavior](https://github.com/discord/discord-api-docs/blob/main/developers/events/gateway.mdx#resuming).
@@ -69,7 +69,7 @@ runtime/agent/bin/python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
 ```
 
-Historical open-DM verification before history separation (2026-11-10): 64 core and 12 mocked Discord checks pass, including first-sender registration and reopening, separate character files, shared conversation history, per-channel duplicate filtering, bot/group/server rejection, and owner-only `/clear`.
+Historical open-DM verification before history separation (2026-11-10): 64 core and 12 mocked Discord checks pass, including first-sender registration and reopening, separate contact-note files, shared conversation history, per-channel duplicate filtering, bot/group/server rejection, and owner-only `/clear`.
 
 Tests use synthetic messages and mock delivery, not Discord accounts. Live Discord login and phone delivery require your bot token and a manual DM check; passing local tests does not establish that Discord configuration is complete.
 
@@ -82,6 +82,6 @@ uv pip compile --python python --generate-hashes scripts/native-linux/discord-re
 
 Review changed packages and licenses and rerun both test suites when updating.
 
-Conversation commands are checked by [command permissions](identity.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
+Conversation commands are checked by [command permissions](contacts.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
 
 Current separate-history verification and cache measurements are in [the conversation-cache report](experiments/conversation-cache-2026-11-10.md).

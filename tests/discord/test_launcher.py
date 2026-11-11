@@ -22,7 +22,7 @@ class DiscordLauncherTests(unittest.TestCase):
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         root = fixture.root
-        fixture.env['SYNTHETIC_PROFILE_FILE'] = str(root / 'data/identities/profiles.json')
+        fixture.env['SYNTHETIC_PROFILE_FILE'] = str(root / 'data/contacts/profiles.json')
         (root / 'runtime').mkdir(exist_ok=True)
         (root / 'runtime/discord').symlink_to(sys.prefix, target_is_directory=True)
         config = root / 'data/discord/.env'
@@ -69,7 +69,7 @@ raise SystemExit(adapter.main())
             content = body['messages'][-1]['content']
             header, text = content.split('\\n\\nMessage:\\n', 1)
             identity = json.loads(header.split('\\n', 1)[1])
-            assert identity['person_uuid'] == profiles['owner_uuid']
+            assert identity['contact_uuid'] == profiles['owner_uuid']
             assert identity['display_name'] == 'Phat'
             expected_source = 'discord' if text == 'Synthetic Discord hello' else 'terminal'
             assert identity['source'] == expected_source

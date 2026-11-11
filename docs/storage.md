@@ -1,15 +1,15 @@
 # Conversation and diagnostic storage
 
-Marionette stores conversations and shutdown-saved diagnostics in **`data/conversations/marionette.sqlite3`**. Python's standard-library `sqlite3` module provides local storage without a database service, account, or new pip dependency. `storage.py` is the small storage interface; `storage.sh` is the operator command. Character entries remain Markdown under `data/characters/` with the 1,375-character limit. Identities remain JSON under `data/identities/`.
+Marionette stores conversations and shutdown-saved diagnostics in **`data/conversations/marionette.sqlite3`**. Python's standard-library `sqlite3` module provides local storage without a database service, account, or new pip dependency. `storage.py` is the small storage interface; `storage.sh` is the operator command. Character entries remain Markdown under `data/contact_notes/` with the 1,375-character limit. Identities remain JSON under `data/contacts/`.
 
 ## What is stored
 
-Schema version 2 retains these primary tables (introduced in version 1):
+Schema version 3 retains these primary tables (introduced in version 1):
 
 | Table | Contents |
 |---|---|
 | `sessions` | Launch UUID, UTC start and clean end timestamps. An absent end can mean still running or interrupted. |
-| `messages` | Session/correlation/conversation IDs, person UUID, source and sender ID, UTC receipt timestamp, role, kind, content, and status. Kinds distinguish incoming text, reasoning, final answers, and command notices. |
+| `messages` | Session/correlation/conversation IDs, contact UUID, source and sender ID, UTC receipt timestamp, role, kind, content, and status. Kinds distinguish incoming text, reasoning, final answers, and command notices. |
 | `events` | Global event number, session UUID, UTC receipt timestamp, stream, routing category, explicit message correlation ID when present, and original output bytes. |
 
 Messages are recorded independently of the context window. User input is saved before processing; streamed reasoning is collected and saved on completion or interruption, while the terminal stream preserves output already displayed. Only a valid final answer is saved as an answer. A received input is not proof of successful generation or delivery. Discord delivery outcomes remain separate events. Tool requests/results, token usage, sampling, model loading, cache operations, and other technical details remain diagnostic events, not extra conversation messages.
@@ -26,9 +26,9 @@ SQLite uses WAL mode, foreign keys, a 10-second lock timeout, and `synchronous=F
 
 Normal shutdown drains main-chat recorders and saves retained RAM diagnostics before marking the session ended. Discord may append its final disconnect events afterward. A forced kill can leave no end timestamp; unsaved diagnostics can be lost if the recorder is killed. Stop both main chat and Discord before maintenance or a complete final-session export.
 
-Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Character notes remain automatically supplied. There is no new model log reader, memory search, or automatic resume. [Rolling diagnostic retention](log-retention.md) preserves conversations while expiring older diagnostics.
+Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Contact notes remain automatically supplied. There is no new model log reader, memory search, or automatic resume. [Rolling diagnostic retention](log-retention.md) preserves conversations while expiring older diagnostics.
 
-Schema 2 also adds diagnostic batches, policy/sequence state, retained failures, shared error evidence, and a bounded recent-context ring. The [retention guide](log-retention.md) describes the 20 MB batches, 500 MB diagnostic payload budget, last 20 failures with surrounding events, and shutdown saving. Existing schema-1 databases still upgrade transactionally to schema 2; the RAM change needs no new schema.
+Schema 2 also adds diagnostic batches, policy/sequence state, retained failures, shared error evidence, and a bounded recent-context ring. The [retention guide](log-retention.md) describes the 20 MB batches, 500 MB diagnostic payload budget, last 20 failures with surrounding events, and shutdown saving. Existing schema-1 databases upgrade through schema 2 to schema 3 transactionally; schema 3 renames the contact UUID column without changing retention.
 
 ## View and export
 
@@ -74,13 +74,13 @@ Stop main chat and Discord for a complete session boundary. Use a new destinatio
 
 This uses SQLite's backup API (including committed WAL data, but not unsaved RAM diagnostics) and checks database integrity. The command is also safe for a consistent database snapshot while writers run, although later events are naturally excluded. Move the backup to separate private storage for protection against disk loss.
 
-Restore while both applications are stopped: move the current database and any matching WAL/SHM files aside together, copy the verified backup to `data/conversations/marionette.sqlite3`, and set permissions to 600. Do not combine sidecars from different database copies. Restoring this database restores the saved records, not automatic model history. Keep matching identities/characters when restoring a complete personal state.
+Restore while both applications are stopped: move the current database and any matching WAL/SHM files aside together, copy the verified backup to `data/conversations/marionette.sqlite3`, and set permissions to 600. Do not combine sidecars from different database copies. Restoring this database restores the saved records, not automatic model history. Keep matching contact profiles/notes when restoring a complete personal state.
 
 Synthetic tests verify same-version SQLite backup restoration and SQL export/import into a fresh SQLite file, including raw bytes, messages, IDs, and timestamps. **Migration to a different database engine is not implemented or verified.** Unexpected schema versions fail explicitly; there is no silent reset. No old-text import is implemented.
 
 ## Fresh personal-data start
 
-Ask the development agent to **reset memory** using the [operator instruction](../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, character sheets, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
+Ask the development agent to **reset memory** using the [operator instruction](../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, souls, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
 
 This is not a model tool or runtime slash command. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
 
@@ -89,3 +89,7 @@ SQLite is [public domain](https://sqlite.org/copyright.html). Design references:
 ## Verification of this change
 
 On November 11, 2026, an isolated normal-launcher GPU check used synthetic profiles and a separate database. The unchanged Q4 model answered `2 + 2` with `4`; input, reasoning, and answer were stored separately, 7,806 diagnostic records and the terminal stream were saved, integrity checking passed, and the session/server ended cleanly. All 106 automated checks passed (93 core and 13 mocked Discord), including Ctrl+C shutdown with recorder draining. The existing message snapshot utility successfully read exports from the GPU session. Mocked Discord integration verifies attachment, reconnection, metadata/delivery events, local reasoning, and answers-only delivery without a live Discord login. These checks establish recording and basic functionality, not long-session reliability, answer quality, or a performance improvement.
+
+## Contact UUID schema migration
+
+Writable opens upgrade conversation databases to schema 3 transactionally: `messages.person_uuid` becomes `messages.contact_uuid`, with the corresponding index renamed. Existing messages, IDs, and raw diagnostic payloads are preserved. Read-only inspection still accepts schemas 1 and 2. Retention behavior and RAM budgets are unchanged. Synthetic tests verify the column migration and reopen; this is SQLite schema migration, not cross-database migration.

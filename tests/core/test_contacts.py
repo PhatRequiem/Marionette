@@ -12,17 +12,17 @@ import uuid
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
 from terminal import select_profile
-from identity import Profiles
+from contacts import ContactProfiles
 from conversation import Conversation
 
 
-class IdentityTests(unittest.TestCase):
+class ContactProfileTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        self.path = self.root / 'identities/profiles.json'
-        self.profiles = Profiles(self.path)
+        self.path = self.root / 'contacts/profiles.json'
+        self.profiles = ContactProfiles(self.path)
         self.config = self.root / '.env'
         self.config.write_text('DISCORD_ALLOWED_USER_ID=123\nDISCORD_BOT_TOKEN=never-copy-this\n')
         self.profiles.link_owner(self.config)
@@ -33,10 +33,10 @@ class IdentityTests(unittest.TestCase):
         restored = self.root / 'restored/profiles.json'
         restored.parent.mkdir()
         shutil.copy2(self.path, restored)
-        profiles = Profiles(restored)
+        profiles = ContactProfiles(restored)
         self.assertEqual(profiles.data, self.profiles.data)
-        self.assertEqual(profiles.resolve('terminal', owner['uuid'])['person_uuid'],
-                         profiles.resolve('discord', '123')['person_uuid'])
+        self.assertEqual(profiles.resolve('terminal', owner['uuid'])['contact_uuid'],
+                         profiles.resolve('discord', '123')['contact_uuid'])
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
         self.assertNotIn('never-copy-this', self.path.read_text())
         with self.assertRaises(ValueError):
@@ -47,7 +47,7 @@ class IdentityTests(unittest.TestCase):
             guest = select_profile(self.profiles)
         self.assertNotEqual(guest['uuid'], self.profiles.data['owner_uuid'])
         self.assertEqual(guest['linked_accounts'], [])
-        restored = Profiles(self.path)
+        restored = ContactProfiles(self.path)
         with patch('builtins.input', return_value='2'), patch('sys.stdout', io.StringIO()):
             self.assertEqual(select_profile(restored), guest)
         for name in ('Phat', '\x1b[31m', ''):
@@ -63,7 +63,7 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(self.path.read_bytes(), original)
         self.path.write_text('{broken')
         with self.assertRaises(ValueError):
-            Profiles(self.path)
+            ContactProfiles(self.path)
         self.assertEqual(self.path.read_text(), '{broken')
 
     def test_metadata_is_counted_retained_and_logs_actual_sender(self):
@@ -86,7 +86,7 @@ class IdentityTests(unittest.TestCase):
             users = [m['content'] for m in api.sent if m['role'] == 'user']
             metadata = [json.loads(m.split('\n', 1)[1].split('\n\nMessage:\n')[0]) for m in users]
             self.assertEqual([m['source'] for m in metadata], ['discord'])
-            self.assertEqual(metadata[0]['person_uuid'], owner['uuid'])
+            self.assertEqual(metadata[0]['contact_uuid'], owner['uuid'])
             self.assertEqual(len(conversation.histories['terminal:' + owner['uuid']]), 2)
             self.assertEqual(api.counted[0], api.sent[0])
             self.assertTrue(any('Sender identity:' in str(call) for call in logged.call_args_list))
@@ -94,10 +94,10 @@ class IdentityTests(unittest.TestCase):
             self.assertEqual(conversation.history, [])
             conversation.turn('visitor', source='discord', sender_id='456')
             conversation.pending.result()
-            self.assertNotEqual(self.profiles.resolve('discord', '456')['person_uuid'],
+            self.assertNotEqual(self.profiles.resolve('discord', '456')['contact_uuid'],
                                 self.profiles.data['owner_uuid'])
 
-    def test_identity_overhead_counts_toward_input_limit(self):
+    def test_contacts_overhead_counts_toward_input_limit(self):
         class API:
             closing = threading.Event()
             def count(self, messages):
@@ -115,7 +115,7 @@ class IdentityTests(unittest.TestCase):
             {'uuid': owner, 'name': 'Legacy', 'discord_id': '123'}]}
         self.path.write_text(json.dumps(legacy))
         original = self.path.read_bytes()
-        migrated = Profiles(self.path)
+        migrated = ContactProfiles(self.path)
         profile = migrated.profiles[0]
         self.assertEqual(migrated.data['schema_version'], 2)
         self.assertEqual(profile['uuid'], owner)
@@ -128,12 +128,12 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(backup.read_bytes(), original)
         self.assertEqual(backup.stat().st_mode & 0o777, 0o600)
         saved = self.path.read_bytes()
-        Profiles(self.path)
+        ContactProfiles(self.path)
         self.assertEqual(self.path.read_bytes(), saved)
         restored = self.root / 'old-backup/profiles.json'
         restored.parent.mkdir()
         restored.write_bytes(backup.read_bytes())
-        self.assertEqual(Profiles(restored).resolve('discord', '123')['person_uuid'], owner)
+        self.assertEqual(ContactProfiles(restored).resolve('discord', '123')['contact_uuid'], owner)
 
     def test_new_fields_and_timestamp_updates(self):
         profile = self.profiles.add('Test')
@@ -146,7 +146,7 @@ class IdentityTests(unittest.TestCase):
         self.profiles.save()
         self.assertEqual(profile['created_at'], created)
         self.assertNotEqual(profile['updated_at'], updated)
-        identity = Profiles(self.path).resolve('terminal', profile['uuid'])
+        identity = ContactProfiles(self.path).resolve('terminal', profile['uuid'])
         self.assertEqual(identity['preferred_name'], 'Tester')
         self.assertEqual(identity['timezone'], 'America/New_York')
         with self.assertRaisesRegex(ValueError, 'Unknown message source'):
@@ -179,14 +179,14 @@ class IdentityTests(unittest.TestCase):
             {'uuid': owner, 'name': 'Legacy', 'discord_id': '123'}]}
         self.path.write_text(json.dumps(legacy))
         original = self.path.read_bytes()
-        with patch('identity.os.replace', side_effect=OSError('synthetic disk failure')):
+        with patch('contacts.os.replace', side_effect=OSError('synthetic disk failure')):
             with self.assertRaises(OSError):
-                Profiles(self.path)
+                ContactProfiles(self.path)
         self.assertEqual(self.path.read_bytes(), original)
-        Profiles(self.path)  # Retry may reuse the matching backup.
+        ContactProfiles(self.path)  # Retry may reuse the matching backup.
         legacy['profiles'][0]['discord_id'] = 'invalid'
         self.path.write_text(json.dumps(legacy))
         invalid = self.path.read_bytes()
         with self.assertRaises(ValueError):
-            Profiles(self.path)
+            ContactProfiles(self.path)
         self.assertEqual(self.path.read_bytes(), invalid)

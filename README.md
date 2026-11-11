@@ -12,7 +12,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable self profile and character sheet](docs/self-character.md) start blank and supply system context only once filled; no setup report is supplied. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; no setup report is supplied. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 
@@ -20,7 +20,7 @@ The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a delibera
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
 
-Terminal profiles and linked accounts use permanent person UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Each Discord DM and the terminal have separate histories. Linked accounts share the person’s character notes, not their message history. The main terminal displays all activity.
+Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
 ## Reviewing the code
 
@@ -35,9 +35,10 @@ Start with these files, in order:
 | [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
 | [inference.py](src/marionette/inference.py) | Local HTTP, exact budgets, cache preparation, and Qwen-Agent response adapter |
 | [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
-| [characters.py](src/marionette/characters.py) | Bounded Markdown character entries and current-person add/patch/remove tool |
-| [selfhood.py](src/marionette/selfhood.py) | Permanent self UUID, revisioned character sheet, and self-editing tool |
-| [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
+| [contact_notes.py](src/marionette/contact_notes.py) | Bounded Markdown contact notes and current-contact add/patch/remove tool |
+| [soul.py](src/marionette/soul.py) | Permanent self UUID, revisioned soul, and self-editing tool |
+| [data_migration.py](src/marionette/data_migration.py) | Preserving legacy contact and soul paths during startup |
+| [contacts.py](src/marionette/contacts.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |
 | [permissions.py](src/marionette/permissions.py) | Restrict clearing to the sender’s own conversation |
 | [connection.py](src/marionette/connection.py) | Private local connection to the conversation manager |
@@ -69,9 +70,9 @@ Start with these files, in order:
 - `docs/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/setup.md#shared-inference-runtime).
 - `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.
-- `data/identities/`: private, portable JSON profile registry; ignored by Git.
-- `data/characters/`: private Markdown character notes, one file per person UUID; ignored by Git.
-- `data/self/`: private self identity and character-sheet revision history; ignored by Git.
+- `data/contacts/`: private, portable JSON profile registry; ignored by Git.
+- `data/contact_notes/`: private Markdown contact notes, one file per contact UUID; ignored by Git.
+- `data/soul/`: private self identity and soul revision history; ignored by Git.
 - `data/session/`: private socket and current logging-session descriptor; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.

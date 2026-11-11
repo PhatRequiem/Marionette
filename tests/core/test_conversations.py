@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
 from conversation import Conversation
-from identity import Profiles
+from contacts import ContactProfiles
 
 
 class FakeAPI:
@@ -29,7 +29,7 @@ class ConversationsTests(unittest.TestCase):
     def setUp(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        profiles = Profiles(Path(temp.name) / 'profiles.json')
+        profiles = ContactProfiles(Path(temp.name) / 'profiles.json')
         self.api = FakeAPI()
         self.chat = Conversation(self.api, 512, profiles, profiles.profiles[0])
         self.log = patch('diagnostics.log').start()

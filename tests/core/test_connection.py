@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
-from identity import Profiles
+from contacts import ContactProfiles
 import connection
 from conversation import Conversation
 from inference import API
@@ -36,7 +36,7 @@ class ConnectionTests(unittest.TestCase):
         api = API()
         conversation = Conversation(api, 65536)
         with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
-            profiles = Profiles(Path(directory) / 'profiles.json')
+            profiles = ContactProfiles(Path(directory) / 'profiles.json')
             profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
             conversation = Conversation(api, 65536, profiles, profiles.profiles[0])
             address = Path(directory) / 'chat.sock'

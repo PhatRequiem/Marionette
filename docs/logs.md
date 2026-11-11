@@ -1,6 +1,6 @@
 # Reading the logs
 
-Conversations and logs are stored in `data/conversations/marionette.sqlite3`. Character Markdown and identity JSON remain separate. See [storage](storage.md) for schema, provenance, exact-byte preservation, export, backup, and limitations.
+Conversations and logs are stored in `data/conversations/marionette.sqlite3`. Contact-note Markdown and identity JSON remain separate. See [storage](storage.md) for schema, provenance, exact-byte preservation, export, backup, and limitations.
 
 The **server** view contains recognized connection, HTTP streaming, request queue, and response-delivery events. The **model** view contains recognized model loading, GPU, context, prompt, token, and timing events. Unknown entries, unprefixed continuations, and all warning/error records appear in both views but are stored only once. Classification remains tied to the pinned runtime.
 
@@ -145,7 +145,7 @@ Keep the SQLite database when updating or reinstalling. Follow [backup and resto
 
 Optional exported text views can be archived manually. They are not loaded as memory and do not replace a complete database backup.
 
-Character profiles add `Character supplied`, `Character updated`, and `Character update rejected` client events to the existing diagnostic stream. Successful writes include the person UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No separate log file is created. See [character storage and verification](characters.md).
+Contact notes add `Contact notes supplied`, `Contact notes updated`, and `Contact notes update rejected` client events to the existing diagnostic stream. Successful writes include the contact UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No separate log file is created. See [contact-note storage and verification](contact-notes.md).
 
 `Conversation selected: terminal:<uuid>` or `discord:<account-id>` identifies each serialized turn in diagnostics; clear events also include that key. The main terminal labels both input sources and shows all conversations, although their model histories are separate. Cache save/restore, entry sizes, and evictions remain in runtime diagnostics.
 

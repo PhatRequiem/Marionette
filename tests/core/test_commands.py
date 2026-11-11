@@ -27,10 +27,10 @@ class CommandTests(unittest.TestCase):
                                        finish_preparation=finish)
         with patch('diagnostics.log'):
             self.assertIn('Permission denied', execute_clear(conversation,
-                {'person_uuid': 'guest', 'source': 'discord', 'sender_id': '456'}))
+                {'contact_uuid': 'guest', 'source': 'discord', 'sender_id': '456'}))
             finish.assert_not_called()
             self.assertIs(conversation.history, history)
             self.assertEqual(execute_clear(conversation,
-                {'person_uuid': 'owner', 'source': 'discord', 'sender_id': '123'}), 'Chat history cleared.')
+                {'contact_uuid': 'owner', 'source': 'discord', 'sender_id': '123'}), 'Chat history cleared.')
         finish.assert_called_once_with()
         self.assertEqual(conversation.history, [])
