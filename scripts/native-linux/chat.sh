@@ -27,7 +27,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in storage.py retention.py characters.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
+for source in storage.py retention.py ram_logs.py characters.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py identity.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -61,7 +61,7 @@ LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
 export MARIONETTE_LOG_DB="$LOG_DIR/marionette.sqlite3"
 export MARIONETTE_LOG_SESSION
 MARIONETTE_LOG_SESSION="$(python "$ROOT/src/marionette/storage.py" "$MARIONETTE_LOG_DB" start)"
-# One writer stores each raw diagnostic once; views perform routing/formatting.
+# Existing recorder keeps routine diagnostics in RAM and saves the retained buffer at EOF.
 exec 3> >(trap '' INT; python "$ROOT/src/marionette/storage.py" "$MARIONETTE_LOG_DB" capture "$MARIONETTE_LOG_SESSION" diagnostic)
 ROUTER_PID=$!
 finish() {
@@ -98,6 +98,7 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
 printf 'Conversation and diagnostic database: %s\nSession: %s\n' "$MARIONETTE_LOG_DB" "$MARIONETTE_LOG_SESSION"
+printf 'Diagnostics: 500 MB rolling RAM buffer; saved on orderly shutdown.\n'
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
 mkdir -p "$ROOT/data/session"
 chmod 700 "$ROOT/data/session"
@@ -108,7 +109,7 @@ from pathlib import Path
 Path(sys.argv[1]).write_text(json.dumps({'database': os.environ['MARIONETTE_LOG_DB'], 'session': os.environ['MARIONETTE_LOG_SESSION']}))
 PYTHON
 
-# Each viewer reads its saved log; neither owns the diagnostic writer.
+# Viewers read the existing recorder RAM socket, falling back to saved rows after exit.
 for view in server model; do
     case "$view" in
         server) title='Marionette — Connections and requests' ;;
@@ -118,7 +119,7 @@ for view in server model; do
         exec 3>&- 9>&-
         if ! xdg-terminal-exec --title="$title" -- \
             bash "$ROOT/scripts/native-linux/view-log.sh" "$MARIONETTE_LOG_DB" "$MARIONETTE_LOG_SESSION" "$view" "$$"; then
-            warning="Debug window could not open or exited with an error ($view). Logs are still saved: $MARIONETTE_LOG_DB"
+            warning="Debug window could not open or exited with an error ($view). Recording continues in RAM; shutdown destination: $MARIONETTE_LOG_DB"
             printf '%s\n' "$warning" >&2
         fi
     ) &

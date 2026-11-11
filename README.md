@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations and diagnostic events in local SQLite. Saved conversations are not automatically reloaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -45,6 +45,7 @@ Start with these files, in order:
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
+| [ram_logs.py](src/marionette/ram_logs.py) | Existing-recorder RAM buffer, live views, and shutdown saving |
 | [retention.py](src/marionette/retention.py) | [Rolling diagnostic batches and protected error windows](docs/log-retention.md) |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |
 | [log_snapshot.py](src/marionette/log_snapshot.py) | Standalone [on-demand message diagnostics](docs/log-snapshots.md); not connected to the model |

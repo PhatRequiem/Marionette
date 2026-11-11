@@ -140,7 +140,7 @@ def retain(db, row, policy):
         copy_event(db, evidence)
         db.execute('INSERT OR REPLACE INTO failure_events VALUES (?,?,?)', (prior,event_id,'error'))
         db.execute('UPDATE failures SET last_error=? WHERE id=?', (event_id,prior))
-        db.execute('DELETE FROM failures WHERE id NOT IN (SELECT id FROM failures ORDER BY last_error DESC LIMIT ?)', (limit,))
+        db.execute('DELETE FROM failures WHERE id NOT IN (SELECT id FROM failures ORDER BY recorded_at DESC,last_error DESC LIMIT ?)', (limit,))
         db.execute('DELETE FROM error_evidence WHERE event_id NOT IN (SELECT event_id FROM failure_events)')
     db.execute('INSERT INTO recent_diagnostics VALUES (?,?,?,?,?,?,?,?,?)', evidence)
     db.execute('DELETE FROM recent_diagnostics WHERE event_id NOT IN (SELECT event_id FROM recent_diagnostics ORDER BY event_id DESC LIMIT ?)', (window,))

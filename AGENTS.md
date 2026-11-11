@@ -64,3 +64,10 @@ Keep the project understandable without reading development chats.
 3. **Repeatable scripts:** Save documented setup, start, and stop commands in `scripts/`, including supported background operation and logging.
 4. **Documented decisions:** Record significant architecture choices and their reasons in `docs/`, linked from the README.
 5. **Source and operation:** Native Linux runs directly from its Git checkout using scripts/native-linux/. Keep setup and operation reproducible from this checkout.
+
+## Diagnostic RAM policy
+
+- Routine diagnostic capture must remain in the existing recorder's RAM: a 500,000,000-byte raw-event rolling budget in 20,000,000-byte batches. Do not silently restore per-event disk logging or add a helper process.
+- Keep conversations durable in SQLite. Save the surviving diagnostic buffer and protected latest-20 error windows on orderly recorder shutdown; keep 20 events before/after each recognized error. Document that recorder SIGKILL, OOM, OS crash, or power loss can lose unsaved RAM.
+- Preserve live operator views and IDs across shutdown saving. Keep model snapshot access disconnected unless separately authorized.
+- Any change to this storage/durability policy requires an explicit decision and updates to docs/log-retention.md and the RAM recorder regression tests, including the no-routine-payload-writes and shutdown-save checks.

@@ -4,9 +4,9 @@ Conversations and logs are stored in `data/conversations/marionette.sqlite3`. Ch
 
 The **server** view contains recognized connection, HTTP streaming, request queue, and response-delivery events. The **model** view contains recognized model loading, GPU, context, prompt, token, and timing events. Unknown entries, unprefixed continuations, and all warning/error records appear in both views but are stored only once. Classification remains tied to the pinned runtime.
 
-`diagnostics.py` serializes client and runtime output; `storage.py` records each original diagnostic line. `log_router.py` classifies lines and formats them when displayed or exported. Terminal output and Discord connection output are separate streams in the same database. Structured messages record incoming text, reasoning, final answers, and command notices independently of the active context window.
+`diagnostics.py` serializes client and runtime output; `ram_logs.py` retains original diagnostic lines in the existing recorder’s RAM and saves the surviving buffer through `storage.py` on shutdown. `log_router.py` classifies lines and formats them when displayed or exported. Terminal output and Discord connection output are separate streams in the same database. Structured messages record incoming text, reasoning, final answers, and command notices independently of the active context window.
 
-Diagnostic views show `[event NUMBER]` and a UTC ISO receipt timestamp with microseconds. Event numbers are now database-wide, rather than restarting each launch. Gaps can represent events belonging to another view/stream/session. Shared events have the same number and timestamp in both views. Runtime elapsed timestamps remain in original bytes; receipt order does not prove execution order across threads.
+Diagnostic views show `[event NUMBER]` and a UTC ISO receipt timestamp with microseconds. Event numbers are now database-wide, rather than restarting each launch. Gaps can represent events belonging to another view/stream/session, expired batches, or unused reserved IDs. Diagnostic IDs are reserved in blocks, so they do not establish numeric receipt order across streams. Shared events have the same number and timestamp in both views. Runtime elapsed timestamps remain in original bytes; receipt order does not prove execution order across threads.
 
 Below each header, messages appear on `    | ` rows wrapped at 140 characters. Formatting preserves original content reversibly: controls become `\xHH`, literal backslashes are doubled, blank lines are marked, and a missing final newline is explicit. The database itself stores the exact unformatted bytes, so it need not reconstruct them from presentation. Original JSON values are not rounded or truncated.
 
@@ -34,7 +34,7 @@ Diagnostic field labels are white; their values carry the colors above. IDs, del
 
 Diagnostic colors follow recognizable fields and client records; unknown rows remain white. Source control bytes are escaped in diagnostic views. Discord JSON is expanded into readable blocks. Colors are enabled only for terminal output; redirects are plain text. These views do not alter stored evidence.
 
-For saved-session viewing, text export, SQL export, and backup/restore commands, see [storage](storage.md). No text log or third raw-debug file is automatically created. No automatic deletion or rotation is configured.
+For saved-session viewing, text export, SQL export, and backup/restore commands, see [storage](storage.md). No text log or third raw-debug file is automatically created. RAM and saved diagnostic batches roll under the [retention policy](log-retention.md).
 
 ## Message IDs and section boundaries
 
@@ -149,4 +149,4 @@ Character profiles add `Character supplied`, `Character updated`, and `Character
 
 ## Rolling retention and protected errors
 
-Diagnostics now use [20 MB logical batches and a 500 MB rolling budget](log-retention.md) in SQLite. The latest 20 recognized failures retain 20 preceding/following events separately. Conversations and terminal/Discord transcripts remain preserved. See that guide for completeness flags, read commands, migration, and physical disk-size limits.
+Diagnostics now use [20 MB logical batches and a 500 MB rolling budget](log-retention.md) in the existing recorder’s RAM, saved to SQLite on shutdown. The latest 20 recognized diagnostic failures retain 20 preceding/following events separately. Conversations and terminal/Discord transcripts remain preserved. See that guide for completeness flags, read commands, migration, and physical disk-size limits.

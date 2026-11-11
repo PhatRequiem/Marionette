@@ -52,11 +52,16 @@ def open_read(path):
 
 class Store:
     def __init__(self, path):
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-        os.close(fd)
-        self.db = sqlite3.connect(path, timeout=10)
+        if path is None:
+            # SQLite is used as a RAM data structure; no database/WAL files exist.
+            self.db = sqlite3.connect(':memory:', check_same_thread=False)
+            self.db.execute('PRAGMA temp_store=MEMORY')
+        else:
+            path = Path(path)
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            os.close(fd)
+            self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
         if version not in (0, 1, 2):
@@ -142,6 +147,22 @@ def view_log(path, session, view, output, follow=False, owner_pid=None):
         last = 0
         draining = not follow
         while True:
+            live = None
+            if view in ('server', 'model'):
+                from ram_logs import read_live
+                live = read_live(path, session, view, last)
+            if live is not None:
+                last, payload = live
+                output.write(payload)
+                output.flush()
+                if not follow:
+                    if payload:
+                        continue
+                    return
+                if payload:
+                    continue
+                time.sleep(.1)
+                continue
             rows = records(db, session, view, last)
             for row in rows:
                 output.write(render_event(row, view))
@@ -168,7 +189,9 @@ def capture(path, session, stream):
     # The producer owns Ctrl+C shutdown. Drain its pipe through EOF, including
     # final disconnect/exit records, instead of interrupting the recorder too.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    from log_router import category
+    if stream == 'diagnostic':
+        from ram_logs import capture as capture_ram
+        return capture_ram(path, session)
     with closing(Store(path)) as store:
         if stream == 'terminal':
             while raw := os.read(sys.stdin.fileno(), 65536):
@@ -177,7 +200,7 @@ def capture(path, session, stream):
                 sys.stdout.buffer.flush()
         else:
             for raw in sys.stdin.buffer:
-                store.event(session, stream, raw, category(raw) if stream == 'diagnostic' else 'both')
+                store.event(session, stream, raw)
                 if stream == 'discord':
                     sys.stdout.buffer.write(raw)
                     sys.stdout.buffer.flush()
@@ -239,9 +262,12 @@ def main():
                 policy['diagnostic_bytes'] = db.execute('SELECT coalesce(sum(bytes),0) FROM diagnostic_batches').fetchone()[0]
                 policy['retained_evidence_bytes'] = db.execute('SELECT coalesce(sum(length(raw)),0) FROM error_evidence').fetchone()[0]
                 policy['recent_context_bytes'] = db.execute('SELECT coalesce(sum(length(raw)),0) FROM recent_diagnostics').fetchone()[0]
+                from ram_logs import read_live
+                live = read_live(args.database, None, 'status', 0)
+                policy['live_ram'] = json.loads(live[1]) if live else None
                 print(json.dumps(policy))
             elif args.command == 'errors':
-                for row in db.execute('SELECT * FROM failures ORDER BY last_error DESC'):
+                for row in db.execute('SELECT * FROM failures ORDER BY recorded_at DESC,last_error DESC'):
                     print(json.dumps(dict(row)))
             elif args.command == 'error':
                 failure = db.execute('SELECT * FROM failures WHERE id=?', (args.failure_id,)).fetchone()

@@ -7,7 +7,7 @@ prepares the extraction code for testing before any model connection is approved
 
 ## Run it
 
-First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. For current SQLite logs, no text export is required:
+First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. For saved SQLite logs, no text export is required. The current diagnostic buffer stays in RAM until recorder shutdown; this utility is not connected to that live buffer or to the model.
 
 ```bash
 ./scripts/native-linux/log-snapshot.sh \

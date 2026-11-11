@@ -8,7 +8,7 @@ case "${3:-}" in
 esac
 OWNER=()
 if [[ -n "${4:-}" ]]; then OWNER=(--owner-pid "$4"); fi
-printf 'Marionette — %s\nSaved log: %s\n\n' "$title" "$1"
+printf 'Marionette — %s\nLive RAM / saved database: %s\n\n' "$title" "$1"
 python -u "$ROOT/src/marionette/storage.py" "$1" view "$2" "$3" --follow "${OWNER[@]}" | python -u "$ROOT/src/marionette/log_view.py" diagnostic
-printf '\nChat ended. This log is saved. Press Enter to close.\n'
+printf '\nChat ended. Saved records remain in the database. Press Enter to close.\n'
 read -r _ || true

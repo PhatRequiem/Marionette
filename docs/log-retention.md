@@ -1,97 +1,115 @@
-# Rolling diagnostic retention
+# Rolling diagnostics in RAM
 
-New writes use **20 MB logical batches** and a **500 MB combined diagnostic
-payload budget** inside SQLite. MB means decimal bytes: 20,000,000 and
-500,000,000. There are no rotated text files. Server and model windows remain
-filtered views of the same stored diagnostic events; shared events count once.
+**Policy:** routine diagnostics live in the **existing recorder process's RAM**,
+with a **500 MB raw-event rolling budget in 20 MB batches**. No new helper or
+watchdog process is added. Conversations remain durable in SQLite. The model
+snapshot tool remains disconnected.
 
-`retention.py` implements the policy behind `Store.event`. It is not a model tool.
-The log snapshot reader remains disconnected from her.
+MB means decimal bytes: 500,000,000 and 20,000,000. `ram_logs.py` owns the live
+buffer and shutdown save; `retention.py` supplies batch/error-window rules.
+SQLite `:memory:` is used as a RAM data structure containing raw BLOB events and
+indexes; its database and temporary storage are in memory, with no database/WAL
+file. This does **not** mean per-event writes to the on-disk SQLite database.
 
-## What rolls out
+The [project rules](../AGENTS.md#diagnostic-ram-policy) and regression tests make
+this an explicit architectural policy. Changing it requires a deliberate decision.
 
-Only `events` rows with `stream='diagnostic'` enter batches. A complete raw event
-is assigned to the current batch, or a new batch if it would cross 20 MB. Event,
-message, request, tool, and session IDs never reset when a batch changes. Event
-IDs use a persistent sequence so deleting older rows cannot reuse an ID.
+## Rolling buffer
 
-After each diagnostic insert, the oldest closed batches are deleted until the
-retained raw diagnostic payload is at most 500 MB. Cleanup crosses session
-boundaries. Whole-event preservation takes priority: an individual event larger
-than 20 MB occupies its own oversized batch, and a single active event larger
-than 500 MB can temporarily exceed the budget until a subsequent event closes
-that batch. No event is split or silently truncated in the ordinary log.
+The existing diagnostic capture command feeds the RAM buffer instead of the
+on-disk event writer. A complete event starts a new batch if it would cross
+20 MB. Oldest closed batches roll out when the retained raw payload exceeds
+500 MB. Server and model windows are views of the same events; shared records
+count once.
 
-Structured `messages`, session records, terminal transcripts, and the Discord
-stream are preserved. The Discord stream contains both transcripts and transport
-diagnostics and is outside this diagnostic-only cleanup policy. It can still
-grow, as can conversation storage.
+An individual event larger than 20 MB can occupy a larger batch without being
+split, provided it fits within 500 MB. An event larger than the entire RAM budget
+is rejected with an error, and the recorder attempts to save its existing buffer
+on exit. Payload limits are not a strict process-RSS limit: SQLite indexes/free
+pages, Python objects, temporary copies, and protected error evidence need
+additional RAM. Old batches are discarded, not periodically written to disk.
 
-**500 MB is not a total SQLite file-size limit.** Database pages/indexes, WAL,
-conversations, Discord/terminal output, retained errors, and the recent-context
-buffer use additional space. Deleted pages are reused by SQLite; the main file
-need not shrink. No live `VACUUM`, external part files, or compression is added.
-Backup/export covers the whole database; see [storage](storage.md).
+Structured conversation messages, terminal transcripts, and the Discord stream
+continue using the on-disk database. Those are outside the routine diagnostic
+RAM buffer and can still generate disk writes. This change reduces diagnostic
+writes; it does not promise zero SSD activity or a measured endurance gain.
 
-Live viewers continue by monotonically increasing event ID across cleanup. A
-viewer which falls behind retention, or a later export, can only read events
-still retained; it does not resurrect expired history. Event numbers keep their
-original values and gaps are expected.
+## Live views and IDs
 
-## Last 20 failures
+The two diagnostic windows query a private local socket served by a thread in
+the **existing recorder process**. No additional process is launched. Linux
+abstract Unix sockets avoid stale socket files; the server checks `SO_PEERCRED`
+and accepts only the same OS user. Queries are read-only operator views, not a
+model tool. Closing a viewer does not stop recording.
 
-The latest **20 distinct recognized failures**, across sessions and restarts,
-are protected separately from the rolling events. Each has:
+The recorder reserves event-ID blocks of 65,536 using a small SQLite metadata
+transaction, then allocates IDs in RAM. Routine diagnostic payloads are not
+persisted by those reservations. This preserves unique IDs while the existing
+terminal/Discord writers use the same database. Unused reserved IDs create gaps.
+IDs preserve order **within the diagnostic stream**; they no longer imply global
+receipt order across diagnostic, terminal, and Discord streams. Use timestamps
+and correlation IDs when comparing streams.
 
-- Original event IDs, timestamps, session/message/request/tool IDs when present,
-  and the detected component.
-- Up to **20 preceding and 20 following diagnostic events** from the same session,
-  in global receipt order. Discord connection events also participate; JSON
-  conversation transcripts and terminal output do not.
-- The original failure event and any explicitly related propagated error events.
-- `before_count`, remaining following-event count, and collection state.
+Views follow the live RAM buffer and fall back to saved SQLite rows once the
+recorder exits. IDs and receipt timestamps do not change when saved. A viewer
+that falls behind can miss rolled-out events. The standalone snapshot reader
+still reads saved SQLite data/text exports, not the live RAM socket; current
+unsaved diagnostics become available to it after shutdown saving.
 
-The error and preceding evidence are persisted in the **same transaction** as
-the incoming event, before batch pruning. Following events are appended as they
-arrive. Reopening a store in the same session can finish a pending window; a
-forced process exit leaves a durable, visibly unfinished window. Clean session
-end marks pending windows `incomplete` rather than claiming full evidence.
+## Latest 20 errors with context
 
-`collecting` means more following events are needed. `complete` means all 20
-following events were collected; inspect `before_count` too, because a failure
-near session start can have fewer than 20 preceding events. `incomplete` means
-the session ended before the following window filled. No cross-session events
-are appended to an old window.
+The RAM buffer retains the latest **20 recognized diagnostic failures**, with
+up to **20 diagnostic events before and 20 after** each, independently of batch
+rollover. Related parent/request/tool failures are grouped when their explicit
+IDs establish the relationship. Separate executions and untagged runtime errors
+remain separate; words such as “failed” inside conversation prose do not trigger
+an error record. See `retention.failure_identity` for recognized event types.
 
-Recognized failures are runtime severity `E` lines; tagged model-request,
-tool-call, message, local Discord bridge, cache-preparation and client failure
-records; and Discord chunk/turn failures. Warnings and error words inside input,
-answers, or reasoning do not create failures. A tool returning an error as normal
-text is not automatically classified as a failure: `returned` still describes
-control flow, not domain success.
+Overlapping windows share evidence. Each protected event retains up to 1 MB, with
+`original_bytes` and `truncated` metadata when limited; the ordinary rolling event
+is not truncated. A failure near startup may have fewer than 20 preceding events.
+`collecting` means more following events are needed; `complete` means 20 following
+events arrived. Shutdown marks unfinished windows `incomplete`.
 
-Parent/bridge errors join a related message's latest matching failure while its
-window is collecting; model errors can join their failed child tool, and Discord
-chunk/turn failures can join their message's delivery failure. Separate tool
-executions remain separate failures. Untagged runtime errors cannot reliably be
-linked to tagged client errors and remain distinct. Grouping does not extend the
-20-following-event window indefinitely. Related errors inside that original
-window are labeled `error` instead of `after`.
+These **new diagnostic error windows are also in RAM until shutdown**. The
+existing saved failures remain on disk while the session runs; Discord transport
+failures still use that durable path. On shutdown, new RAM windows are merged
+with saved failures, retaining the latest 20 by receipt timestamp and deleting
+unreferenced evidence. A diagnostic window contains diagnostic events; it does
+not infer interleaving with the separately captured Discord stream.
 
-Overlapping windows share one copy of each protected event. Removing the 21st-oldest
-failure removes only evidence no longer referenced by another retained failure.
-The rolling copy may be deleted without affecting the protected copy.
+## Shutdown saving and limits
 
-To bound unusual evidence, each protected/recent-context event stores at most
-**1 MB** of its original bytes, with `original_bytes` and `truncated` metadata.
-This never changes the ordinary diagnostic event. Truncated evidence is clearly
-marked by the inspector and excluded from structured snapshot field extraction.
-The recent-context ring holds 20 events; retained windows hold at most 41 events
-per failure before overlap sharing. These stores are outside the 500 MB budget.
+On producer EOF, normal application shutdown, Python exception unwinding, or
+orderly recorder SIGTERM, the recorder attempts one atomic SQLite transaction:
 
-## Inspect it
+1. Save the surviving diagnostic batches with original IDs, bytes, and timestamps.
+2. Merge protected error windows, including evidence whose ordinary batch expired.
+3. Enforce the existing 500 MB saved-diagnostic payload budget across shutdowns.
 
-After restarting main chat so the schema is migrated:
+Ctrl+C continues to be handled by the producer; the recorder ignores it and drains
+through EOF before saving. The launcher waits for recording to finish before
+marking the session ended. A failed save rolls back and reports failure; it does
+not claim success or silently fall back to per-event disk writes. Save time can
+increase with the buffer size. Conversation persistence remains independent.
+
+**SIGKILL or OOM killing the recorder, an OS crash, and power loss can lose all
+unsaved RAM diagnostics and new error windows.** There is no crash-monitor helper,
+periodic checkpoint, or guarantee that every abnormal termination executes cleanup.
+If only the producer exits and the existing pipe closes, EOF can still save the
+buffer. A descendant retaining the pipe can delay EOF. These limits are intentional
+and must stay visible when future versions change shutdown behavior.
+
+The saved 500 MB payload budget does not cap the entire database file. Conversation
+records, terminal/Discord output, protected evidence, indexes, and WAL need extra
+space. SQLite reuses deleted pages; the file need not shrink. No live `VACUUM`,
+compression, or rotated text files are added. Saved data continues using schema 2;
+there is no new on-disk schema migration for this RAM change.
+
+## Operator commands
+
+Restart main chat and reconnect Discord to use the new recorder. Existing saved
+records are preserved under their existing rolling retention policy.
 
 ```bash
 ./scripts/native-linux/storage.sh retention
@@ -99,49 +117,31 @@ After restarting main chat so the schema is migrated:
 ./scripts/native-linux/storage.sh error FAILURE_ID
 ```
 
-`retention` reports the persisted policy, retained raw diagnostic bytes, protected
-evidence bytes, and recent-context bytes. `errors` lists failure IDs, correlation
-fields, timestamps, and completeness information. `error` prints a selected
-failure and its evidence with original event numbers, relation labels, truncation
-metadata, and escaped diagnostic formatting. These are operator-only reads.
+`retention` reports saved sizes plus `live_ram` policy, size, session, and failure
+count when the recorder is available. `errors` and `error` inspect **saved** failures;
+new RAM failures appear there after shutdown saving. The live diagnostic windows
+show errors as they occur. [Snapshot commands](log-snapshots.md) stay operator-only.
 
-The [snapshot utility](log-snapshots.md) can read current and protected diagnostic
-events directly using `--database` and `--session`. It deduplicates their shared
-copies and continues to enforce conversation scope. If the original scope marker
-expired, a matching stored message can establish that scope. Missing boundaries
-still produce an incomplete snapshot; a retained window is not a complete
-conversation or complete message trace. Raw untagged surrounding events are
-available through `storage.sh error`, not inferred as belonging to a message by
-the structured snapshot reader.
+Use [SQLite backup/export](storage.md) for already saved evidence and conversations.
+A backup while running does not include the unsaved RAM buffer. Stop cleanly first
+for a complete snapshot of retained diagnostics. Restoring a backup restores saved
+rows, not a running RAM buffer or model history.
 
-## Migration and recovery
+## Verification and future regression guardrails
 
-Restart main chat and reconnect Discord to activate this policy. Do not run old
-writers against the upgraded database. `Store` transactionally migrates schema 1
-to schema 2 on opening. It preserves original IDs/content, assigns historical
-diagnostics to batches, reconstructs retained failures/windows from existing
-records, and initializes the persistent event sequence. Migration itself does
-not prune; the next diagnostic write enforces the budget. Large existing stores
-can take time to scan. A failed migration rolls back; there is no silent reset.
+`tests/core/test_ram_logs.py` checks the exact default sizes, no routine payload or
+recent-context rows on disk before saving, whole-batch expiry, latest-20 errors,
+shutdown save with original IDs, atomic rollback/retry, backup restoration, live
+views, ID reservation collisions, oversized-event rejection, EOF/SIGTERM saving,
+and the documented loss on recorder SIGKILL. Existing launcher checks exercise
+normal exit, Ctrl+C, failed child processes, recorder draining, and conversation
+persistence. Tests use isolated databases and synthetic profiles only.
 
-Schema 2 adds batch metadata, policy/sequence state, failure records, shared
-error evidence, evidence membership, and a recent-context ring. Backup and SQL
-export include all of these. The defaults are stored once in `retention_state`;
-opening another connection does not reset them. There is no model-facing policy
-control or new dependency.
+This is not a five-year reliability claim or a live-model performance benchmark.
+The no-payload-writes and shutdown tests must remain in place when storage evolves.
 
-Tests use separate synthetic databases and small budgets to exercise frequent
-rotation, preserved transcripts, concurrent writers, viewer continuity, latest-20
-retention, overlapping/grouped errors, partial windows, an abrupt process exit,
-transaction rollback, schema-1 migration and rollback, same-version backup
-restore, SQL round-trip, and snapshot lookup after original events expire.
-A separate default-size check wrote synthetic 20 MB events and verified exactly
-25 batches/500 MB remained, the old error survived in protected evidence, and
-SQLite integrity passed. Cross-database-engine migration and multi-year operation
-remain unverified. No personal database was modified during these checks.
-
-Final verification: **107 core checks and 13 mocked Discord checks passed**.
-A synthetic 10,000-event recording check retained every row and kept the recent
-context ring at 20 entries. These are isolated functional checks, not a claim of
-five-year reliability or live-model performance. Restart/reconnect is required
-to activate the new writer and migrate the personal database.
+Verification of the RAM change: **118 core checks and 13 mocked Discord checks
+passed**. A separate actual-size test retained exactly 25 × 20 MB batches in RAM,
+confirmed zero diagnostic/event-window rows on disk before shutdown, then saved
+the 500 MB buffer and protected error evidence with SQLite integrity intact.
+The synthetic database was removed; the user's running session was not changed.
