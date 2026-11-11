@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from characters import Characters, UpdateCharacter, LIMIT
+from characters import Characters, UpdateCharacter, LIMIT, DELIMITER, split_notes
 from identity import Profiles
 from conversation import Conversation
 
@@ -33,11 +33,12 @@ class CharacterTests(unittest.TestCase):
             return json.loads(self.tool.call(json.dumps(kwargs)))
 
     def test_boundary_unicode_persistence_and_same_format_restore(self):
-        text = '# Phat\n' + 'é' * (LIMIT - 7)
+        entry = 'é' * (LIMIT - len('# Phat' + DELIMITER))
+        text = '# Phat' + DELIMITER + entry
         self.assertEqual(len(text), LIMIT)
-        self.assertTrue(self.call(content=text)['success'])
+        self.assertTrue(self.call(action='add', content=entry)['success'])
         saved = self.store.path(self.owner['uuid']).read_bytes()
-        self.assertFalse(self.call(content=text + '\n')['success'])
+        self.assertFalse(self.call(action='patch', old_text=entry, content=entry + 'é')['success'])
         self.assertEqual(self.store.path(self.owner['uuid']).read_bytes(), saved)
         self.assertEqual(self.store.path(self.owner['uuid']).stat().st_mode & 0o777, 0o600)
         copy = self.root / 'restored'
@@ -51,7 +52,7 @@ class CharacterTests(unittest.TestCase):
         original = self.store.current(other_identity)
         registry = self.profiles.path.read_bytes()
         for key in ('person_uuid', 'path', 'discord_id'):
-            self.assertFalse(self.call(content='changed', **{key: other['uuid']})['success'])
+            self.assertFalse(self.call(action='add', content='changed', **{key: other['uuid']})['success'])
         self.assertEqual(self.store.current(other_identity), original)
         self.assertEqual(self.profiles.path.read_bytes(), registry)
         self.assertEqual(self.store.current(self.identity), self.initial)
@@ -64,22 +65,22 @@ class CharacterTests(unittest.TestCase):
         outside.write_text('outside')
         path.unlink()
         path.symlink_to(outside)
-        self.assertFalse(self.call(content='changed')['success'])
+        self.assertFalse(self.call(action='add', content='changed')['success'])
         self.assertEqual(outside.read_text(), 'outside')
         path.unlink()
         path.write_text('x' * (LIMIT + 1))
         with self.assertRaises(ValueError):
             self.store.current(self.identity)
-        self.assertFalse(self.call(content='changed')['success'])
+        self.assertFalse(self.call(action='add', content='changed')['success'])
         self.assertEqual(path.read_text(), 'x' * (LIMIT + 1))
 
     def test_stale_update_retries_and_disk_failure_preserves_previous_text(self):
         self.store.save(self.owner['uuid'], '# Phat\nManual edit.', expected=self.initial)
-        self.assertFalse(self.call(content='# Phat\nStale edit.')['success'])
-        self.assertTrue(self.call(content='# Phat\nManual edit. New fact.')['success'])
+        self.assertFalse(self.call(action='add', content='New fact.')['success'])
+        self.assertTrue(self.call(action='add', content='New fact.')['success'])
         current = self.store.current(self.identity)
         with patch('characters.os.replace', side_effect=OSError('synthetic disk failure')):
-            self.assertFalse(self.call(content='new')['success'])
+            self.assertFalse(self.call(action='add', content='new')['success'])
         self.assertEqual(self.store.current(self.identity), current)
         self.assertFalse(list(self.store.directory.glob('.character-*')))
 
@@ -98,7 +99,7 @@ class CharacterTests(unittest.TestCase):
             convo.turn('hello')
             convo.pending.result()
             self.assertEqual(metadata()['character_profile']['content'], self.initial)
-            result = json.loads(api.tools[0].call('{"content":"# Phat\\nPrefers brief answers."}'))
+            result = json.loads(api.tools[0].call(json.dumps({'action': 'add', 'content': 'Prefers brief answers.'})))
             self.assertTrue(result['success'])
             convo.turn('hello again', source='discord', sender_id='123')
             convo.pending.result()
@@ -144,14 +145,14 @@ class CharacterTests(unittest.TestCase):
         api = API('http://localhost')
         api.count = lambda messages: 20
         sent = []
-        notes = '# Phat\nEnjoys antique maps.'
+        notes = '# Phat' + DELIMITER + 'Enjoys antique maps.'
         def handle(request):
             sent.append(json.loads(request.content))
             if len(sent) <= 2:
-                content = 'x' * (LIMIT + 1) if len(sent) == 1 else notes
+                content = 'x' * (LIMIT + 1) if len(sent) == 1 else 'Enjoys antique maps.'
                 return response({'tool_calls': [{'index': 0, 'id': f'call_{len(sent)}',
                     'type': 'function', 'function': {'name': 'update_character',
-                    'arguments': json.dumps({'content': content})}}]}, 'tool_calls')
+                    'arguments': json.dumps({'action': 'add', 'content': content})}}]}, 'tool_calls')
             return response({'content': 'Saved.'}, 'stop')
         sdk = OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
             http_client=httpx.Client(transport=httpx.MockTransport(handle)))
@@ -180,3 +181,70 @@ class CharacterTests(unittest.TestCase):
         for invalid in ('not-an-id', '0', '-1', str(2**64)):
             with self.assertRaises(ValueError):
                 reopened.register_discord(invalid)
+
+    def test_entries_add_patch_remove_preserve_other_notes_and_heading(self):
+        self.assertTrue(self.call(action='add', content='Prefers short answers and green text.')['success'])
+        self.assertTrue(self.call(action='add', content='Enjoys antique maps.')['success'])
+        result = self.call(action='patch', old_text='short answers', content='detailed answers')
+        self.assertTrue(result['success'])
+        self.assertEqual(result['current_entries'], ['Prefers detailed answers and green text.', 'Enjoys antique maps.'])
+        self.assertEqual(result['characters'], len(result['content']))
+        result = self.call(action='remove', old_text='antique maps')
+        self.assertTrue(result['success'])
+        self.assertEqual(result['current_entries'], ['Prefers detailed answers and green text.'])
+        self.assertFalse(self.call(action='patch', old_text='# Phat', content='# Other')['success'])
+        self.assertTrue(self.call(action='remove', old_text='green text')['success'])
+        self.assertEqual(self.store.current(self.identity), '# Phat\n')
+
+    def test_ambiguous_missing_repeated_and_invalid_operations_leave_file_unchanged(self):
+        for text in ('Likes maps.', 'Likes maps and maps.'):
+            self.assertTrue(self.call(action='add', content=text)['success'])
+        saved = self.store.path(self.owner['uuid']).read_bytes()
+        invalid = [dict(action='patch', old_text='maps', content='books'),
+                   dict(action='remove', old_text='missing'),
+                   dict(action='patch', old_text='maps and maps', content=''),
+                   dict(action='add', content='bad\n§\nentry'),
+                   dict(action='add', content='Likes maps.'),
+                   dict(action='replace', content='rewrite everything'),
+                   dict(content='old whole-document request'),
+                   dict(action='remove', old_text='Likes maps.', content='extra')]
+        for args in invalid:
+            with self.subTest(args=args):
+                self.assertFalse(self.call(**args)['success'])
+                self.assertEqual(self.store.path(self.owner['uuid']).read_bytes(), saved)
+        # Exact whole-entry match wins even though another note contains it.
+        self.assertTrue(self.call(action='add', content='Likes maps. Also books.')['success'])
+        self.assertTrue(self.call(action='remove', old_text='Likes maps.')['success'])
+        self.assertTrue(self.call(action='remove', old_text='Also books.')['success'])
+        self.assertFalse(self.call(action='patch', old_text='maps', content='books')['success'])
+
+    def test_legacy_paragraphs_migrate_without_fact_changes_and_restore(self):
+        legacy = '# Phat\n\nFirst fact.\n\nSecond fact.\nContinued on another line.\n'
+        self.store.save(self.owner['uuid'], legacy, expected=self.initial)
+        self.tool = UpdateCharacter(self.store, self.identity, legacy)
+        self.assertEqual(self.store.current(self.identity), legacy)  # Read alone never rewrites.
+        result = self.call(action='add', content='Third fact.')
+        self.assertTrue(result['success'])
+        self.assertEqual(result['current_entries'], ['First fact.', 'Second fact.\nContinued on another line.', 'Third fact.'])
+        restored = self.root / 'restored-entries'
+        shutil.copytree(self.store.directory, restored)
+        self.assertEqual(Characters(restored).read(self.owner['uuid']), result['content'])
+        self.assertEqual(split_notes(result['content'])[1], result['current_entries'])
+        # Blank lines inside a new single entry remain one entry on reopening.
+        result = self.call(action='add', content='Multiline\n\nnote.')
+        self.assertEqual(split_notes(self.store.current(self.identity))[1][-1], 'Multiline\n\nnote.')
+
+    def test_conversion_overhead_cannot_bypass_limit_or_erase_legacy_notes(self):
+        tail = '\n\nSecond fact.'
+        first = 'a' * (LIMIT - len('# Phat\n\n') - len(tail))
+        legacy = '# Phat\n\n' + first + tail
+        self.store.save(self.owner['uuid'], legacy, expected=self.initial)
+        self.tool = UpdateCharacter(self.store, self.identity, legacy)
+        result = self.call(action='patch', old_text='Second fact.', content='Second fact.')
+        self.assertFalse(result['success'])
+        self.assertIn('over the limit', result['error'])
+        self.assertEqual(self.store.current(self.identity), legacy)
+        result = self.call(action='patch', old_text=first, content=first[:-10])
+        self.assertTrue(result['success'])
+        self.assertEqual(result['current_entries'], [first[:-10], 'Second fact.'])
+        self.assertLessEqual(result['characters'], LIMIT)

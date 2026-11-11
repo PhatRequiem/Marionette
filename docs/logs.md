@@ -52,6 +52,6 @@ Keep the existing `data/conversations/` folder when updating or reinstalling. To
 
 Completed sessions may be moved manually into `data/conversations/archive/`. Stop the relevant chat and Discord connection first, then keep all matching chat/server/model files and associated Discord files together. Archived files remain readable through the same log viewer; they are not automatically loaded as memory.
 
-Character profiles add `Character supplied`, `Character updated`, and `Character update rejected` client events to the existing diagnostic stream. Successful writes include the person UUID and character count; tool/runtime diagnostics can include the Markdown itself. No new log file is created. See [character storage and verification](characters.md).
+Character profiles add `Character supplied`, `Character updated`, and `Character update rejected` client events to the existing diagnostic stream. Successful writes include the person UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No new log file is created. See [character storage and verification](characters.md).
 
 `Conversation selected: terminal:<uuid>` or `discord:<account-id>` identifies each serialized turn in diagnostics; clear events also include that key. The main terminal labels both input sources and shows all conversations, although their model histories are separate. Cache save/restore, entry sizes, and evictions remain in runtime diagnostics.

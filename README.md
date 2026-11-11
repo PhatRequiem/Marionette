@@ -35,7 +35,7 @@ Start with these files, in order:
 | [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
 | [inference.py](src/marionette/inference.py) | Local HTTP, exact budgets, cache preparation, and Qwen-Agent response adapter |
 | [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
-| [characters.py](src/marionette/characters.py) | Bounded Markdown character storage and current-person update tool |
+| [characters.py](src/marionette/characters.py) | Bounded Markdown character entries and current-person add/patch/remove tool |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |
 | [permissions.py](src/marionette/permissions.py) | Restrict clearing to the sender’s own conversation |

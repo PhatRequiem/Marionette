@@ -1,6 +1,6 @@
 # Qwen-Agent tool coordination
 
-Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tool is `update_character`, bound to the current sender’s [character profile](characters.md). There is no log reader, general retrieval, skill creation, scheduler, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
+Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tool is `update_character` (add, patch, or remove an individual entry), bound to the current sender’s [character profile](characters.md). There is no log reader, general retrieval, skill creation, scheduler, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
 
 ## Responsibilities
 
