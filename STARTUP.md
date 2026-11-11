@@ -30,10 +30,12 @@ Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. O
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
-- **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved logs remain. Every new main-chat launch also starts fresh.
+- **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved SQLite records remain. Every new main-chat launch also starts fresh model history; character notes persist.
 
 ## First-time setup
 
 If the model or runtime is missing, follow [local setup](docs/setup.md). Before the first Discord connection, follow [Discord setup](docs/discord.md). These are one-time steps, not required on every launch.
 
 Future launchable features should be added below the required main-chat step, in dependency order, with their command and a clear required/optional label. Keep technical configuration in the component guides.
+
+Conversations and diagnostics are saved in `data/conversations/marionette.sqlite3`. See [viewing and backups](docs/storage.md); no extra startup step is required.

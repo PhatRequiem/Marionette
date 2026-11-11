@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Compose the chat components and own the local model server's lifetime."""
-from contextlib import nullcontext
+from contextlib import nullcontext, closing
 import http.client
 import os
 from pathlib import Path
 import re
 import signal
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -18,6 +19,7 @@ from conversation import Conversation
 from identity import Profiles
 from characters import Characters
 from inference import API
+from storage import Store
 
 
 def observe(line, facts):
@@ -31,7 +33,7 @@ def observe(line, facts):
             facts[key] = match.group(1).strip()
 
 
-def chat(api, capacity):
+def chat(api, capacity, store=None, session_id=None):
     data = Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
     profiles = Profiles(data / 'identities/profiles.json')
     profiles.link_owner(data / 'discord/.env')
@@ -40,7 +42,7 @@ def chat(api, capacity):
     except EOFError:
         return
     terminal.show_profile(selected)
-    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'))
+    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'), store, session_id)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)
@@ -97,7 +99,9 @@ def run(command):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        chat(api, capacity)
+        database = os.environ.get('MARIONETTE_LOG_DB')
+        with closing(Store(database)) if database else nullcontext() as store:
+            chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'))
         return 0
     finally:
         if api is not None:
@@ -127,7 +131,7 @@ if __name__ == '__main__':
         terminal.color('meta')
         print('\nExiting...')
         status = 0
-    except (OSError, ValueError, RuntimeError, http.client.HTTPException) as error:
+    except (OSError, ValueError, RuntimeError, sqlite3.Error, http.client.HTTPException) as error:
         diagnostics.log(f'Client error: {error}')
         print(f'Chat could not continue: {error}', file=sys.stdout)
         status = 1

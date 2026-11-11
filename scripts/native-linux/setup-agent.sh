@@ -11,3 +11,6 @@ if [[ ! -x "$ROOT/runtime/agent/bin/python" ]]; then
 fi
 uv pip sync --python "$ROOT/runtime/agent/bin/python" --require-hashes "$ROOT/scripts/native-linux/agent-requirements.txt"
 printf 'Qwen-Agent installed. Start normally with ./scripts/native-linux/chat.sh\n'
+
+# Storage uses Python's standard-library SQLite module, with no pip dependency.
+"$ROOT/runtime/agent/bin/python" -c 'import sqlite3; print("SQLite available:", sqlite3.sqlite_version)'

@@ -211,6 +211,9 @@ def render(source, output, mode, colored):
 if __name__ == '__main__':
     if len(sys.argv) != 2 or sys.argv[1] not in ('discord', 'diagnostic'):
         raise SystemExit('Usage: log_view.py discord|diagnostic < SAVED_LOG')
+    if sys.argv[1] == 'discord':
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # Bot exits; drain final delivery/disconnect records.
     try:
         render(sys.stdin, sys.stdout, sys.argv[1], enabled())
     finally:

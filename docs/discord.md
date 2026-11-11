@@ -43,9 +43,9 @@ The main chat owns the model and conversation histories. A Unix socket at `data/
 
 ## Local logs and verification
 
-The three main session files stay unchanged: `-chat.txt` records the terminal, and `-server.txt`/`-model.txt` record model diagnostics, including reasoning and accepted Discord turns. The terminal transcript now also includes the labeled Discord exchanges and their reasoning. Remote requests are queued for the main terminal thread to render between local turns, then the local input prompt is shown again.
+Main chat and Discord now share the main launch's SQLite session. Terminal output, server/model diagnostic events, and Discord connection events are distinct stored streams; structured conversation messages are recorded by main chat. The operator terminal still displays labeled Discord exchanges and reasoning. Remote requests are queued for the main terminal thread and the input prompt returns afterward.
 
-Each Discord connection saves one additional dated `-discord.txt` file under `data/conversations/`. Its terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
+The Discord launcher reads `data/session/log-session.json` to use the same database even with a custom main-chat log directory. Disconnecting/reconnecting adds events to that session without creating text files. Its terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 
 The Discord log adds these diagnostics without additional Discord permissions:
 
@@ -58,7 +58,7 @@ The Discord log adds these diagnostics without additional Discord permissions:
 - Error class, HTTP status, and Discord error code when provided. Exception bodies, request headers, credentials, and raw network packets are not dumped.
 - `heartbeat_ms` snapshots on ready/resume/disconnect and accepted incoming messages. This is Gateway heartbeat round-trip latency, not message delivery latency. Unavailable readings are `null`; there is no continuous heartbeat log spam.
 
-Saved diagnostics use timestamped event names followed by JSON fields; saved transcripts remain timestamped JSON records. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
+Discord event payloads preserve timestamped names and JSON fields/records as original bytes in SQLite; server/model events use their own stream. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
 
 Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 

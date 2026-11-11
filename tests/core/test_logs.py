@@ -53,28 +53,33 @@ class LogTests(unittest.TestCase):
         for number, (_, text) in (a | b).items():
             self.assertEqual(text, lines[number-1])
 
-    def test_two_viewers_read_saved_files_and_stop(self):
+    def test_two_database_viewers_stop_when_session_ends(self):
+        import sys
+        sys.path.insert(0, str(ROOT / 'src/marionette'))
+        from storage import Store
         with tempfile.TemporaryDirectory() as directory:
-            owner = subprocess.Popen(['sleep', '0.4'])
+            path = Path(directory) / 'logs.sqlite3'
+            store = Store(path)
+            session = store.start()
+            store.event(session, 'diagnostic', b'initial\n')
             viewers = []
             try:
                 for view in ['server', 'model']:
-                    path = Path(directory) / (view + '.txt')
-                    path.write_text('[event 00000001] initial\n')
-                    viewers.append(subprocess.Popen(['bash', str(ROOT / 'scripts/native-linux/view-log.sh'), str(path), str(owner.pid), view], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
-                    with path.open('a') as out:
-                        out.write('[event 00000002] appended\n')
-                owner.wait(timeout=3)
+                    viewers.append(subprocess.Popen(['bash', str(ROOT / 'scripts/native-linux/view-log.sh'), str(path), session, view], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True))
+                store.event(session, 'diagnostic', b'appended\n')
+                store.end(session)
                 for process in viewers:
-                    stdout, stderr = process.communicate('\n', timeout=3)
+                    stdout, stderr = process.communicate('\n', timeout=5)
                     self.assertEqual(process.returncode, 0, stderr)
                     self.assertIn('initial', stdout)
                     self.assertIn('appended', stdout)
                     self.assertIn('Chat ended.', stdout)
-                self.assertEqual(len(list(Path(directory).iterdir())), 2)
             finally:
-                if owner.poll() is None:
-                    owner.kill(); owner.wait()
+                store.close()
                 for process in viewers:
                     if process.poll() is None:
                         process.kill(); process.wait()
+
+
+if __name__ == '__main__':
+    unittest.main()

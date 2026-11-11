@@ -13,9 +13,10 @@ from commands import execute_clear, recognize
 
 class Conversation:
     """One history per terminal profile or Discord sender; one generation at a time."""
-    def __init__(self, api, capacity, profiles=None, terminal_profile=None, characters=None):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None, characters=None, store=None, session_id=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.characters = characters
+        self.store, self.session_id = store, session_id
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
         self.reserve = min(32768, capacity // 2)
@@ -59,14 +60,14 @@ class Conversation:
         with self.lock:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
-                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id)
+                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier)
             if recognize(message, source) != 'clear':
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             return result
 
-    def _turn(self, message, *, on_delta, source, sender_id):
+    def _turn(self, message, *, on_delta, source, sender_id, identifier):
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
         identity = None
@@ -83,8 +84,15 @@ class Conversation:
         diagnostics.log('Message input: ' + json.dumps(message, ensure_ascii=False))
         if identity is not None:
             identity['conversation_id'] = self.key
+        def save(role, kind, content, status):
+            if self.store is not None:
+                self.store.message(self.session_id, identifier, self.key, identity, source,
+                                   sender_id, role, kind, content, status)
+        save('user', 'input', message, 'received')
         if recognize(message, source) == 'clear':
-            return execute_clear(self, identity), 'stop'
+            answer = execute_clear(self, identity)
+            save('assistant', 'notice', answer, 'stop')
+            return answer, 'stop'
         if self.characters is not None:
             if identity is None:
                 raise ValueError('Character profiles require a resolved sender identity.')
@@ -103,9 +111,21 @@ class Conversation:
         if removed:
             diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
         # The caller decides how streamed reasoning and answers are displayed.
-        answer, finish = self.api.reply(candidate, self.reserve, on_delta=on_delta)
+        reasoning = []
+        def record_delta(kind, text):
+            if kind == 'reasoning':
+                reasoning.append(text)
+            if on_delta is not None:
+                on_delta(kind, text)
+        finish = 'interrupted'
+        try:
+            answer, finish = self.api.reply(candidate, self.reserve, on_delta=record_delta if self.store is not None else on_delta)
+        finally:
+            if reasoning:
+                save('assistant', 'reasoning', ''.join(reasoning), finish)
         if not answer.strip():
             raise RuntimeError('Model produced no final answer.')
         diagnostics.log(f'Reply completed: finish_reason={finish}.')
+        save('assistant', 'answer', answer, finish)
         self.history = candidate + [{'role': 'assistant', 'content': answer}]
         return answer, finish

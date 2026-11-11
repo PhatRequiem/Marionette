@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import sqlite3  # Required by local conversation/log storage; fail early if unavailable.
 import subprocess
 import tarfile
 import tempfile

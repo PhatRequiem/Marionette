@@ -15,3 +15,6 @@ if [[ ! -f "$ROOT/data/discord/.env" ]]; then
 fi
 chmod 600 "$ROOT/data/discord/.env"
 printf 'Discord dependencies installed. Fill in data/discord/.env, then run ./scripts/native-linux/discord.sh\n'
+
+# Storage uses Python's standard-library SQLite module, with no pip dependency.
+"$ROOT/runtime/discord/bin/python" -c 'import sqlite3; print("SQLite available:", sqlite3.sqlite_version)'

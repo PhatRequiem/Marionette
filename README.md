@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves dated chat and diagnostic text files locally. Previous logs are not loaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations and diagnostic events in local SQLite. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -18,7 +18,7 @@ Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 
 
 The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
-See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
+See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
 
 Terminal profiles and linked accounts use permanent person UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Each Discord DM and the terminal have separate histories. Linked accounts share the person’s character notes, not their message history. The main terminal displays all activity.
 
@@ -43,8 +43,9 @@ Start with these files, in order:
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional human one-to-one DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
+| [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
-| [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
+| [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |
 | [log_snapshot.py](src/marionette/log_snapshot.py) | Standalone [on-demand message diagnostics](docs/log-snapshots.md); not connected to the model |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
@@ -64,10 +65,10 @@ Start with these files, in order:
 - `docs/ideas/`: [discussion-only ideas](docs/ideas/README.md), separate from approved work and current behavior.
 - `docs/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/setup.md#shared-inference-runtime).
-- `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
+- `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
 - `data/characters/`: private Markdown character notes, one file per person UUID; ignored by Git.
-- `data/session/`: private socket for optional connections to the running chat; ignored by Git.
+- `data/session/`: private socket and current logging-session descriptor; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
@@ -85,10 +86,10 @@ Keep inactive material separate from current files:
 
 | Folder | Contents |
 |---|---|
-| `data/conversations/archive/` | Completed sessions moved out of the current log listing |
+| `data/conversations/archive/` | Optional manually retained private exports or backups |
 | `docs/archive/` | Retired guides; current guides remain directly under `docs/` |
 | `visual design/archive/` | Superseded visual references |
 
-Archiving is manual; nothing is automatically moved or deleted. Move all related session files together only after chat and Discord have stopped. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
+Archiving is manual; nothing is automatically moved or deleted. For the current SQLite database, use the [backup procedure](docs/storage.md#backup-and-restore); do not move a live database or separate its WAL/SHM sidecars. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
 
 Use Git history for retired source, scripts, and tests; do not keep duplicate old code in the active tree. Experiment reports stay under `docs/experiments/`. Runtime versions already have versioned directories; keep the manifest-selected runtime in place. Archives on the same disk are not backups.

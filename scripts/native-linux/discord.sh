@@ -9,8 +9,18 @@ PYTHON="$ROOT/runtime/discord/bin/python"
 umask 077
 exec 9>"$ROOT/data/discord/.connection.lock"
 flock -n 9 || { echo 'Discord is already connected.' >&2; exit 1; }
-LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$(mktemp "$LOG_DIR/$(date +%Y-%m-%d_%H-%M-%S)_XXXXXX-discord.txt")"
-printf 'Discord log: %s\nCtrl+C disconnects Discord; main chat keeps running.\n' "$LOG_FILE"
-"$PYTHON" -u "$ROOT/src/marionette/discord_bot.py" 2>&1 | tee -a "$LOG_FILE" | "$PYTHON" -u "$ROOT/src/marionette/log_view.py" discord
+# Use the main session's database, even when its log directory was overridden.
+mapfile -t LOG_INFO < <("$PYTHON" - "$ROOT/data/session/log-session.json" <<'PYTHON'
+import json, sys
+from pathlib import Path
+info = json.loads(Path(sys.argv[1]).read_text())
+print(info['database'])
+print(info['session'])
+PYTHON
+)
+(( ${#LOG_INFO[@]} == 2 )) || { echo 'Cannot read main chat logging session.' >&2; exit 1; }
+printf 'Discord logs: %s\nSession: %s\nCtrl+C disconnects Discord; main chat keeps running.\n' "${LOG_INFO[0]}" "${LOG_INFO[1]}"
+# Ignore terminal Ctrl+C in the recorder/viewer so they drain the bot's final output.
+"$PYTHON" -u "$ROOT/src/marionette/discord_bot.py" 2>&1 | \
+    (trap '' INT; exec "$PYTHON" -u "$ROOT/src/marionette/storage.py" "${LOG_INFO[0]}" capture "${LOG_INFO[1]}" discord) | \
+    (trap '' INT; exec "$PYTHON" -u "$ROOT/src/marionette/log_view.py" discord)

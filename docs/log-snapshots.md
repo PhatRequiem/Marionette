@@ -7,7 +7,7 @@ prepares the extraction code for testing before any model connection is approved
 
 ## Run it
 
-From the checkout, supply matching diagnostic files from one session, the full
+First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. From the checkout, supply matching exported diagnostic files from one session, the full
 message ID, and the conversation ID shown in that message's log section:
 
 ```bash

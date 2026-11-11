@@ -1,5 +1,8 @@
 """Attach/detach Discord to a synthetic running terminal session; no Discord login."""
 import importlib.util
+import io
+import json
+from contextlib import closing
 from pathlib import Path
 import shutil
 import subprocess
@@ -75,7 +78,13 @@ raise SystemExit(adapter.main())
 """))
         address = root / 'data/session/chat.sock'
         address.parent.mkdir(mode=0o700)
-        env = fixture.env | {'MARIONETTE_SESSION_SOCKET': str(address)}
+        from storage import Store, view_log
+        database = fixture.logs / 'marionette.sqlite3'
+        with closing(Store(database)) as store:
+            session_id = store.start()
+        (address.parent / 'log-session.json').write_text(json.dumps({'database': str(database), 'session': session_id}))
+        env = fixture.env | {'MARIONETTE_SESSION_SOCKET': str(address),
+                             'MARIONETTE_LOG_DB': str(database), 'MARIONETTE_LOG_SESSION': session_id}
         output_path = root / 'terminal.txt'
         with output_path.open('w') as output:
             main = subprocess.Popen([str(ROOT / 'runtime/agent/bin/python'), str(source / 'session.py'), str(runtime)],
@@ -97,18 +106,24 @@ raise SystemExit(adapter.main())
                     self.assertIsNone(main.poll())
                     self.assertEqual(Path(f'/proc/{main.pid}/task/{main.pid}/children').read_text(), children)
                 self.assertFalse((root / 'viewer-calls.txt').exists())
-                logs = list(fixture.logs.glob('*-discord.txt'))
-                self.assertEqual(len(logs), 2)
-                for log in logs:
-                    self.assertIn('Synthetic reply.', log.read_text())
-                    self.assertNotIn('PRIVATE_THOUGHT', log.read_text())
-                    self.assertIn('\"channel_id\": \"789\"', log.read_text())
-                    self.assertIn('\"outgoing_message_id\": \"987\"', log.read_text())
-                    self.assertIn('\"main_queue_ms\":', log.read_text())
-                    self.assertNotIn('\"main_queue_ms\": null', log.read_text())
-                    self.assertNotIn('\"processing_ms\": null', log.read_text())
+                saved = io.BytesIO()
+                view_log(database, session_id, 'discord', saved)
+                log = saved.getvalue().decode()
+                self.assertFalse(list(fixture.logs.glob('*.txt')))
+                self.assertEqual(log.count('Discord answer delivered.'), 2)
+                self.assertIn('Synthetic reply.', log)
+                self.assertNotIn('PRIVATE_THOUGHT', log)
+                self.assertIn('"channel_id": "789"', log)
+                self.assertIn('"outgoing_message_id": "987"', log)
+                self.assertIn('"main_queue_ms":', log)
+                self.assertNotIn('"main_queue_ms": null', log)
+                self.assertNotIn('"processing_ms": null', log)
                 main.communicate('terminal still works\n/exit\n', timeout=10)
                 self.assertEqual(main.returncode, 0)
+                with closing(Store(database)) as store:
+                    rows = store.db.execute("SELECT source, kind, content FROM messages ORDER BY id").fetchall()
+                    self.assertTrue(any(r['source'] == 'discord' and r['kind'] == 'reasoning' and r['content'] == 'PRIVATE_THOUGHT' for r in rows))
+                    self.assertTrue(any(r['source'] == 'terminal' and r['kind'] == 'answer' for r in rows))
                 self.assertIn('[Discord · 123]\nSynthetic Discord hello', output_path.read_text())
                 self.assertIn('Reasoning:\nPRIVATE_THOUGHT', output_path.read_text())
                 self.assertIn('Answer:\nSynthetic reply.', output_path.read_text())
