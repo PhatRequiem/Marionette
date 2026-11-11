@@ -15,7 +15,7 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 ## Shared model storage
 
-Setup and chat both use `~/AI Local Models/Language/Qwen3.5-4B/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+Setup and chat both use `~/AI Local Models/Qwen/Qwen3.5/4B/Instruct/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
 
 To use a different library, set `MARIONETTE_MODELS_DIR` to its absolute root path for **both** setup and chat. Quote paths containing spaces:
 
@@ -27,9 +27,22 @@ python scripts/native-linux/setup.py
 
 Leave the variable unset to use the default home folder. Runtime binaries and their download archive stay inside the checkout; models are outside Git. Each project chooses its own model and settings even when sharing weights. Do not replace or move shared files while applications are using them.
 
-The November 10, 2026 local migration moved Q4 and retained BF16 out of `data/models/` into the shared model directory. Other projects' models and complete embedding folders were also moved into the library, with duplicate PhatKitty copies preserved under `Copies/PhatKitty/`. The local `migration-2026-11-10.json` records original paths, new paths, sizes, and verified SHA-256 hashes. Only Marionette's setup and launch paths were updated; other projects still need their own path updates. No compatibility links were created.
+The shared library is organized as `Provider/Family/Size/Variant/`, keeping original filenames. Provider means the original developer; conversion publishers are recorded separately in the library's `catalog.json`. The current layout is:
+
+```text
+Qwen/Qwen3.5/4B/Instruct/            Q4_K_M and BF16
+Qwen/Qwen3.5/9B/Instruct/            Q4_K_M
+Qwen/Qwen3-Embedding/0.6B/Embedding/ Q8_0
+BAAI/bge-en-v1.5/33.4M/Embedding/    BGE small ONNX and supporting files
+```
+
+`Instruct` is the local category for Qwen's post-trained chat/reasoning models, as described in the official [4B](https://huggingface.co/Qwen/Qwen3.5-4B) and [9B](https://huggingface.co/Qwen/Qwen3.5-9B) model cards; the official model names have no Instruct suffix. BGE's provider and size follow its [model card](https://huggingface.co/BAAI/bge-small-en-v1.5). No Base or Heretic variants are installed. Future variants can use those folders under the appropriate size, with modified models further separated by derivative author/model name. Keep distinct revisions and precision formats separate; BF16 and Q4 are different representations of the same post-trained model, not Base versus Instruct.
+
+The November 10, 2026 migration first moved the models out of their project folders and preserved duplicates. A subsequent checksum-verified cleanup removed four identical Q4 copies (10,963,751,552 bytes of duplicate file content), retained both Q4 and BF16, and applied the provider-based layout above. All embedding support files were preserved. The local `migration-2026-11-10.json` keeps the original move history; `organization-2026-11-10.json` records the later moves and duplicate removals; `catalog.json` lists current model paths, source repositories, known revisions, sizes, and checksums. `README.txt` explains the library layout. Only Marionette's configuration was updated; other projects still need their own path updates. No compatibility links were created.
 
 Migration verification: all 38 moved files (nine weight files plus supporting files) matched their before-move checksums. Marionette setup verified the existing runtime and shared Q4 without downloading replacements. All 54 automated checks passed (42 core, 12 mocked Discord), including default/custom library paths with spaces, along with shell syntax and diff checks. An isolated standard-launcher GPU session loaded the shared Q4, offloaded all 33 layers, used 65,536 context, answered `2 + 2` with `4`, and exited cleanly with its server stopped. It used temporary synthetic profiles and separate logs; this verifies loading and basic generation, not new quality, performance, or long-session claims. Model, runtime, and sampling settings did not change.
+
+After the provider-based reorganization, all retained files were reverified against their original checksums before deleting the four identical copies. Setup, all 54 automated checks, shell syntax, and diff checks passed again. A fresh isolated GPU session used `Qwen/Qwen3.5/4B/Instruct/`, answered `2 + 2 = 4`, and stopped cleanly. This follow-up changed only the manifest's model directory and documentation; launch commands and generation settings remain the same.
 
 Historical reports and the fixed `baseline-v3` tag still describe the previous checkout-local model paths. An old checkpoint's setup will use its old location; follow this guide for the current checkout. The retained BF16 file is not automatically downloaded by current setup. Back it up separately if wanted; moving models on the same disk is not a backup.
 
@@ -67,7 +80,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally alongside Q4 in `~/AI Local Models/Language/Qwen3.5-4B/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
+Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally alongside Q4 in `~/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
