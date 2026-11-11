@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 import sys
 import unittest
+import httpx
+from openai import OpenAI
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
@@ -17,11 +19,14 @@ class InferenceTests(unittest.TestCase):
             {'choices': [{'delta': {'reasoning_content': 'this.', 'content': 'An'}}]},
             {'choices': [{'delta': {'content': 'swer.'}, 'finish_reason': 'stop'}]},
         ]
-        stream = io.BytesIO((''.join('data: ' + json.dumps(e) + '\n\n' for e in events)
-                             + 'data: [DONE]\n\n').encode())
+        payload = (''.join('data: ' + json.dumps(e) + '\n\n' for e in events)
+                   + 'data: [DONE]\n\n').encode()
+        sdk = OpenAI(base_url='http://127.0.0.1:1/v1', api_key='EMPTY',
+            http_client=httpx.Client(transport=httpx.MockTransport(lambda request:
+                httpx.Response(200, headers={'content-type': 'text/event-stream'}, content=payload))))
         api = API('http://127.0.0.1:1')
         received = []
-        with patch.object(api, 'open', return_value=stream), patch('diagnostics.log'), patch('sys.stdout', new_callable=io.StringIO) as output:
+        with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log'), patch('sys.stdout', new_callable=io.StringIO) as output:
             result = api.reply([{'role': 'user', 'content': 'Test'}], 100,
                                on_delta=lambda phase, text: received.append((phase, text)))
         self.assertEqual(received, [('reasoning', 'Check '), ('reasoning', 'this.'),

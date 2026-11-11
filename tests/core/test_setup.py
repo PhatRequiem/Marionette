@@ -68,7 +68,7 @@ class SetupTests(unittest.TestCase):
         for override in ['', str(self.root / 'custom model library')]:
             with self.subTest(override=override), patch.dict(os.environ, MARIONETTE_MODELS_DIR=override, MARIONETTE_APPS_DIR=override), \
                     patch.object(Path, 'home', return_value=home), patch.object(setup, 'ROOT', self.root), \
-                    patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime') as install_runtime:
+                    patch.object(setup.subprocess, 'run'), patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime') as install_runtime:
                 setup.install()
                 model = setup.MANIFEST['model']
                 expected_root = Path(override) if override else home / 'AI Infrastructure' / 'AI Local Models'
@@ -92,10 +92,12 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
+        (self.root / 'runtime').mkdir()
+        (self.root / 'runtime/agent').symlink_to(ROOT / 'runtime/agent', target_is_directory=True)
         self.home = self.root / 'synthetic home'
         self.runtime = self.home / 'AI Infrastructure/AI Apps' / manifest['runtime']['directory'] / 'test/bin/completion'
         runtime = self.runtime

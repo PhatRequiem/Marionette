@@ -16,6 +16,7 @@ class Conversation:
     def __init__(self, api, capacity, profiles=None, terminal_profile=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.api, self.capacity = api, capacity
+        self.api.capacity = capacity
         self.reserve = min(32768, capacity // 2)
         self.history = []
         self.pending = None

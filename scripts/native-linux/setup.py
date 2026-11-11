@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import platform
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import urllib.request
@@ -73,7 +74,7 @@ def install_runtime(archive, destination, executable_name):
 def main():
     if platform.system() != "Linux" or platform.machine() != "x86_64":
         raise SystemExit("This pinned runtime requires x86_64 Linux.")
-    required = ("bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date", "flock", "mkdir", "chmod")
+    required = ("uv", "bash", "script", "xdg-terminal-exec", "tail", "mktemp", "date", "flock", "mkdir", "chmod")
     missing = [command for command in required if shutil.which(command) is None]
     if missing:
         raise SystemExit("Install required system commands first: " + ", ".join(missing))
@@ -98,6 +99,7 @@ def install():
     models_root = Path(os.environ.get("MARIONETTE_MODELS_DIR") or Path.home() / "AI Infrastructure" / "AI Local Models").expanduser().resolve()
     model = MANIFEST["model"]
     download(model, models_root / model["directory"] / model["filename"])
+    subprocess.run(["bash", str(ROOT / "scripts/native-linux/setup-agent.sh")], check=True)
     print("Setup complete. Run ./scripts/native-linux/chat.sh", flush=True)
 
 

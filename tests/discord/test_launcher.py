@@ -78,7 +78,7 @@ raise SystemExit(adapter.main())
         env = fixture.env | {'MARIONETTE_SESSION_SOCKET': str(address)}
         output_path = root / 'terminal.txt'
         with output_path.open('w') as output:
-            main = subprocess.Popen([sys.executable, str(source / 'session.py'), str(runtime)],
+            main = subprocess.Popen([str(ROOT / 'runtime/agent/bin/python'), str(source / 'session.py'), str(runtime)],
                 stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT, env=env, text=True)
             try:
                 main.stdin.write('1\n')

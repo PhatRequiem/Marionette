@@ -2,7 +2,7 @@
 
 ## Requirements and repeatable installation
 
-Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer with tarfile extraction filters (Python 3.12+ recommended). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Logging also requires Bash, util-linux `script` and `flock` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands and extraction filters exist. The launcher also uses Python’s standard library to read runtime/model paths from the manifest. The host already provided these; no system packages or services were installed.
+Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer with tarfile extraction filters (Python 3.12+ recommended). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Setup also requires `uv` to install the hash-locked Qwen-Agent environment under `runtime/agent/`. Logging also requires Bash, util-linux `script` and `flock` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands and extraction filters exist. The launcher also uses Python’s standard library to read runtime/model paths from the manifest. The host already provided these; no system packages or services were installed.
 
 ```bash
 python scripts/native-linux/setup.py
@@ -116,8 +116,10 @@ Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co
 
 ## Verification
 
-Run `python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. See the [current baseline](baseline.md) for both test suites and verification boundaries.
+Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. See the [current baseline](baseline.md) for both test suites and verification boundaries.
 
 The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 
 For the current weight format and smoke-test result, see [Q4 return verification](experiments/q4-return.md). [BF16 measurements](experiments/bf16-switch.md) and earlier Q4 experiments are historical.
+
+Current tool-coordination setup and verification are documented in [Qwen-Agent coordination](qwen-agent.md). The shared runtime/model paths and sampling settings are unchanged.

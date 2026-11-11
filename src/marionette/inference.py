@@ -5,14 +5,25 @@ import threading
 import urllib.error
 import urllib.request
 
+import httpx
+from openai import OpenAI, OpenAIError
+from qwen_agent.llm.base import ModelServiceError
+from qwen_agent.llm.oai import TextChatAtOAI
+from qwen_agent.llm.schema import Message
+from qwen_agent.tools.base import ToolServiceError
+
+from coordination import Coordinator
+
 import diagnostics
 
 
 class API:
-    def __init__(self, address):
+    def __init__(self, address, *, tools=()):
         self.address = address
         self.closing = threading.Event()
         self.worker = None
+        self.capacity = 65536
+        self.tools = tuple(tools)
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -34,9 +45,11 @@ class API:
             raise RuntimeError(str(result['error']))
         return result
 
-    @staticmethod
-    def body(messages):
-        return {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
+    def body(self, messages):
+        body = {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
+        if self.tools:
+            body['tools'] = [{'type': 'function', 'function': tool.function} for tool in self.tools]
+        return body
 
     def tokenize(self, prompt):
         return self.json('/tokenize', {'content': prompt, 'add_special': True,
@@ -62,38 +75,71 @@ class API:
         diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve, *, on_delta=None):
-        body = self.body(messages) | {'stream': True, 'max_tokens': reserve,
-                                      'stream_options': {'include_usage': True}}
-        pieces, thoughts, finish = [], [], None
-        with self.open('/v1/chat/completions', body) as response:
-            for line in response:
+        # Qwen-Agent owns message conversion and streamed reasoning/answer assembly.
+        # Marionette owns exact context fitting; disable the framework's rough trimming.
+        model = TextChatAtOAI({'model': 'Qwen3.5-4B', 'model_server': self.address + '/v1',
+            'api_key': 'EMPTY', 'generate_cfg': {'use_raw_api': True, 'max_input_tokens': 0,
+                'max_retries': 0, 'seed': -1, 'max_tokens': reserve,
+                'stream_options': {'include_usage': True},
+                'extra_body': {'chat_template_kwargs': {'enable_thinking': True}}}})
+        coordinator = Coordinator(model, self.tools, self.closing)
+        finish = None
+        answer, reasoning = '', ''
+        # The framework drops finish/usage metadata. Observe SDK chunks without
+        # implementing another SSE parser, and reject incomplete generations.
+        with OpenAI(base_url=self.address + '/v1', api_key='EMPTY', max_retries=0,
+                    http_client=httpx.Client(trust_env=False, timeout=120)) as client:
+            def create(**kwargs):
+                nonlocal finish
                 if self.closing.is_set():
                     raise RuntimeError('Session is closing.')
-                if not line.startswith(b'data: '):
-                    continue
-                payload = line[6:].strip()
-                if payload == b'[DONE]':
-                    if finish is None:
-                        raise RuntimeError('Response ended without a completion status.')
-                    if thoughts:
-                        diagnostics.log('Reasoning: ' + json.dumps(''.join(thoughts), ensure_ascii=False))
-                    return ''.join(pieces), finish
-                event = json.loads(payload)
-                if 'error' in event:
-                    raise RuntimeError(str(event['error']))
-                for choice in event.get('choices', []):
-                    delta = choice.get('delta', {})
-                    reasoning = delta.get('reasoning_content') or ''
-                    if reasoning:
-                        if on_delta is not None:
-                            on_delta('reasoning', reasoning)
-                        thoughts.append(reasoning)
-                    text = delta.get('content') or ''
-                    if text:
-                        if on_delta is not None:
-                            on_delta('answer', text)
-                        pieces.append(text)
-                    finish = choice.get('finish_reason') or finish
-                if event.get('usage'):
-                    diagnostics.log('Runtime usage: ' + json.dumps(event['usage']))
-        raise RuntimeError('Response stream closed early; partial reply was not kept.')
+                finish = None
+                requested_tool = False
+                # Qwen-Agent 0.0.34 emits legacy tool `id`/`extra` fields.
+                # Normalize its tool results to the OpenAI-compatible wire schema.
+                kwargs['messages'] = [
+                    {'role': 'tool', 'content': m['content'], 'tool_call_id': m['id']}
+                    if m['role'] == 'tool' else m for m in kwargs['messages']]
+                if self.tools:
+                    tokens = self.count(kwargs['messages'])
+                    if tokens + reserve >= self.capacity:
+                        raise ValueError('Tool request exceeds context budget; history is unchanged.')
+                    diagnostics.log(f'Tool-loop prompt budget: {tokens} tokens + {reserve} reply allowance < {self.capacity}.')
+                with client.chat.completions.create(**kwargs) as response:
+                    for chunk in response:
+                        if self.closing.is_set():
+                            raise RuntimeError('Session is closing.')
+                        for choice in chunk.choices:
+                            requested_tool = requested_tool or bool(choice.delta.tool_calls)
+                            if choice.delta.tool_calls and not self.tools:
+                                raise RuntimeError('Tools are not enabled in this integration.')
+                            finish = choice.finish_reason or finish
+                        if chunk.usage:
+                            diagnostics.log('Runtime usage: ' + json.dumps(chunk.usage.model_dump()))
+                        yield chunk
+                # Reject interrupted/truncated tool requests before the agent executes them.
+                if finish not in ('stop', 'length', 'tool_calls') or (requested_tool and finish != 'tool_calls'):
+                    raise RuntimeError('Response ended without a completion status; partial reply was not kept.')
+            # Adapter point in pinned Qwen-Agent 0.0.34; covered by HTTP-boundary tests.
+            model._chat_complete_create = create
+            try:
+                for response in coordinator.run(messages=[Message(**m) for m in messages]):
+                    thought = ''.join(m.reasoning_content or '' for m in response)
+                    last_tool = max((i for i, m in enumerate(response) if m.role == 'function'), default=-1)
+                    text = ''.join(m.content or '' for m in response[last_tool + 1:]
+                                   if m.role == 'assistant' and not m.function_call)
+                    if on_delta is not None:
+                        if thought[len(reasoning):]:
+                            on_delta('reasoning', thought[len(reasoning):])
+                        if not self.tools and text[len(answer):]:
+                            on_delta('answer', text[len(answer):])
+                    answer, reasoning = text, thought
+            except (OpenAIError, ModelServiceError, ToolServiceError, httpx.HTTPError) as error:
+                raise RuntimeError(f'Local model/tool request failed: {error}') from error
+        if finish not in ('stop', 'length') or any(m.function_call for m in response[last_tool + 1:]):
+            raise RuntimeError('Response ended without a completion status; partial reply was not kept.')
+        if reasoning:
+            diagnostics.log('Reasoning: ' + json.dumps(reasoning, ensure_ascii=False))
+        if self.tools and answer and on_delta is not None:
+            on_delta('answer', answer)
+        return answer, finish

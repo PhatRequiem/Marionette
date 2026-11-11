@@ -2,6 +2,8 @@
 
 Follow these steps in order. Launch the main chat first, then choose any optional connections you want to use.
 
+If this checkout needs its Qwen-Agent dependencies installed, run `./scripts/native-linux/setup-agent.sh` once first. Full installation is covered in [setup](docs/setup.md).
+
 ## 1. Launch her — required
 
 Open a terminal and run:
