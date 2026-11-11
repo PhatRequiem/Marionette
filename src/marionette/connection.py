@@ -6,6 +6,8 @@ from pathlib import Path
 import socketserver
 import threading
 
+import diagnostics
+
 MAX_REQUEST = 1024 * 1024
 
 
@@ -16,6 +18,7 @@ class LocalConnection:
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self):
+                message_id = None
                 self.connection.settimeout(10)
                 try:
                     raw = self.rfile.readline(MAX_REQUEST + 1)
@@ -29,18 +32,19 @@ class LocalConnection:
                     if (not isinstance(sender_id, str) or not sender_id.isascii()
                             or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
                         raise ValueError('A numeric Discord sender ID is required.')
-                    log(f'Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
+                    message_id = diagnostics.message_id(request.get('message_id'))
+                    log(f'[message {message_id}] Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
                     timings = {}
-                    answer, finish = turn(message, sender_id=sender_id, timings=timings)
-                    log('Discord answer: ' + json.dumps(answer, ensure_ascii=False))
+                    answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id)
+                    log(f'[message {message_id}] Discord answer: ' + json.dumps(answer, ensure_ascii=False))
                     result = {'answer': answer, 'finish': finish, 'timings': timings}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
-                    log(f'Discord local request failed: {error}')
+                    log(f'[message {message_id or "unassigned"}] Discord local request failed: {error}')
                     result = {'error': 'Local chat could not finish this turn; check model logs.'}
                 try:
                     self.wfile.write((json.dumps(result) + '\n').encode())
                 except OSError:
-                    log('Discord disconnected before receiving the result; completed history is retained.')
+                    log(f'[message {message_id or "unassigned"}] Discord disconnected before receiving the result; completed history is retained.')
 
         class Server(socketserver.ThreadingUnixStreamServer):
             daemon_threads = True
@@ -60,11 +64,11 @@ class LocalConnection:
         self.path.unlink(missing_ok=True)
 
 
-async def request(address, message, sender_id):
+async def request(address, message, sender_id, *, message_id=None):
     """No generation timeout: a 32K thinking response can legitimately take minutes."""
     reader, writer = await asyncio.open_unix_connection(str(address), limit=4 * MAX_REQUEST)
     try:
-        payload = (json.dumps({'message': message, 'sender_id': str(sender_id)}) + '\n').encode()
+        payload = (json.dumps({'message': message, 'sender_id': str(sender_id), 'message_id': message_id}) + '\n').encode()
         if len(payload) > MAX_REQUEST:
             raise ValueError('Message is too large for the local connection.')
         writer.write(payload)

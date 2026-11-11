@@ -104,8 +104,12 @@ class DiagnosticView:
             self.kind, self.role = 'data', None
             return 'muted'
         text = line.removeprefix('    | ').lstrip()
+        text = re.sub(r'^Client: \[message [^\]]+\] ', 'Client: ', text)
+        if text.startswith('Client: ========== MESSAGE'):
+            self.kind = 'meta'
+            return self.kind
         if re.match(r'\d[\d.]*\s+E\s', text) or text.startswith(('Client: Request failed:',
-                'Client: Discord local request failed:', 'Client: Client error:')):
+                'Client: Discord local request failed:', 'Client: Client error:', 'Client: Message failed:')):
             self.kind = 'error'
         elif re.match(r'\d[\d.]*\s+W\s', text):
             self.kind = 'warning'
@@ -113,7 +117,7 @@ class DiagnosticView:
             self.kind = 'timing'
         elif re.match(r'\d[\d.]*\s+[IDT]\s+.*\b(?:n_ctx|n_ctx_seq|n_tokens|n_predict)\s*[=:]', text):
             self.kind = 'tokens'
-        elif text.startswith('Client: Discord input'):
+        elif text.startswith(('Client: Discord input', 'Client: Message input:')):
             self.kind = 'input'
         elif text.startswith('Client: Discord answer:'):
             self.kind = 'reply'
@@ -162,14 +166,14 @@ def numeric_fields(text, colored):
 def diagnostic_row(line, kind, colored):
     # Split headings from content without changing any saved character.
     text = line.rstrip('\n')
-    match = re.match(r'(    \| Client: Discord input \[)([0-9]+)(\]: )(.*)', text)
+    match = re.match(r'(    \| Client: (?:\[message [^\]]+\] )?Discord input \[)([0-9]+)(\]: )(.*)', text)
     if match:
         return (paint(match[1], 'meta', colored) + paint(match[2], 'ids', colored)
                 + paint(match[3], 'meta', colored) + paint(match[4], 'input', colored))
-    match = re.match(r'(    \| (?:Client: Discord answer: |"content"\s*:))(.*)', text)
+    match = re.match(r'(    \| (?:Client: (?:\[message [^\]]+\] )?Discord answer: |"content"\s*:))(.*)', text)
     if match and kind == 'reply':
         return paint(match[1], 'answer_heading', colored) + paint(match[2], 'reply', colored)
-    match = re.match(r'(    \| (?:Client: Reasoning: |"reasoning_content"\s*:))(.*)', text)
+    match = re.match(r'(    \| (?:Client: (?:\[message [^\]]+\] )?Reasoning: |"reasoning_content"\s*:))(.*)', text)
     if match:
         return paint(match[1], 'reasoning_heading', colored) + paint(match[2], 'data', colored)
     match = re.match(r'(    \|\s*"[^"\n]+"\s*:)(.*)', text)

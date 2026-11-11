@@ -141,7 +141,7 @@ class DMChat(discord.Client):
             return
         received = datetime.datetime.now(datetime.timezone.utc)
         started = time.monotonic()
-        context = {'message_id': str(message.id), 'sender_id': str(message.author.id),
+        context = {'message_id': str(message.id), 'log_message_id': f'discord:{message.id}', 'sender_id': str(message.author.id),
                    'channel_id': str(message.channel.id)}
         log('Discord message received.', **context, created_at=message.created_at.isoformat(),
             received_at=received.isoformat(),
@@ -153,22 +153,26 @@ class DMChat(discord.Client):
                 return
             self.last_message_ids[message.channel.id] = message.id
             log('Discord turn started.', **context, adapter_queue_ms=elapsed(started))
+            log('========== MESSAGE START | Discord delivery ==========', **context)
+            outcome = 'interrupted'
             phase = 'input'
             local_start = None
             try:
                 if message.attachments or message.stickers:
+                    outcome = 'unsupported'
                     await self.send_parts(message.channel,
                         'Text only for now; please send your message without attachments.', context, kind='notice')
                     return
                 text = message.content.strip()
                 if not text:
+                    outcome = 'ignored'
                     log('Discord empty message ignored.', **context)
                     return
                 transcript('user', text, **context)
                 async with message.channel.typing():
                     phase = 'local_response'
                     local_start = time.monotonic()
-                    result = await request(self.address, text, message.author.id)
+                    result = await request(self.address, text, message.author.id, message_id=context['log_message_id'])
                     answer, finish = result['answer'], result['finish']
                     timings = result.get('timings', {})
                     log('Local response completed.', **context, local_response_ms=elapsed(local_start),
@@ -178,11 +182,13 @@ class DMChat(discord.Client):
                     phase = 'delivery'
                     await self.send_parts(message.channel, answer, context)
                 log('Discord answer delivered.', **context, total_ms=elapsed(started))
+                outcome = 'delivered'
                 if finish == 'length':
                     phase = 'notice'
                     await self.send_parts(message.channel,
                         '[Reasoning and answer reached their shared token allowance.]', context, kind='notice')
             except (OSError, ValueError, RuntimeError, discord.HTTPException) as error:
+                outcome = 'failed'
                 log('Discord turn failed; delivery may be partial; no automatic resend.',
                     **context, phase=phase, total_ms=elapsed(started),
                     local_response_ms=elapsed(local_start) if phase == 'local_response' and local_start else None,
@@ -193,6 +199,8 @@ class DMChat(discord.Client):
                         context, kind='error_notice')
                 except (OSError, discord.HTTPException):
                     pass  # send_parts has already recorded the failure and codes.
+            finally:
+                log('========== MESSAGE END | Discord delivery ==========', **context, outcome=outcome)
 
 
 def main():

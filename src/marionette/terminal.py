@@ -5,7 +5,6 @@ import select
 import sys
 import time
 
-import diagnostics
 from commands import HELP_TEXT, recognize
 from style import COLORS, enabled, paint
 
@@ -69,7 +68,7 @@ def show_ready(capacity, reserve):
 
 def display_discord(conversation):
     try:
-        message, sender_id, future, queued_at, timings = conversation.incoming.get_nowait()
+        message, sender_id, future, queued_at, timings, message_id = conversation.incoming.get_nowait()
     except queue.Empty:
         return False
     processing_start = time.monotonic()
@@ -86,7 +85,7 @@ def display_discord(conversation):
     print(f'{message}\n', flush=True)
     color('data')
     try:
-        answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id))
+        answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id)
         if recognize(message, 'discord') == 'clear':
             color('meta')
             print(answer)
@@ -161,7 +160,6 @@ def run(conversation, *, external=False):
                 print('[Reasoning and answer reached their shared token allowance.]')
                 color('data')
         except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
-            diagnostics.log(f'Request failed: {error}')
             color('error')
             print(f'\n{error}\nConversation history is unchanged; you can retry.')
             color('data')

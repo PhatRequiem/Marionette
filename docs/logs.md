@@ -46,6 +46,54 @@ The Discord view expands JSON message text into readable blocks and shows every 
 There is no third raw debug file or filtered temporary log. The launcher waits for the router to finish writing before exiting. Older `-debug.txt` files remain untouched. Export all three matching chat files and any associated Discord connection files together; nothing automatically deletes or rotates them.
 
 
+## Message IDs and section boundaries
+
+New messages handled by main chat carry a log-only correlation ID. Terminal turns
+use `local:<UUID>`; Discord uses `discord:<incoming-message-id>` through the
+adapter, local socket, queue, model/tool processing, and delivery. The Discord
+log keeps its original numeric `message_id` and adds `log_message_id` for matching
+main diagnostics. Older callers without an ID receive a local UUID.
+
+Both main diagnostic files show prominent boundaries, for example:
+
+```text
+Client: [message discord:123456] ========== MESSAGE START | processing ==========
+Client: [message discord:123456] Conversation selected: discord:789.
+Client: [message discord:123456] Message input: "Hello"
+Client: [message discord:123456] Prompt budget: ...
+Client: [message discord:123456] Reply completed: finish_reason=stop.
+Client: [message discord:123456] ========== MESSAGE END | processing | completed ==========
+```
+
+These lines still receive the usual event numbers and receipt timestamps. Client
+records inside processing, including tool events, usage, and failures, carry the
+same ID. An end marker says `completed`, `failed`, or `interrupted`; failed input
+does not enter conversation history. `/clear` also gets boundaries. Local `/help`,
+`/exit`, and blank input do not create model-processing sections.
+
+Between-turn cache preparation has its own start/end section with the triggering
+message's ID. Its end says `finished`; any preparation failure or shutdown is
+recorded inside that section, and existing history-preservation behavior remains
+unchanged. Preparation finishes before the next processing section starts.
+Discord has separate delivery boundaries and an outcome, since successful model
+processing does not guarantee successful delivery. Search the full correlation
+ID across the matching session files to follow a message.
+
+Raw llama.cpp lines retain their original bytes and runtime task identifiers;
+they are not individually stamped with the application message ID. They appear
+among these boundaries in receipt order, which does not prove exact attribution
+for delayed runtime output or unrelated connection events. Session-wide events
+remain outside message scopes. A crash or forced process kill can leave a start
+without an end; that is incomplete evidence, not a successful turn.
+
+No snapshot/retrieval tool or new log file is added, and these IDs are not supplied
+to the model or saved in conversation history. Existing logs are not rewritten.
+Restart main chat and reconnect Discord to use the updated logging together.
+
+Verification uses synthetic messages: unique terminal IDs, success/failure
+boundaries, preparation separation, correlation through the real local socket
+and queue, shared-file routing, viewer colors, and mocked Discord delivery.
+
 ## Log storage and recovery
 
 Keep the existing `data/conversations/` folder when updating or reinstalling. To restore logs, copy the backed-up `.txt` files (and any historical `-setup.json` files) for each session into that directory without overwriting newer files. Restoring files does not restore model context. A byte-for-byte copy and restore of a synthetic transcript is checked separately from inference; no cross-database migration is applicable.

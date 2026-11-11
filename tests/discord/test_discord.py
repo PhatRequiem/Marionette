@@ -58,8 +58,8 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         profiles = Profiles(Path(temporary.name) / 'profiles.json')
         profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
-        async def request(address, text, sender_id):
-            answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id))
+        async def request(address, text, sender_id, *, message_id=None):
+            answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id), message_id=message_id)
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)
@@ -67,6 +67,17 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.events = patch.object(bot, 'log').start()
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
+
+    async def test_message_log_id_and_delivery_boundaries(self):
+        await self.client.on_message(message(number=7654))
+        self.assertEqual(self.request.call_args.kwargs['message_id'], 'discord:7654')
+        boundaries = [call for call in self.events.call_args_list if '========== MESSAGE' in call.args[0]]
+        self.assertEqual(len(boundaries), 2)
+        self.assertIn('MESSAGE START', boundaries[0].args[0])
+        self.assertIn('MESSAGE END', boundaries[1].args[0])
+        for call in boundaries:
+            self.assertEqual(call.kwargs['log_message_id'], 'discord:7654')
+        self.assertEqual(boundaries[-1].kwargs['outcome'], 'delivered')
 
     async def asyncTearDown(self):
         if self.conversation.pending:

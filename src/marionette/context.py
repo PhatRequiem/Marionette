@@ -23,12 +23,20 @@ def fit_history(history, message, count, capacity, reserve):
 
 class Preparation:
     """One worker; only the chat thread commits history after joining it."""
-    def __init__(self, api, history, capacity, reserve):
+    def __init__(self, api, history, capacity, reserve, *, message_id=None):
         self.history = history
-        self.thread = threading.Thread(target=self.work,
-                                       args=(api, capacity, reserve), daemon=True)
+        self.message_id = message_id
+        self.thread = threading.Thread(target=self.run,
+                                       args=(api, capacity, reserve, message_id), daemon=True)
         api.worker = self.thread
         self.thread.start()
+
+    def run(self, api, capacity, reserve, message_id):
+        if message_id is None:
+            self.work(api, capacity, reserve)
+        else:
+            with diagnostics.message_scope(message_id, 'cache preparation'):
+                self.work(api, capacity, reserve)
 
     def work(self, api, capacity, reserve):
         started = time.monotonic()
@@ -63,5 +71,6 @@ class Preparation:
         if self.thread.is_alive():
             started = time.monotonic()
             self.thread.join()
-            diagnostics.log(f'Preparation wait after input: {(time.monotonic() - started) * 1000:.2f} ms.')
+            prefix = f'[message {self.message_id}] ' if self.message_id else ''
+            diagnostics.log(prefix + f'Preparation wait after input: {(time.monotonic() - started) * 1000:.2f} ms.')
         return self.history

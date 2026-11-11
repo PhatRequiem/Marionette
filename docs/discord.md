@@ -50,7 +50,7 @@ Each Discord connection saves one additional dated `-discord.txt` file under `da
 The Discord log adds these diagnostics without additional Discord permissions:
 
 - Connection, disconnect, ready, and resumed events, with time disconnected when known.
-- Sender ID, DM channel ID, and incoming message ID on each turn; outgoing message IDs on successful sends. IDs are stored as strings to preserve precision.
+- Sender ID, DM channel ID, and incoming message ID on each turn; outgoing message IDs on successful sends. IDs are stored as strings to preserve precision. `log_message_id` links the same message to main processing diagnostics, with explicit start/end markers for delivery; see [message log boundaries](logs.md#message-ids-and-section-boundaries).
 - Discord's message creation time and local handler receipt time, recorded before waiting for the previous turn. `receipt_delay_ms` compares those clocks; it is not a precise network measurement and can be negative if clocks disagree.
 - `adapter_queue_ms`: waiting behind another Discord turn. `main_queue_ms`: waiting for main chat to pick up the request. `processing_ms`: local handling, including token counting, any rollover wait, and generation. `local_response_ms`: the complete local request, including main queue and connection overhead. These overlap; do not add all of them together.
 - `send_ms` for each part and the complete send, plus `total_ms` from local receipt through successful answer delivery. Discord library retries/rate-limit waits are included in send time.
