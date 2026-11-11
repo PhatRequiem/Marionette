@@ -8,8 +8,6 @@ import sys
 import tempfile
 import threading
 import unittest
-import httpx
-from openai import OpenAI
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -92,14 +90,11 @@ class ConnectionTests(unittest.TestCase):
             {'choices': [{'delta': {'reasoning_content': 'Private thinking.'}}]},
             {'choices': [{'delta': {'content': 'Final answer.'}, 'finish_reason': 'stop'}]},
         ]
-        payload = (''.join('data: ' + json.dumps(e) + '\n\n' for e in events)
-                   + 'data: [DONE]\n\n').encode()
-        sdk = OpenAI(base_url='http://127.0.0.1:1/v1', api_key='EMPTY',
-            http_client=httpx.Client(transport=httpx.MockTransport(lambda request:
-                httpx.Response(200, headers={'content-type': 'text/event-stream'}, content=payload))))
+        stream = io.BytesIO((''.join('data: ' + json.dumps(e) + '\n\n' for e in events)
+                             + 'data: [DONE]\n\n').encode())
         output = io.StringIO()
         result = []
-        with patch('inference.OpenAI', return_value=sdk), patch.object(api, 'count', return_value=10), \
+        with patch.object(api, 'open', return_value=stream), patch.object(api, 'count', return_value=10), \
              patch('diagnostics.log'), patch('sys.stdout', output), \
              patch.object(output, 'isatty', return_value=True), patch.dict(os.environ, {'TERM': 'xterm'}):
             worker = threading.Thread(target=lambda: result.append(

@@ -1,7 +1,0 @@
-# Core only: no RAG, GUI, MCP, or code-execution extras.
-qwen-agent==0.0.34
-# Imported by upstream 0.0.34 but absent from its minimal dependency list.
-numpy
-soundfile
-tqdm
-python-dateutil

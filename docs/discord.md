@@ -65,7 +65,7 @@ Credentials and logs are ignored by Git. Regenerate a token in Discord if it is 
 Run the core and optional transport checks separately:
 
 ```bash
-runtime/agent/bin/python -m unittest discover -s tests/core -v
+python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
 ```
 

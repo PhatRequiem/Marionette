@@ -4,7 +4,7 @@
 
 Reasoning is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate reasoning cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and final content in pink, logs completed reasoning, and retains only final content in conversation history.
 
-`conversation.py` owns history and serializes turns; `context.py` implements fitting and preparation. `inference.py` uses Qwen-Agent for responses and calls the local server directly for native template counting and cache preparation. Qwen-Agent rough history truncation is disabled; see [adapter details](qwen-agent.md). `terminal.py` handles user input and displays streamed reasoning/answers through a callback, so context and inference code have no terminal UI dependency.
+`conversation.py` owns history and serializes turns; `context.py` implements fitting and preparation. `inference.py` applies the native template and calls the local server. `terminal.py` handles user input and displays streamed reasoning/answers through a callback, so context and inference code have no terminal UI dependency.
 
 ## Between-turn preparation
 
@@ -30,6 +30,6 @@ The optional [Discord transport](discord.md) attaches to the running conversatio
 
 Each chat session saves `-chat.txt`, `-server.txt`, and `-model.txt`; each optional Discord connection also saves its own `-discord.txt`. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
-Run `runtime/agent/bin/python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
+Run `python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
 Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](experiments/q4-return.md). This switch does not change rollover policy.

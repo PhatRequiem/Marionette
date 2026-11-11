@@ -31,11 +31,6 @@ for source in commands.py inference.py context.py conversation.py terminal.py di
         exit 1
     fi
 done
-AGENT_PYTHON="$ROOT/runtime/agent/bin/python"
-if [[ ! -x "$AGENT_PYTHON" ]]; then
-    echo 'Run ./scripts/native-linux/setup-agent.sh first.' >&2
-    exit 1
-fi
 # The client owns server lifetime and structured messages.
 for arg in "$@"; do
     case "${arg%%=*}" in
@@ -118,7 +113,7 @@ done
 # Record terminal output (including echoed messages), not raw keystrokes.
 # Keep the launcher as parent of the separate viewer, not the recorder.
 # The coordinator keeps runtime diagnostics separate and prepares rollover between turns.
-printf -v RECORD_COMMAND '%q ' "$AGENT_PYTHON" -u "$ROOT/src/marionette/session.py" \
+printf -v RECORD_COMMAND '%q ' python -u "$ROOT/src/marionette/session.py" \
     "${COMMAND[@]}"
 RECORD_COMMAND+=' 2>&3 3>&-'
 SHELL=/bin/bash script --quiet --flush --return --echo always \
