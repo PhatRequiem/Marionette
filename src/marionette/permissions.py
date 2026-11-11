@@ -12,10 +12,10 @@ def require_command(command, identity, conversation_id):
 
 def require_reset(identity, profiles):
     if not identity or profiles is None or identity.get('contact_uuid') != profiles.data['owner_uuid']:
-        raise PermissionError('Access denied. The /resetmemory command is restricted to the owner.')
+        raise PermissionError('Access Denied')
     try:
         resolved = profiles.resolve(identity['source'], identity['sender_id'])
     except (KeyError, ValueError):
-        raise PermissionError('Access denied. Owner authorization could not be verified.') from None
+        raise PermissionError('Access Denied') from None
     if resolved['contact_uuid'] != profiles.data['owner_uuid']:
-        raise PermissionError('Access denied. The /resetmemory command is restricted to the owner.')
+        raise PermissionError('Access Denied')

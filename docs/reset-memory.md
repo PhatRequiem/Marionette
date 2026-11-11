@@ -2,7 +2,7 @@
 
 Send **`/resetmemory`** in the main terminal or a one-to-one Discord DM. Only the saved owner contact may run it. Discord authorization resolves the sending account against the saved owner mapping; typing an owner name in a message does not grant access. The local terminal profile selector remains identification, not a secure login.
 
-This is an application command, processed before model inference. It does not depend on the model agreeing to erase memory. `/clear` still clears only the originating conversation history and preserves saved memory and logs. There is no confirmation prompt for `/resetmemory`. Non-owners receive: “Access denied. The /resetmemory command is restricted to the owner.”
+This is an application command, processed before model inference. It does not depend on the model agreeing to erase memory. `/clear` still clears only the originating conversation history and preserves saved memory and logs. There is no confirmation prompt for `/resetmemory`. Non-owners receive: “Access Denied”
 
 ## What it resets
 

@@ -110,7 +110,7 @@ class MemoryResetTests(unittest.TestCase):
             convo.histories={'saved':[{'role':'user','content':'preserve'}]}
             with patch('memory_reset.reset_memory') as reset:
                 answer,finish=convo.turn('/resetmemory',source='discord',sender_id='999')
-                self.assertEqual(answer, 'Access denied. The /resetmemory command is restricted to the owner.')
+                self.assertEqual(answer, 'Access Denied')
                 reset.assert_not_called();api.reply.assert_not_called()
                 self.assertTrue(convo.histories['saved'])
             self.assertEqual(recognize('/resetmemory','discord'),'resetmemory')
