@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service, account, or personality file. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -12,7 +12,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [persistent identity and editable character sheet](docs/self-character.md) supply the system prompt; no setup report is supplied. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 
@@ -36,6 +36,7 @@ Start with these files, in order:
 | [inference.py](src/marionette/inference.py) | Local HTTP, exact budgets, cache preparation, and Qwen-Agent response adapter |
 | [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
 | [characters.py](src/marionette/characters.py) | Bounded Markdown character entries and current-person add/patch/remove tool |
+| [selfhood.py](src/marionette/selfhood.py) | Permanent self UUID, revisioned character sheet, and self-editing tool |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |
 | [permissions.py](src/marionette/permissions.py) | Restrict clearing to the sender’s own conversation |
@@ -70,6 +71,7 @@ Start with these files, in order:
 - `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
 - `data/characters/`: private Markdown character notes, one file per person UUID; ignored by Git.
+- `data/self/`: private self identity and character-sheet revision history; ignored by Git.
 - `data/session/`: private socket and current logging-session descriptor; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.

@@ -107,6 +107,8 @@ class ClientTests(unittest.TestCase):
         for capacity, expected in ((65536, 32768), (8192, 4096)):
             class FakeAPI:
                 closing = threading.Event()
+                def prepare(self, messages):
+                    self.prepared = messages
                 def count(self, messages):
                     return 10
                 def reply(self, messages, reserve, *, on_delta=None):
@@ -146,6 +148,8 @@ class ClientTests(unittest.TestCase):
             closing = threading.Event()
             def __init__(self):
                 self.sent = []
+            def prepare(self, messages):
+                self.prepared = messages
             def count(self, _):
                 return 30
             def reply(self, messages, reserve, *, on_delta=None):

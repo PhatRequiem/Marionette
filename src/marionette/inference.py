@@ -24,6 +24,7 @@ class API:
         self.worker = None
         self.capacity = 65536
         self.tools = tuple(tools)
+        self.system_prompt = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -45,7 +46,13 @@ class API:
             raise RuntimeError(str(result['error']))
         return result
 
+    def with_system(self, messages):
+        if self.system_prompt and (not messages or messages[0]["role"] != "system"):
+            return [{"role": "system", "content": self.system_prompt}] + messages
+        return messages
+
     def body(self, messages):
+        messages = self.with_system(messages)
         body = {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
         if self.tools:
             body['tools'] = [{'type': 'function', 'function': tool.function} for tool in self.tools]
@@ -75,6 +82,7 @@ class API:
         diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve, *, on_delta=None):
+        messages = self.with_system(messages)
         # Qwen-Agent owns message conversion and streamed reasoning/answer assembly.
         # Marionette owns exact context fitting; disable the framework's rough trimming.
         model = TextChatAtOAI({'model': 'Qwen3.5-4B', 'model_server': self.address + '/v1',

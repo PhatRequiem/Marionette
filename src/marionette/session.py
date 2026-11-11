@@ -18,6 +18,7 @@ from connection import LocalConnection
 from conversation import Conversation
 from identity import Profiles
 from characters import Characters
+from selfhood import Selfhood
 from inference import API
 from storage import Store
 
@@ -42,7 +43,11 @@ def chat(api, capacity, store=None, session_id=None):
     except EOFError:
         return
     terminal.show_profile(selected)
-    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'), store, session_id)
+    selfhood = Selfhood(data / 'self/identity.json')
+    api.tools = (selfhood.bind(api),)
+    api.prepare([])
+    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'),
+                                store, session_id, selfhood=selfhood)
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)

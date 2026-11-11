@@ -33,6 +33,8 @@ class Handler(BaseHTTPRequestHandler):
             self.respond({'prompt': json.dumps(body['messages'])})
         elif self.path == '/tokenize':
             self.respond({'tokens': list(range(len(body['content'].split())))})
+        elif self.path == '/completion':
+            self.respond({'timings': {}})
         elif self.path == '/v1/chat/completions':
             self.send_response(200)
             self.end_headers()
