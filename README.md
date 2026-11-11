@@ -45,6 +45,7 @@ Start with these files, in order:
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |
+| [log_snapshot.py](src/marionette/log_snapshot.py) | Standalone [on-demand message diagnostics](docs/log-snapshots.md); not connected to the model |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
 | [setup-agent.sh](scripts/native-linux/setup-agent.sh) | Install pinned Qwen-Agent dependencies for main chat |

@@ -86,8 +86,9 @@ for delayed runtime output or unrelated connection events. Session-wide events
 remain outside message scopes. A crash or forced process kill can leave a start
 without an end; that is incomplete evidence, not a successful turn.
 
-No snapshot/retrieval tool or new log file is added, and these IDs are not supplied
-to the model or saved in conversation history. Existing logs are not rewritten.
+These IDs are not supplied to the model or saved in conversation history.
+An optional [on-demand snapshot utility](log-snapshots.md) can read them for an
+operator; it is not connected to the model and creates no new log file. Existing logs are not rewritten.
 Restart main chat and reconnect Discord to use the updated logging together.
 
 Verification uses synthetic messages: unique terminal IDs, success/failure
