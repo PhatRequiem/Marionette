@@ -63,6 +63,18 @@ class SetupTests(unittest.TestCase):
             setup.install_runtime(archive, destination, 'bin/completion')
         self.assertEqual(executable.read_bytes(), b'changed')
 
+    def test_setup_uses_shared_model_library(self):
+        home = self.root / 'synthetic home'
+        for override in ['', str(self.root / 'custom model library')]:
+            with self.subTest(override=override), patch.dict(os.environ, MARIONETTE_MODELS_DIR=override), \
+                    patch.object(Path, 'home', return_value=home), patch.object(setup, 'ROOT', self.root), \
+                    patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime'):
+                setup.install()
+                model = setup.MANIFEST['model']
+                expected_root = Path(override) if override else home / 'AI Local Models'
+                self.assertEqual(download.call_args.args, (model, expected_root / model['directory'] / model['filename']))
+                self.assertFalse((self.root / 'data/models').exists())
+
 
 class LauncherTests(unittest.TestCase):
     def setUp(self):
@@ -77,22 +89,25 @@ class LauncherTests(unittest.TestCase):
         source.mkdir(parents=True)
         for name in ['commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'identity.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
-        manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'filename': 'test.gguf'}}
+        manifest = {'runtime': {'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
         runtime = self.root / 'runtime/llama.cpp/test/bin/completion'
         runtime.parent.mkdir(parents=True)
         runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/core/fake_server.py').read_text())
         runtime.chmod(0o755)
-        model = self.root / 'data/models/test.gguf'
+        self.home = self.root / 'synthetic home'
+        self.model = self.home / 'AI Local Models/Language/test/test.gguf'
+        model = self.model
         model.parent.mkdir(parents=True)
         model.write_bytes(b'synthetic')
+        (self.root / 'data').mkdir()
         tools = self.root / 'tools'
         tools.mkdir()
         viewer = tools / 'xdg-terminal-exec'
         viewer.write_text('#!/bin/sh\nprintf \'%s\\n\' "$*" >> "$VIEWER_CALLS"\nexit 2\n')
         viewer.chmod(0o755)
         self.logs = self.root / 'private logs'
-        self.env = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb', VIEWER_CALLS=str(self.root / 'viewer-calls.txt'))
+        self.env = dict(os.environ, HOME=str(self.home), MARIONETTE_MODELS_DIR='', PATH=str(tools) + os.pathsep + os.environ['PATH'], MARIONETTE_LOG_DIR=str(self.logs), TERM='dumb', VIEWER_CALLS=str(self.root / 'viewer-calls.txt'))
         self.launcher = scripts / 'chat.sh'
 
     def run_chat(self, *args):
@@ -114,6 +129,7 @@ class LauncherTests(unittest.TestCase):
             debug = chat.with_name(chat.name.replace('-chat.txt', '-model.txt'))
             self.assertIn('Synthetic reply.', chat.read_text())
             self.assertIn(payload, debug.read_text())
+            self.assertIn(str(self.model), debug.read_text())
             self.assertNotIn('synthetic diagnostic', chat.read_text())
             self.assertIn('synthetic diagnostic', debug.read_text())
             self.assertIn('Exit status: 0', debug.read_text())
@@ -148,6 +164,17 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn('synthetic runtime', result.stdout)
         self.assertFalse(self.logs.exists())
+
+    def test_custom_shared_library_with_spaces(self):
+        library = self.root / 'custom model library'
+        target = library / 'Language/test/test.gguf'
+        target.parent.mkdir(parents=True)
+        self.model.rename(target)
+        self.env['MARIONETTE_MODELS_DIR'] = str(library)
+        result = self.run_chat()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(str(target), next(self.logs.glob('*-model.txt')).read_text())
+        self.assertFalse((self.root / 'data/models').exists())
 
     def test_missing_source_fails_before_creating_logs(self):
         (self.root / 'src/marionette/session.py').unlink()

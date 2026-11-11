@@ -14,7 +14,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). The client streams replies and prepares context rollover between turns. It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
-Q4 is selected for faster infrastructure testing; BF16 is retained locally in `data/models/archive/`. See [Q4 return verification](docs/experiments/q4-return.md).
+Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Local Models/Language/Qwen3.5-4B/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 
 The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
@@ -66,7 +66,7 @@ Start with these files, in order:
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: optional Discord transport tests—owner filtering, delivery, attachment to main chat, and reasoning isolation.
-- `data/models/`: local model weights; ignored by Git.
+- `~/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/setup.md#shared-model-storage) use `Language/Qwen3.5-4B/`.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
@@ -79,11 +79,10 @@ Keep inactive material separate from current files:
 
 | Folder | Contents |
 |---|---|
-| `data/models/archive/` | Unused model weights, including the full-precision BF16 model |
 | `data/conversations/archive/` | Completed sessions moved out of the current log listing |
 | `docs/archive/` | Retired guides; current guides remain directly under `docs/` |
 | `visual design/archive/` | Superseded visual references |
 
-Archiving is manual; nothing is automatically moved or deleted. Move all related session files together only after chat and Discord have stopped. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout.
+Archiving is manual; nothing is automatically moved or deleted. Move all related session files together only after chat and Discord have stopped. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
 
 Use Git history for retired source, scripts, and tests; do not keep duplicate old code in the active tree. Experiment reports stay under `docs/experiments/`. Runtime versions already have versioned directories; keep the manifest-selected runtime in place. Archives on the same disk are not backups.

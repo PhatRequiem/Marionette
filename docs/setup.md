@@ -13,6 +13,26 @@ The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unslot
 
 The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of `runtime/llama.cpp/`, and rerun setup to restore it from the verified archive.
 
+## Shared model storage
+
+Setup and chat both use `~/AI Local Models/Language/Qwen3.5-4B/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+
+To use a different library, set `MARIONETTE_MODELS_DIR` to its absolute root path for **both** setup and chat. Quote paths containing spaces:
+
+```bash
+export MARIONETTE_MODELS_DIR="/path/to/AI Local Models"
+python scripts/native-linux/setup.py
+./scripts/native-linux/chat.sh
+```
+
+Leave the variable unset to use the default home folder. Runtime binaries and their download archive stay inside the checkout; models are outside Git. Each project chooses its own model and settings even when sharing weights. Do not replace or move shared files while applications are using them.
+
+The November 10, 2026 local migration moved Q4 and retained BF16 out of `data/models/` into the shared model directory. Other projects' models and complete embedding folders were also moved into the library, with duplicate PhatKitty copies preserved under `Copies/PhatKitty/`. The local `migration-2026-11-10.json` records original paths, new paths, sizes, and verified SHA-256 hashes. Only Marionette's setup and launch paths were updated; other projects still need their own path updates. No compatibility links were created.
+
+Migration verification: all 38 moved files (nine weight files plus supporting files) matched their before-move checksums. Marionette setup verified the existing runtime and shared Q4 without downloading replacements. All 54 automated checks passed (42 core, 12 mocked Discord), including default/custom library paths with spaces, along with shell syntax and diff checks. An isolated standard-launcher GPU session loaded the shared Q4, offloaded all 33 layers, used 65,536 context, answered `2 + 2` with `4`, and exited cleanly with its server stopped. It used temporary synthetic profiles and separate logs; this verifies loading and basic generation, not new quality, performance, or long-session claims. Model, runtime, and sampling settings did not change.
+
+Historical reports and the fixed `baseline-v3` tag still describe the previous checkout-local model paths. An old checkpoint's setup will use its old location; follow this guide for the current checkout. The retained BF16 file is not automatically downloaded by current setup. Back it up separately if wanted; moving models on the same disk is not a backup.
+
 ## Source layout
 
 Application code lives in `src/marionette/`: `session.py` composes the application and owns the local server. Terminal UI, conversation handling, context policy, and inference requests live in their own modules; see the [code map](../README.md#reviewing-the-code). `diagnostics.py` serializes diagnostic writes, and `log_router.py` formats and routes them. The Bash launcher invokes these files by absolute path, so no Python package installation or working-directory change is needed.
@@ -47,7 +67,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally in `data/models/archive/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
+Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally alongside Q4 in `~/AI Local Models/Language/Qwen3.5-4B/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 

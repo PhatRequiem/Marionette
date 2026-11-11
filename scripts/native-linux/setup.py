@@ -94,7 +94,9 @@ def install():
     download(spec, archive)
     destination = ROOT / "runtime/llama.cpp" / spec["version"]
     install_runtime(archive, destination, spec["executable"])
-    download(MANIFEST["model"], ROOT / "data/models" / MANIFEST["model"]["filename"])
+    models_root = Path(os.environ.get("MARIONETTE_MODELS_DIR") or Path.home() / "AI Local Models").expanduser().resolve()
+    model = MANIFEST["model"]
+    download(model, models_root / model["directory"] / model["filename"])
     print("Setup complete. Run ./scripts/native-linux/chat.sh", flush=True)
 
 

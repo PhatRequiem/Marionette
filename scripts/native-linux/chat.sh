@@ -3,13 +3,14 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 command -v python >/dev/null || { echo 'Python 3.11+ is required; see the setup guide.' >&2; exit 1; }
 mapfile -t PATHS < <(python - "$ROOT" <<'PY'
-import json, sys
+import json, os, sys
 from pathlib import Path
 root = Path(sys.argv[1])
 manifest = json.loads((root / 'scripts/native-linux/downloads.json').read_text())
 runtime = manifest['runtime']
 print(root / 'runtime/llama.cpp' / runtime['version'] / runtime['executable'])
-print(root / 'data/models' / manifest['model']['filename'])
+models_root = Path(os.environ.get('MARIONETTE_MODELS_DIR') or Path.home() / 'AI Local Models').expanduser().resolve()
+print(models_root / manifest['model']['directory'] / manifest['model']['filename'])
 PY
 )
 if (( ${#PATHS[@]} != 2 )); then
