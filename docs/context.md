@@ -16,9 +16,9 @@ One server slot handles generation, tool follow-ups, and preparation sequentiall
 
 ## RAM prompt cache
 
-The launcher sets `--cache-ram 9216`: a **9 GiB (9,216 MiB) system-RAM prompt-cache budget**, with one active inference slot. This is a cache budget, not reserved RAM, a total-process memory limit, or three guaranteed conversation slots. Cached states can include checkpoints; llama.cpp chooses reusable entries by token-prefix matching and evicts entries when needed. The active GPU context and model use VRAM separately.
+The launcher sets `--cache-ram 5120`: a **5 GiB (5,120 MiB) system-RAM prompt-cache budget**, with one active inference slot. This is a cache budget, not reserved RAM, a total-process memory limit, or three guaranteed conversation slots. Cached states can include checkpoints; llama.cpp chooses reusable entries by token-prefix matching and evicts entries when needed. The active GPU context and model use VRAM separately.
 
-This setting takes effect on the next main-chat launch. The RAM cache is an optimization independent of the separate message histories. Three cached conversations are a target, not a guaranteed entry count. Verify the startup diagnostic reports `prompt cache is enabled, size limit: 9216 MiB` after restarting. Background preparation and the existing token allowances are unchanged.
+This setting takes effect on the next main-chat launch. The RAM cache is an optimization independent of the separate message histories. The reduced budget can retain fewer processed conversation states; switching may require rebuilding context more often. It does not reduce the context window or delete conversation history. Verify the startup diagnostic reports `prompt cache is enabled, size limit: 5120 MiB` after restarting. Background preparation and the existing token allowances are unchanged.
 
 ## Between-turn preparation
 
@@ -50,4 +50,4 @@ Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks u
 
 ## Separate-conversation verification
 
-See [the November 10 cache-switch experiment](experiments/conversation-cache-2026-11-10.md): 66 core and 12 mocked Discord checks pass. A real GPU run retained three 60,000-token cached contexts with one active slot under the 9 GiB budget; cached returns took 0.80–1.22 seconds versus 25.5–26.3 seconds initially. These are synthetic cache timings, not promised full-response latency. Separate linked terminal/Discord histories were also checked with real generation.
+See [the November 10 cache-switch experiment](experiments/conversation-cache-2026-11-10.md): 66 core and 12 mocked Discord checks pass. A real GPU run retained three 60,000-token cached contexts with one active slot under the previous 9 GiB budget; cached returns took 0.80–1.22 seconds versus 25.5–26.3 seconds initially. Those results used the previous budget, not the current 5 GiB setting; they are synthetic cache timings, not promised full-response latency. Separate linked terminal/Discord histories were also checked with real generation.

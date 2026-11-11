@@ -150,7 +150,7 @@ class LauncherTests(unittest.TestCase):
             self.assertIn('Synthetic reply.', chat)
             self.assertIn(payload, debug)
             self.assertIn(str(self.model), debug)
-            self.assertIn('--cache-ram 9216', debug)
+            self.assertIn('--cache-ram 5120', debug)
             self.assertIn('--parallel 1', debug)
             self.assertNotIn('synthetic diagnostic', chat)
             self.assertIn('synthetic diagnostic', debug)
