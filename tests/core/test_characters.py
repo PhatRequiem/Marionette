@@ -113,8 +113,10 @@ class CharacterTests(unittest.TestCase):
             self.assertNotIn('brief answers', metadata()['character_profile']['content'])
             self.assertEqual(api.tools[0].person_uuid, other['uuid'])
             self.assertIn('brief answers', self.store.current(self.identity))
-            with self.assertRaises(ValueError):
-                convo.turn('unknown', source='discord', sender_id='456')
+            convo.turn('visitor', source='discord', sender_id='456')
+            convo.pending.result()
+            self.assertNotEqual(api.tools[0].person_uuid, self.owner['uuid'])
+            self.assertNotIn('brief answers', metadata()['character_profile']['content'])
 
     def test_profile_is_resupplied_after_history_rollover_and_counted(self):
         class API:
@@ -161,3 +163,20 @@ class CharacterTests(unittest.TestCase):
         self.assertTrue(json.loads(sent[2]['messages'][-1]['content'])['success'])
         self.assertEqual(self.store.current(self.identity), notes)
         self.assertEqual([m['role'] for m in convo.history], ['user', 'assistant'])
+
+    def test_discord_registration_persists_and_failed_save_rolls_back(self):
+        self.profiles.add('Discord 456')
+        self.assertEqual(self.profiles.register_discord('00456'), '456')
+        identity = self.profiles.resolve('discord', '456')
+        self.assertEqual(identity['display_name'], 'Discord 456 (2)')
+        reopened = Profiles(self.profiles.path)
+        reopened.register_discord('456')
+        self.assertEqual(reopened.resolve('discord', '456'), identity)
+        before = len(reopened.profiles)
+        with patch.object(reopened, 'save', side_effect=OSError('synthetic failure')):
+            with self.assertRaises(OSError):
+                reopened.register_discord('789')
+        self.assertEqual(len(reopened.profiles), before)
+        for invalid in ('not-an-id', '0', '-1', str(2**64)):
+            with self.assertRaises(ValueError):
+                reopened.register_discord(invalid)

@@ -91,8 +91,10 @@ class IdentityTests(unittest.TestCase):
             self.assertTrue(any('Sender identity:' in str(call) for call in logged.call_args_list))
             conversation.turn('/clear')
             self.assertEqual(conversation.history, [])
-            with self.assertRaises(ValueError):
-                conversation.turn('unknown', source='discord', sender_id='456')
+            conversation.turn('visitor', source='discord', sender_id='456')
+            conversation.pending.result()
+            self.assertNotEqual(self.profiles.resolve('discord', '456')['person_uuid'],
+                                self.profiles.data['owner_uuid'])
 
     def test_identity_overhead_counts_toward_input_limit(self):
         class API:

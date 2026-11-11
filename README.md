@@ -8,7 +8,7 @@ Follow [STARTUP.md](STARTUP.md) to launch her in the terminal and optionally con
 
 For a new installation, see [local setup](docs/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
-Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It allows only your configured user ID, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, then optionally attach Discord to the same conversation in a fourth terminal. It accepts human one-to-one DMs, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
@@ -20,7 +20,7 @@ The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a delibera
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). Historical experiments live under `docs/experiments/`.
 
-Terminal profiles and linked accounts use permanent person UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Conversation history is still shared.
+Terminal profiles and linked accounts use permanent person UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/identity.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Conversation history is still shared, including across Discord users; replies can therefore expose earlier chats or profile details.
 
 ## Reviewing the code
 
@@ -41,7 +41,7 @@ Start with these files, in order:
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
 | [connection.py](src/marionette/connection.py) | Private local connection to the shared conversation |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
-| [discord_bot.py](src/marionette/discord_bot.py) | Optional owner-only DM transport, sequential delivery, and local transcript |
+| [discord_bot.py](src/marionette/discord_bot.py) | Optional human one-to-one DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification, timestamps, shared event numbers, and readable formatting |

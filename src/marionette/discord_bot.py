@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Optional, owner-only Discord DM transport for the local chat engine."""
+"""Optional, one-to-one Discord DM transport for the local chat engine."""
 import asyncio
 import datetime
 import json
@@ -87,7 +87,7 @@ class DMChat(discord.Client):
                          max_messages=None)
         self.address, self.owner = address, owner
         self.turn_lock = asyncio.Lock()
-        self.last_message_id = 0
+        self.last_message_ids = {}
         self.disconnected_at = None
 
     def heartbeat_ms(self):
@@ -110,7 +110,7 @@ class DMChat(discord.Client):
         self.connection_ready('Discord session resumed.')
 
     async def on_ready(self):
-        self.connection_ready('Discord ready; accepting only configured owner DMs.')
+        self.connection_ready('Discord ready; accepting human one-to-one DMs; history is shared.')
         print('Discord ready. Send the bot a DM. Ctrl+C disconnects Discord; main chat keeps running.', flush=True)
 
     async def on_error(self, event, *args, **kwargs):
@@ -137,8 +137,7 @@ class DMChat(discord.Client):
 
     async def on_message(self, message):
         # Filter before reading/logging content or touching conversation history.
-        if (message.author.bot or message.author.id != self.owner
-                or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
+        if (message.author.bot or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
             return
         received = datetime.datetime.now(datetime.timezone.utc)
         started = time.monotonic()
@@ -149,10 +148,10 @@ class DMChat(discord.Client):
             receipt_delay_ms=round((received - message.created_at).total_seconds() * 1000, 2),
             heartbeat_ms=self.heartbeat_ms())
         async with self.turn_lock:
-            if message.id <= self.last_message_id:
+            if message.id <= self.last_message_ids.get(message.channel.id, 0):
                 log('Discord duplicate/older message ignored.', **context)
                 return
-            self.last_message_id = message.id
+            self.last_message_ids[message.channel.id] = message.id
             log('Discord turn started.', **context, adapter_queue_ms=elapsed(started))
             phase = 'input'
             local_start = None

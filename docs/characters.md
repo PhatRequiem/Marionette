@@ -4,7 +4,7 @@ Each person has compact Markdown notes at `data/characters/<person-uuid>.md`. Th
 
 ## Reading and updating
 
-Before each ordinary message, `conversation.py` reads the current sender's file and includes its content, character count, and limit in `character_profile` inside the existing sender metadata. This is supplied user-message context, not a new personality/system prompt. The first message creates a heading-only file if none exists. Existing conversation logs and development chats are not imported.
+Before each ordinary message, `conversation.py` reads the current sender's file and includes its content, character count, and limit in `character_profile` inside the existing sender metadata. This is supplied user-message context, not a new personality/system prompt. The first message creates a heading-only file if none exists. New Discord accounts receive distinct identities automatically, initially named `Discord <account-id>`. Existing conversation logs and development chats are not imported.
 
 `characters.py` provides the small storage interface (`read`, `save`, `current`) and the `update_character` Qwen-Agent tool. The tool description tells the model to proactively retain lasting preferences, relevant facts, and relationship information, consolidate old notes, distinguish uncertainty, and avoid invented facts and credentials. Small talk needs no update. The model decides when to call the tool; proactive saving is a capability, not a guarantee that every useful detail will be saved accurately.
 

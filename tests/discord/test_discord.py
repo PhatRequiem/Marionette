@@ -59,7 +59,6 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
         async def request(address, text, sender_id):
-            self.assertEqual(sender_id, 123)
             answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id))
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
@@ -74,12 +73,11 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
             await asyncio.to_thread(self.conversation.pending.result)
         await self.client.close()
 
-    async def test_only_owner_one_to_one_dms_and_no_duplicate_events(self):
-        foreign = message(owner=456)
+    async def test_human_one_to_one_dms_and_no_duplicate_events(self):
         guild = message(guild=object())
         group = message(channel=Mock(spec=bot.discord.GroupChannel))
         automated = message(); automated.author.bot = True
-        for item in (foreign, guild, group, automated):
+        for item in (guild, group, automated):
             await self.client.on_message(item)
         self.assertEqual(self.api.requests, [])
         self.transcript.assert_not_called()
@@ -91,6 +89,23 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(accepted.channel.send.await_args.kwargs['allowed_mentions'].everyone)
         self.assertFalse(self.client.intents.message_content)
         self.assertTrue(self.client.intents.dm_messages)
+
+    async def test_other_sender_is_distinct_shares_history_and_cannot_clear(self):
+        await self.client.on_message(message(number=10, content='owner message'))
+        other = message(number=2, owner=456, content='visitor message')
+        other.channel.id = 790
+        await self.client.on_message(other)
+        self.assertEqual(len(self.api.requests), 2)
+        metadata = json.loads(self.api.requests[-1][-1]['content'].split('\n', 1)[1].split('\n\nMessage:')[0])
+        self.assertNotEqual(metadata['person_uuid'], self.conversation.profiles.data['owner_uuid'])
+        self.assertIn('owner message', self.api.requests[-1][0]['content'])
+        denied = message(number=3, owner=456, channel=other.channel, content='/clear')
+        await self.client.on_message(denied)
+        self.assertIn('Permission denied', other.channel.send.await_args.args[0])
+        self.assertEqual(len(self.api.requests), 2)
+        self.assertEqual(len(self.conversation.history), 4)
+        await self.client.on_message(other)
+        self.assertEqual(len(self.api.requests), 2)
 
     async def test_concurrent_dms_stay_in_order_and_clear_discards_history(self):
         first, second = message(content='one'), message(number=2, content='two')

@@ -170,6 +170,32 @@ class Profiles:
             raise
         return profile
 
+    def register_discord(self, sender_id):
+        """Create a distinct identity on first DM; never infer links from names."""
+        if (not isinstance(sender_id, str) or not sender_id.isascii()
+                or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
+            raise ValueError('A numeric Discord sender ID is required.')
+        sender_id = str(int(sender_id))
+        for profile in self.profiles:
+            if any(link['service'] == 'discord' and str(int(link['account_id'])) == sender_id
+                   for link in profile['linked_accounts']):
+                return sender_id
+        name = f'Discord {sender_id}'
+        existing = {p['name'].casefold() for p in self.profiles}
+        suffix = 2
+        while name.casefold() in existing:
+            name = f'Discord {sender_id} ({suffix})'
+            suffix += 1
+        profile = self.new_profile(name)
+        profile['linked_accounts'] = [{'service': 'discord', 'account_id': sender_id}]
+        self.profiles.append(profile)
+        try:
+            self.save()
+        except (OSError, ValueError):
+            self.profiles.pop()
+            raise
+        return sender_id
+
     def resolve(self, source, sender_id):
         if source not in ('terminal', 'discord'):
             raise ValueError('Unknown message source.')

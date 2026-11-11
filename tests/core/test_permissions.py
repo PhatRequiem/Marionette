@@ -38,8 +38,8 @@ class PermissionTests(unittest.TestCase):
                 answer, _ = conversation.turn('/clear', **kwargs)
                 self.assertIn('Permission denied', answer)
                 self.assertIs(conversation.history, history)
-            with self.assertRaises(ValueError):
-                conversation.turn('/clear', source='discord', sender_id='789')
+            answer, _ = conversation.turn('/clear', source='discord', sender_id='789')
+            self.assertIn('Permission denied', answer)
             self.assertIs(conversation.history, history)
             conversation.turn('/clear', source='discord', sender_id='123')
             self.assertEqual(conversation.history, [])

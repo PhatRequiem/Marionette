@@ -1,6 +1,6 @@
 # Discord DMs
 
-An optional Discord bot runs on this computer and talks only to the configured owner's numeric user ID in one-to-one DMs. Server channels, group DMs, other users, and bots are ignored before their content reaches the model or transcript. Only final model answers are sent to Discord; reasoning stays in local diagnostic logs. Short status/error notices may also be sent.
+An optional Discord bot runs on this computer and accepts one-to-one DMs from human users who can reach the bot. Server channels, group DMs, and bots are ignored before their content reaches the model or transcript. Only final model answers are sent to Discord; reasoning stays in local diagnostic logs. Short status/error notices may also be sent.
 
 The model stays local. Discord is an external, proprietary service requiring an account, a bot application, and internet access. Your messages and final answers pass through Discord. Terminal chat remains available offline without Discord dependencies.
 
@@ -20,7 +20,7 @@ This uses [uv](https://docs.astral.sh/uv/getting-started/installation/) (already
 3. Invite the bot to a private server you control, using the application's installation/OAuth2 link with the `bot` scope and no administrator permissions. This gives you a shared server from which to open the bot's profile and send it a DM. If needed, allow DMs from that server in Discord's privacy settings.
 4. No privileged Message Content, Server Members, or Presence intent is needed: this client subscribes only to direct messages. It never answers in the server.
 
-The local configuration requires both `DISCORD_ALLOWED_USER_ID` and `DISCORD_BOT_TOKEN` and file permissions `600`. Missing or invalid configuration stops the Discord connection before login; the already running main chat is unaffected. To edit it:
+`DISCORD_ALLOWED_USER_ID` retains its legacy name for compatibility: it now identifies the owner account for identity linking and `/clear`, not an access allowlist. The local configuration still requires both `DISCORD_ALLOWED_USER_ID` and `DISCORD_BOT_TOKEN` and file permissions `600`. Missing or invalid configuration stops the Discord connection before login; the already running main chat is unaffected. To edit it:
 
 ```bash
 nvim data/discord/.env
@@ -28,15 +28,15 @@ nvim data/discord/.env
 
 ## Start and stop
 
-Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot from your allowed account. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
+Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 
-- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and person UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](identity.md). Identity labels do not authorize other users.
-- `/clear` from either input clears the shared model history, not saved logs or Discord messages.
+- Terminal and Discord share one conversation, context budget, and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and person UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](identity.md). New Discord senders receive their own saved UUID and character profile; identities are never merged by name. **History remains shared for this test: responses to other people may reveal details from your chats or character notes.**
+- Owner-only `/clear` from either input clears the shared model history, not saved logs or Discord messages.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
-- After a temporary disconnect, a successful Discord Gateway resume replays missed events. This differs from stopping the bot or reconnecting without a resumable session: the application does not fetch missed message history in those cases, so you may need to resend. In-process duplicate message events are ignored. See [Discord's resume behavior](https://github.com/discord/discord-api-docs/blob/main/developers/events/gateway.mdx#resuming).
+- After a temporary disconnect, a successful Discord Gateway resume replays missed events. This differs from stopping the bot or reconnecting without a resumable session: the application does not fetch missed message history in those cases, so you may need to resend. In-process duplicate/older message events are ignored per DM channel, so activity in another channel does not discard a valid message. See [Discord's resume behavior](https://github.com/discord/discord-api-docs/blob/main/developers/events/gateway.mdx#resuming).
 - A failed generation does not commit a new turn. A completed generation stays in shared history even if Discord disconnects or delivery fails. Delivery can be partial; no automatic resend occurs. Check the Discord log before retrying.
 
 The main chat owns the model and conversation. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no separate history or model-launch code. See [context policy](context.md).
@@ -68,6 +68,8 @@ Run the core and optional transport checks separately:
 runtime/agent/bin/python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
 ```
+
+Open-DM verification (2026-11-10): 64 core and 12 mocked Discord checks pass, including first-sender registration and reopening, separate character files, shared conversation history, per-channel duplicate filtering, bot/group/server rejection, and owner-only `/clear`.
 
 Tests use synthetic messages and mock delivery, not Discord accounts. Live Discord login and phone delivery require your bot token and a manual DM check; passing local tests does not establish that Discord configuration is complete.
 

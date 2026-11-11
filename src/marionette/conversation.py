@@ -43,6 +43,8 @@ class Conversation:
             identity = None
             if self.profiles is not None:
                 sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
+                if source == 'discord':
+                    sender_id = self.profiles.register_discord(sender_id)
                 identity = self.profiles.resolve(source, sender_id)
                 diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
             if recognize(message, source) == 'clear':
