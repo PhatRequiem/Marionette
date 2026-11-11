@@ -1,0 +1,19 @@
+# Shared infrastructure relocation — November 10, 2026
+
+Historical evidence moved from the setup guide during the November 11 cleanup. Test counts and paths describe the relocation checks, not current verification. Follow [the setup guide](../setup.md) for current installation and operation.
+
+## Inference runtime
+
+The November 10, 2026 move preserved all 62 installed files/library links; its local record is `llama.cpp/relocation-2026-11-10.json`. No compatibility link is left in `runtime/llama.cpp/`. Historical checkpoints retain their original paths.
+
+Relocation verification (November 10, 2026): checksums, permissions, and library links matched before and after the move. Setup verified the shared installation and model without downloading replacements. A fresh runtime installation into a temporary app library and a launcher version check also passed, using the retained archive. All 55 automated checks passed (43 core, 12 mocked Discord), along with shell syntax and diff checks. A synthetic-profile GPU chat loaded the relocated runtime with the existing Q4 model at 65,536 context, answered `2 + 2` with `4`, and stopped its server cleanly. Runtime version, model, and sampling settings are unchanged; this is a relocation and functional check, not a new performance or long-session evaluation.
+
+## Model library
+
+The user moved the model library into `~/AI Infrastructure/AI Local Models/` after its initial organization; the library's relative catalog paths still apply, while absolute paths in the original migration history describe the earlier location. Setup verification, all 54 automated checks, shell syntax, and an isolated GPU chat with clean shutdown passed again with the `AI Infrastructure` parent path on November 10, 2026.
+
+The November 10, 2026 migration first moved the models out of their project folders and preserved duplicates. A subsequent checksum-verified cleanup removed four identical Q4 copies (10,963,751,552 bytes of duplicate file content), retained both Q4 and BF16, and applied the `Provider/Family/Size/Variant/` layout. All embedding support files were preserved. The local `migration-2026-11-10.json` keeps the original move history; `organization-2026-11-10.json` records the later moves and duplicate removals; `catalog.json` lists current model paths, source repositories, known revisions, sizes, and checksums. `README.txt` explains the library layout. Only Marionette's configuration was updated; other projects still need their own path updates. No compatibility links were created.
+
+Migration verification: all 38 moved files (nine weight files plus supporting files) matched their before-move checksums. Marionette setup verified the existing runtime and shared Q4 without downloading replacements. All 54 automated checks passed (42 core, 12 mocked Discord), including default/custom library paths with spaces, along with shell syntax and diff checks. An isolated standard-launcher GPU session loaded the shared Q4, offloaded all 33 layers, used 65,536 context, answered `2 + 2` with `4`, and exited cleanly with its server stopped. It used temporary synthetic profiles and separate logs; this verifies loading and basic generation, not new quality, performance, or long-session claims. Model, runtime, and sampling settings did not change.
+
+After the provider-based reorganization, all retained files were reverified against their original checksums before deleting the four identical copies. Setup, all 54 automated checks, shell syntax, and diff checks passed again. A fresh isolated GPU session used `Qwen/Qwen3.5/4B/Instruct/`, answered `2 + 2 = 4`, and stopped cleanly. This follow-up changed only the manifest's model directory and documentation; launch commands and generation settings remain the same.

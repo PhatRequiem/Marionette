@@ -53,6 +53,28 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), 'hello 🌷\r\b'.encode())
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
 
+    def test_correlation_uses_envelopes_not_quoted_content(self):
+        cases = [
+            ('terminal', b'Client: [message discord:999] typed text\n', None),
+            ('terminal', b'{"log_message_id":"discord:999"}\n', None),
+            ('diagnostic', b'0.01 D model text: "Client: [message discord:999] hello"\n', None),
+            ('diagnostic', b'Client: Reasoning: "Client: [message discord:999] hello"\n', None),
+            ('diagnostic', b'Client: [message discord:123] quoted discord:999\n', 'discord:123'),
+            ('diagnostic', b'Client: [message \xff] invalid bytes\n', None),
+            ('diagnostic', b'Client: [message unassigned] failure\n', None),
+            ('discord', b'{"content":{"log_message_id":"discord:999"}}\n', None),
+            ('discord', b'{"log_message_id":123}\n', None),
+            ('discord', b'{"log_message_id":"discord:123", "content":{"log_message_id":"discord:999"}}\n', 'discord:123'),
+            ('discord', b'2026-11-11T00:00:00+00:00 Discord send completed. {"log_message_id":"discord:123"}\n', 'discord:123'),
+            ('discord', b'2026-11-11T00:00:00+00:00 Discord failed. {"log_message_id":"discord:123",bad}\n', None),
+        ]
+        for stream, raw, expected in cases:
+            with self.subTest(stream=stream, raw=raw):
+                number = self.store.event(self.session, stream, raw)
+                row = self.store.db.execute('SELECT message_id,raw FROM events WHERE id=?', (number,)).fetchone()
+                self.assertEqual(row['message_id'], expected)
+                self.assertEqual(row['raw'], raw)
+
     def test_backup_restore_and_sql_export_restore(self):
         self.seed()
         target = Path(self.temp.name) / 'backup.sqlite3'

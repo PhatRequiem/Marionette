@@ -38,6 +38,8 @@ For saved-session viewing, text export, SQL export, and backup/restore commands,
 
 ## Message IDs and section boundaries
 
+Stored correlation IDs are read only from a leading `Client: [message …]` diagnostic header or a top-level Discord record field. Quoted message text, nested JSON fields, and terminal presentation bytes do not establish attribution. Malformed IDs remain unassigned while original bytes are preserved. This applies to new records; existing stored metadata is not rewritten.
+
 New messages handled by main chat carry a log-only correlation ID. Terminal turns
 use `local:<UUID>`; Discord uses `discord:<incoming-message-id>` through the
 adapter, local socket, queue, model/tool processing, and delivery. The Discord

@@ -17,6 +17,7 @@ import time
 import uuid
 
 import retention
+from diagnostics import message_id as validate_message_id
 
 SCHEMA = '''
 CREATE TABLE sessions (id TEXT PRIMARY KEY, started_at TEXT NOT NULL, ended_at TEXT);
@@ -39,6 +40,28 @@ PRAGMA user_version=1;
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec='microseconds')
+
+
+def event_message_id(stream, raw):
+    """Read correlation metadata only from the stream's record envelope."""
+    try:
+        if stream == 'diagnostic':
+            match = re.match(rb'^Client: \[message ([^\]\r\n]+)\] ', raw)
+            identifier = match[1].decode('ascii') if match else None
+        elif stream == 'discord':
+            payload = raw
+            if not raw.lstrip().startswith(b'{'):
+                match = re.fullmatch(rb'\d{4}-\d{2}-\d{2}T\S+ [^{\r\n]+ (\{[^\r\n]*\})\s*', raw)
+                if not match:
+                    return None
+                payload = match[1]
+            fields = json.loads(payload)
+            identifier = fields.get('log_message_id') if isinstance(fields, dict) else None
+        else:
+            return None  # Terminal output is presentation, not a metadata envelope.
+        return validate_message_id(identifier) if identifier is not None else None
+    except (ValueError, UnicodeError):
+        return None  # Preserve malformed/unknown bytes without assigning an ID.
 
 
 def open_read(path):
@@ -99,9 +122,7 @@ class Store:
             self.db.execute("UPDATE failures SET state='incomplete' WHERE session_id=? AND state='collecting'", (session,))
 
     def event(self, session, stream, raw, category='both'):
-        # Only explicit client/Discord IDs are attributed, never neighboring runtime lines.
-        match = re.search(rb'Client: \[message ([^\]\r\n]+)\]|"log_message_id":\s*"([^"]+)"', raw)
-        identifier = next((x.decode() for x in match.groups() if x), None) if match else None
+        identifier = event_message_id(stream, raw)
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
             policy = self.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()

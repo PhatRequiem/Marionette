@@ -76,7 +76,7 @@ Start with these files, in order:
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
-- `tests/discord/`: optional Discord transport tests—owner filtering, delivery, attachment to main chat, and reasoning isolation.
+- `tests/discord/`: optional Discord transport tests—human one-to-one DM filtering, delivery, attachment to main chat, and reasoning isolation.
 - `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/setup.md#shared-model-storage) use `Qwen/Qwen3.5/4B/Instruct/`.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
@@ -94,6 +94,6 @@ Keep inactive material separate from current files:
 | `docs/archive/` | Retired guides; current guides remain directly under `docs/` |
 | `visual design/archive/` | Superseded visual references |
 
-Archiving is manual; nothing is automatically moved or deleted. For the current SQLite database, use the [backup procedure](docs/storage.md#backup-and-restore); do not move a live database or separate its WAL/SHM sidecars. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
+Archiving documents and private exports is manual. Routine diagnostic events expire automatically under the [rolling retention policy](docs/log-retention.md). For the current SQLite database, use the [backup procedure](docs/storage.md#backup-and-restore); do not move a live database or separate its WAL/SHM sidecars. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
 
 Use Git history for retired source, scripts, and tests; do not keep duplicate old code in the active tree. Experiment reports stay under `docs/experiments/`. Runtime versions already have versioned directories; keep the manifest-selected runtime in place. Archives on the same disk are not backups.
