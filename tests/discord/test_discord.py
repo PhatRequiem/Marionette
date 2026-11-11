@@ -90,7 +90,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(self.client.intents.message_content)
         self.assertTrue(self.client.intents.dm_messages)
 
-    async def test_other_sender_is_distinct_shares_history_and_cannot_clear(self):
+    async def test_other_sender_has_separate_history_and_clears_only_their_dm(self):
         await self.client.on_message(message(number=10, content='owner message'))
         other = message(number=2, owner=456, content='visitor message')
         other.channel.id = 790
@@ -98,12 +98,14 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.api.requests), 2)
         metadata = json.loads(self.api.requests[-1][-1]['content'].split('\n', 1)[1].split('\n\nMessage:')[0])
         self.assertNotEqual(metadata['person_uuid'], self.conversation.profiles.data['owner_uuid'])
-        self.assertIn('owner message', self.api.requests[-1][0]['content'])
+        self.assertNotIn('owner message', str(self.api.requests[-1]))
+        self.assertEqual(len(self.api.requests[-1]), 1)
         denied = message(number=3, owner=456, channel=other.channel, content='/clear')
         await self.client.on_message(denied)
-        self.assertIn('Permission denied', other.channel.send.await_args.args[0])
+        self.assertEqual('Chat history cleared.', other.channel.send.await_args.args[0])
         self.assertEqual(len(self.api.requests), 2)
-        self.assertEqual(len(self.conversation.history), 4)
+        self.assertEqual(self.conversation.history, [])
+        self.assertEqual(len(self.conversation.histories['discord:123']), 2)
         await self.client.on_message(other)
         self.assertEqual(len(self.api.requests), 2)
 
@@ -120,7 +122,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         await self.client.on_message(message(attachments=[object()]))
         self.assertEqual(self.api.requests, [])
 
-    async def test_empty_answer_is_rejected_but_delivery_failure_keeps_shared_history(self):
+    async def test_empty_answer_is_rejected_but_delivery_failure_keeps_own_history(self):
         with patch.object(self.api, 'reply', return_value=('', 'length')):
             item = message()
             await self.client.on_message(item)

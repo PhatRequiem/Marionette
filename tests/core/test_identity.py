@@ -85,8 +85,9 @@ class IdentityTests(unittest.TestCase):
             conversation.pending.result()
             users = [m['content'] for m in api.sent if m['role'] == 'user']
             metadata = [json.loads(m.split('\n', 1)[1].split('\n\nMessage:\n')[0]) for m in users]
-            self.assertEqual([m['source'] for m in metadata], ['terminal', 'discord'])
-            self.assertEqual(metadata[0]['person_uuid'], metadata[1]['person_uuid'])
+            self.assertEqual([m['source'] for m in metadata], ['discord'])
+            self.assertEqual(metadata[0]['person_uuid'], owner['uuid'])
+            self.assertEqual(len(conversation.histories['terminal:' + owner['uuid']]), 2)
             self.assertEqual(api.counted[0], api.sent[0])
             self.assertTrue(any('Sender identity:' in str(call) for call in logged.call_args_list))
             conversation.turn('/clear')

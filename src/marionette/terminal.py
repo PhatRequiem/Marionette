@@ -107,16 +107,25 @@ def display_discord(conversation):
     return True
 
 
+def show_terminal_source(conversation):
+    profile = conversation.terminal_profile
+    sender = profile['uuid'] if profile else 'local'
+    print(paint('[Terminal · ', 'meta', enabled()) + paint(sender, 'ids', enabled())
+          + paint(']', 'meta', enabled()), flush=True)
+
+
 def run(conversation, *, external=False):
     while True:
         try:
             print()
+            show_terminal_source(conversation)
             color('input')
             print('> ', end='', flush=True)
             try:
                 if external:
                     while True:
                         if display_discord(conversation):
+                            show_terminal_source(conversation)
                             color('input')
                             print('> ', end='', flush=True)
                         if select.select([sys.stdin], [], [], .1)[0]:

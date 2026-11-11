@@ -24,13 +24,13 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/discord.sh
 ```
 
-Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. Only her final answers go to Discord; reasoning stays local. Terminal and Discord share the same conversation.
+Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal still displays all messages, reasoning, and answers.
 
 ## Stop or start fresh
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
-- **Clear the conversation:** type `/clear` using the owner (Phat) profile or its linked Discord account. Saved logs remain. Every new main-chat launch also starts fresh.
+- **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved logs remain. Every new main-chat launch also starts fresh.
 
 ## First-time setup
 

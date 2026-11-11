@@ -1,4 +1,4 @@
-"""Recognize supported chat commands and execute shared-history actions."""
+"""Recognize supported chat commands and execute conversation-scoped actions."""
 import diagnostics
 from permissions import require_command
 
@@ -20,15 +20,12 @@ def recognize(message, source):
 
 def execute_clear(conversation, identity):
     """Called under the conversation lock; authorize before touching history."""
-    owner_uuid = conversation.profiles.data['owner_uuid'] if conversation.profiles else None
     try:
-        require_command('/clear', identity, owner_uuid)
+        require_command('/clear', identity, conversation.key)
     except PermissionError as error:
         diagnostics.log(f'Command denied: /clear; {error}')
         return str(error)
-    if conversation.pending is not None:
-        conversation.pending.result()
-        conversation.pending = None
+    conversation.finish_preparation()
     conversation.history = []
-    diagnostics.log('Chat history cleared.')
+    diagnostics.log(f'Chat history cleared: conversation={conversation.key}.')
     return 'Chat history cleared.'

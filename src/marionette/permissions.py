@@ -1,8 +1,10 @@
-"""Command authorization for identities resolved by the application."""
+"""Command authorization for the resolved sender's own conversation."""
 
 
-def require_command(command, identity, owner_uuid):
-    """Deny unknown commands and unidentified/non-owner senders by default."""
-    if (command != '/clear' or not owner_uuid or not identity
-            or identity.get('person_uuid') != owner_uuid):
-        raise PermissionError('Permission denied: only the owner profile can clear shared history.')
+def require_command(command, identity, conversation_id):
+    """No command can target a different conversation or unresolved sender."""
+    if (command != '/clear' or not identity or not identity.get('person_uuid')
+            or identity.get('source') not in ('terminal', 'discord')
+            or not identity.get('sender_id')
+            or conversation_id != identity['source'] + ':' + identity['sender_id']):
+        raise PermissionError('Permission denied: you can only clear your own conversation.')

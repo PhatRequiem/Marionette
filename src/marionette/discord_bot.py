@@ -110,7 +110,7 @@ class DMChat(discord.Client):
         self.connection_ready('Discord session resumed.')
 
     async def on_ready(self):
-        self.connection_ready('Discord ready; accepting human one-to-one DMs; history is shared.')
+        self.connection_ready('Discord ready; accepting human one-to-one DMs; histories are separate.')
         print('Discord ready. Send the bot a DM. Ctrl+C disconnects Discord; main chat keeps running.', flush=True)
 
     async def on_error(self, event, *args, **kwargs):

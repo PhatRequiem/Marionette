@@ -13,38 +13,32 @@ from conversation import Conversation
 
 
 class PermissionTests(unittest.TestCase):
-    def test_default_deny(self):
-        for command, identity, owner in [('/clear', None, 'owner'),
-                ('/clear', {'person_uuid': 'guest', 'display_name': 'Phat'}, 'owner'),
-                ('/clear', {'person_uuid': None}, None),
-                ('/unknown', {'person_uuid': 'owner'}, 'owner')]:
+    def test_default_deny_and_only_own_conversation(self):
+        identity = {'person_uuid': 'person', 'source': 'discord', 'sender_id': '123'}
+        for command, sender, key in [('/clear', None, 'discord:123'),
+                ('/clear', identity, 'discord:456'),
+                ('/clear', identity, 'terminal:person'),
+                ('/unknown', identity, 'discord:123')]:
             with self.assertRaises(PermissionError):
-                require_command(command, identity, owner)
-        require_command('/clear', {'person_uuid': 'owner'}, 'owner')
+                require_command(command, sender, key)
+        require_command('/clear', identity, 'discord:123')
 
-    def test_guest_denied_owner_allowed_across_sources(self):
+    def test_each_person_clears_only_their_originating_conversation(self):
         class API:
             closing = threading.Event()
-        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log') as logged:
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
             profiles = Profiles(Path(directory) / 'profiles.json')
             owner = profiles.profiles[0]
             owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
-            guest = profiles.add('Guest')
-            guest['linked_accounts'] = [{'service': 'discord', 'account_id': '456'}]
-            conversation = Conversation(API(), 8192, profiles, guest)
-            history = [{'role': 'user', 'content': 'keep'}, {'role': 'assistant', 'content': 'kept'}]
-            conversation.history = history
-            for kwargs in ({}, {'source': 'discord', 'sender_id': '456'}):
-                answer, _ = conversation.turn('/clear', **kwargs)
-                self.assertIn('Permission denied', answer)
-                self.assertIs(conversation.history, history)
-            answer, _ = conversation.turn('/clear', source='discord', sender_id='789')
-            self.assertIn('Permission denied', answer)
-            self.assertIs(conversation.history, history)
+            conversation = Conversation(API(), 8192, profiles, owner)
+            keys = ['terminal:' + owner['uuid'], 'discord:123', 'discord:456']
+            for key in keys:
+                conversation.histories[key] = [{'role': 'user', 'content': key}]
+            conversation.turn('/clear', source='discord', sender_id='456')
+            self.assertEqual(conversation.histories[keys[2]], [])
+            self.assertTrue(conversation.histories[keys[0]])
+            self.assertTrue(conversation.histories[keys[1]])
             conversation.turn('/clear', source='discord', sender_id='123')
-            self.assertEqual(conversation.history, [])
-            conversation.history = history
-            conversation.terminal_profile = owner
+            self.assertTrue(conversation.histories[keys[0]])
             conversation.turn('/clear')
-            self.assertEqual(conversation.history, [])
-            self.assertTrue(any('Command denied:' in str(c) for c in logged.call_args_list))
+            self.assertTrue(all(not value for value in conversation.histories.values()))

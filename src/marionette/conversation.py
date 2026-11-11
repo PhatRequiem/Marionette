@@ -1,4 +1,4 @@
-"""Shared history, serial turns, identity checks, and command authorization."""
+"""Separate conversation histories with one serialized model and preparation worker."""
 from concurrent.futures import Future
 import json
 import queue
@@ -12,17 +12,35 @@ from commands import execute_clear, recognize
 
 
 class Conversation:
-    """One history and one generation at a time, shared by every input."""
+    """One history per terminal profile or Discord sender; one generation at a time."""
     def __init__(self, api, capacity, profiles=None, terminal_profile=None, characters=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.characters = characters
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
         self.reserve = min(32768, capacity // 2)
-        self.history = []
+        self.key = 'terminal:' + (terminal_profile['uuid'] if terminal_profile else 'local')
+        self.histories = {}
         self.pending = None
+        self.pending_key = None
         self.lock = threading.Lock()
         self.incoming = queue.Queue()
+
+    @property
+    def history(self):
+        return self.histories.setdefault(self.key, [])
+
+    @history.setter
+    def history(self, value):
+        self.histories[self.key] = value
+
+    def finish_preparation(self):
+        # Commit to the conversation that started the worker, before switching
+        # the model/tool binding. Only one worker ever owns the shared API.
+        if self.pending is not None:
+            self.histories[self.pending_key] = self.pending.result()
+            self.pending = None
+            self.pending_key = None
 
     def submit_discord(self, message, *, sender_id, timings=None):
         # The terminal thread owns rendering, including while awaiting local input.
@@ -47,11 +65,15 @@ class Conversation:
                     sender_id = self.profiles.register_discord(sender_id)
                 identity = self.profiles.resolve(source, sender_id)
                 diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
+            if source not in ('terminal', 'discord'):
+                raise ValueError('Unknown message source.')
+            self.finish_preparation()
+            self.key = source + ':' + (str(sender_id) if sender_id is not None else 'local')
+            diagnostics.log(f'Conversation selected: {self.key}.')
+            if identity is not None:
+                identity['conversation_id'] = self.key
             if recognize(message, source) == 'clear':
                 return execute_clear(self, identity), 'stop'
-            if self.pending is not None:
-                self.history = self.pending.result()
-                self.pending = None
             if self.characters is not None:
                 if identity is None:
                     raise ValueError('Character profiles require a resolved sender identity.')
@@ -75,5 +97,6 @@ class Conversation:
                 raise RuntimeError('Model produced no final answer.')
             diagnostics.log(f'Reply completed: finish_reason={finish}.')
             self.history = candidate + [{'role': 'assistant', 'content': answer}]
+            self.pending_key = self.key
             self.pending = Preparation(self.api, self.history, self.capacity, self.reserve)
             return answer, finish

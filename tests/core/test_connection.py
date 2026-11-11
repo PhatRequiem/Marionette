@@ -23,7 +23,7 @@ from style import COLORS
 
 
 class ConnectionTests(unittest.TestCase):
-    def test_shared_history_clear_and_detach(self):
+    def test_separate_histories_clear_and_detach(self):
         class API:
             closing = threading.Event()
             def __init__(self):
@@ -46,11 +46,11 @@ class ConnectionTests(unittest.TestCase):
                 self.assertEqual(result, {'answer': 'answer', 'finish': 'stop', 'timings': {}})
                 conversation.turn('terminal third', on_delta=terminal.ReplyDisplay())
                 self.assertEqual([m['content'].split('\n\nMessage:\n', 1)[-1] for m in api.sent[-1]],
-                    ['terminal first', 'answer', 'discord second', 'answer', 'terminal third'])
+                    ['terminal first', 'answer', 'terminal third'])
                 asyncio.run(connection.request(address, '/clear', 123))
                 conversation.turn('fresh terminal', on_delta=terminal.ReplyDisplay())
-                self.assertEqual(len(api.sent[-1]), 1)
-                self.assertTrue(api.sent[-1][0]['content'].endswith('Message:\nfresh terminal'))
+                self.assertEqual(len(api.sent[-1]), 5)
+                self.assertTrue(api.sent[-1][-1]['content'].endswith('Message:\nfresh terminal'))
                 conversation.pending.result()
             self.assertFalse(address.exists())
             self.assertFalse(api.closing.is_set())
