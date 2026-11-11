@@ -22,7 +22,7 @@ Each user message carries [sender metadata](identity.md) as part of its user-rol
 
 Every actual input is formatted with `/apply-template` and counted with `/tokenize`, including special tokens. If the message exceeds the reserved input space, it is still accepted when it fits: oldest complete exchanges are removed as needed to leave the reply allowance and one spare token. A message that cannot fit by itself is rejected without truncation. Failed streams do not add partial replies or the failed input to history.
 
-The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no file-reading tools.
+The allowances are capacity planning, not separate model windows or hard input-length limits. Preparation moves work into reading/typing time; it does not eliminate processing. Rapid submission or an unusually long message can still cause a pause. Old messages are omitted, not summarized. Logs are never reloaded as memory and the model has no general file-reading tools. The current sender’s [character notes](characters.md) are supplied afresh in each user-message metadata block and count toward this same budget; rollover does not delete their saved file.
 
 ## Logs and checks
 

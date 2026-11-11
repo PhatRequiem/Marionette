@@ -1,0 +1,163 @@
+"""Private, bounded character profiles; synthetic identities and tool calls only."""
+import json
+from pathlib import Path
+import shutil
+import sys
+import tempfile
+import threading
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
+from characters import Characters, UpdateCharacter, LIMIT
+from identity import Profiles
+from conversation import Conversation
+
+
+class CharacterTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.profiles = Profiles(self.root / 'identities/profiles.json')
+        self.owner = self.profiles.profiles[0]
+        self.owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
+        self.profiles.save()
+        self.identity = self.profiles.resolve('terminal', self.owner['uuid'])
+        self.store = Characters(self.root / 'characters')
+        self.initial = self.store.current(self.identity)
+        self.tool = UpdateCharacter(self.store, self.identity, self.initial)
+
+    def call(self, **kwargs):
+        with patch('diagnostics.log'):
+            return json.loads(self.tool.call(json.dumps(kwargs)))
+
+    def test_boundary_unicode_persistence_and_same_format_restore(self):
+        text = '# Phat\n' + 'é' * (LIMIT - 7)
+        self.assertEqual(len(text), LIMIT)
+        self.assertTrue(self.call(content=text)['success'])
+        saved = self.store.path(self.owner['uuid']).read_bytes()
+        self.assertFalse(self.call(content=text + '\n')['success'])
+        self.assertEqual(self.store.path(self.owner['uuid']).read_bytes(), saved)
+        self.assertEqual(self.store.path(self.owner['uuid']).stat().st_mode & 0o777, 0o600)
+        copy = self.root / 'restored'
+        shutil.copytree(self.root / 'characters', copy)
+        self.assertEqual(Characters(copy).current(self.identity), text)
+        self.assertEqual(Characters(self.root / 'characters').current(self.identity), text)
+
+    def test_cannot_choose_other_person_path_or_identity_fields(self):
+        other = self.profiles.add('Other')
+        other_identity = self.profiles.resolve('terminal', other['uuid'])
+        original = self.store.current(other_identity)
+        registry = self.profiles.path.read_bytes()
+        for key in ('person_uuid', 'path', 'discord_id'):
+            self.assertFalse(self.call(content='changed', **{key: other['uuid']})['success'])
+        self.assertEqual(self.store.current(other_identity), original)
+        self.assertEqual(self.profiles.path.read_bytes(), registry)
+        self.assertEqual(self.store.current(self.identity), self.initial)
+        with self.assertRaises(ValueError):
+            self.store.read('../outside')
+
+    def test_symlinks_and_invalid_files_are_not_followed_or_overwritten(self):
+        path = self.store.path(self.owner['uuid'])
+        outside = self.root / 'outside.txt'
+        outside.write_text('outside')
+        path.unlink()
+        path.symlink_to(outside)
+        self.assertFalse(self.call(content='changed')['success'])
+        self.assertEqual(outside.read_text(), 'outside')
+        path.unlink()
+        path.write_text('x' * (LIMIT + 1))
+        with self.assertRaises(ValueError):
+            self.store.current(self.identity)
+        self.assertFalse(self.call(content='changed')['success'])
+        self.assertEqual(path.read_text(), 'x' * (LIMIT + 1))
+
+    def test_stale_update_retries_and_disk_failure_preserves_previous_text(self):
+        self.store.save(self.owner['uuid'], '# Phat\nManual edit.', expected=self.initial)
+        self.assertFalse(self.call(content='# Phat\nStale edit.')['success'])
+        self.assertTrue(self.call(content='# Phat\nManual edit. New fact.')['success'])
+        current = self.store.current(self.identity)
+        with patch('characters.os.replace', side_effect=OSError('synthetic disk failure')):
+            self.assertFalse(self.call(content='new')['success'])
+        self.assertEqual(self.store.current(self.identity), current)
+        self.assertFalse(list(self.store.directory.glob('.character-*')))
+
+    def test_current_sender_binding_refresh_and_clear_preserves_notes(self):
+        class API:
+            closing = threading.Event()
+            def count(self, messages): return 20
+            def reply(self, messages, reserve, **kwargs):
+                self.sent = messages
+                return 'answer', 'stop'
+        api = API()
+        convo = Conversation(api, 8192, self.profiles, self.owner, self.store)
+        def metadata():
+            return json.loads(api.sent[-1]['content'].split('\n', 1)[1].split('\n\nMessage:\n')[0])
+        with patch('diagnostics.log'):
+            convo.turn('hello')
+            convo.pending.result()
+            self.assertEqual(metadata()['character_profile']['content'], self.initial)
+            result = json.loads(api.tools[0].call('{"content":"# Phat\\nPrefers brief answers."}'))
+            self.assertTrue(result['success'])
+            convo.turn('hello again', source='discord', sender_id='123')
+            convo.pending.result()
+            self.assertIn('brief answers', metadata()['character_profile']['content'])
+            self.assertEqual(api.tools[0].person_uuid, self.owner['uuid'])
+            convo.turn('/clear', source='discord', sender_id='123')
+            self.assertEqual(convo.history, [])
+            other = self.profiles.add('Other')
+            convo.terminal_profile = other
+            convo.turn('different person')
+            convo.pending.result()
+            self.assertNotIn('brief answers', metadata()['character_profile']['content'])
+            self.assertEqual(api.tools[0].person_uuid, other['uuid'])
+            self.assertIn('brief answers', self.store.current(self.identity))
+            with self.assertRaises(ValueError):
+                convo.turn('unknown', source='discord', sender_id='456')
+
+    def test_profile_is_resupplied_after_history_rollover_and_counted(self):
+        class API:
+            closing = threading.Event()
+            def count(self, messages): return len(messages) * 60
+            def prepare(self, messages): pass
+            def reply(self, messages, reserve, **kwargs):
+                self.sent = messages
+                return 'answer', 'stop'
+        api = API()
+        convo = Conversation(api, 256, self.profiles, self.owner, self.store)
+        with patch('diagnostics.log'):
+            for _ in range(4):
+                convo.turn('hello')
+                convo.pending.result()
+                self.assertIn('character_profile', api.sent[-1]['content'])
+                self.assertLess(api.count(api.sent) + convo.reserve, 256)
+            self.assertLess(len(convo.history), 8)
+
+    def test_real_coordinator_rejects_oversize_then_saves_corrected_notes(self):
+        import httpx
+        from openai import OpenAI
+        from inference import API
+        from test_coordination import response
+        api = API('http://localhost')
+        api.count = lambda messages: 20
+        sent = []
+        notes = '# Phat\nEnjoys antique maps.'
+        def handle(request):
+            sent.append(json.loads(request.content))
+            if len(sent) <= 2:
+                content = 'x' * (LIMIT + 1) if len(sent) == 1 else notes
+                return response({'tool_calls': [{'index': 0, 'id': f'call_{len(sent)}',
+                    'type': 'function', 'function': {'name': 'update_character',
+                    'arguments': json.dumps({'content': content})}}]}, 'tool_calls')
+            return response({'content': 'Saved.'}, 'stop')
+        sdk = OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
+            http_client=httpx.Client(transport=httpx.MockTransport(handle)))
+        self.addCleanup(sdk.close)
+        convo = Conversation(api, 8192, self.profiles, self.owner, self.store)
+        with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log'), patch('conversation.Preparation'):
+            self.assertEqual(convo.turn('I enjoy antique maps.'), ('Saved.', 'stop'))
+        self.assertFalse(json.loads(sent[1]['messages'][-1]['content'])['success'])
+        self.assertTrue(json.loads(sent[2]['messages'][-1]['content'])['success'])
+        self.assertEqual(self.store.current(self.identity), notes)
+        self.assertEqual([m['role'] for m in convo.history], ['user', 'assistant'])

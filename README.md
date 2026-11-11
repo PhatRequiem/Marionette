@@ -12,7 +12,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns; no tools are enabled yet. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [character notes](docs/characters.md) that are supplied automatically and can be updated proactively. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). It supplies no setup report or personality instructions. Its loopback server stops when chat exits.
 
 Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 
@@ -34,7 +34,8 @@ Start with these files, in order:
 | [conversation.py](src/marionette/conversation.py) | Shared history, sequential turns, identity resolution, and permission checks |
 | [context.py](src/marionette/context.py) | Exact history fitting and between-turn rollover preparation |
 | [inference.py](src/marionette/inference.py) | Local HTTP, exact budgets, cache preparation, and Qwen-Agent response adapter |
-| [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration; currently empty |
+| [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
+| [characters.py](src/marionette/characters.py) | Bounded Markdown character storage and current-person update tool |
 | [identity.py](src/marionette/identity.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and shared-history actions |
 | [permissions.py](src/marionette/permissions.py) | Command authorization for resolved identities; shared history clear is owner-only |
@@ -64,6 +65,7 @@ Start with these files, in order:
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/setup.md#shared-inference-runtime).
 - `data/conversations/`: dated chat transcripts, server/model diagnostics, and optional Discord logs; ignored by Git.
 - `data/identities/`: private, portable JSON profile registry; ignored by Git.
+- `data/characters/`: private Markdown character notes, one file per person UUID; ignored by Git.
 - `data/session/`: private socket for optional connections to the running chat; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.

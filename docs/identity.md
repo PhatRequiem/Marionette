@@ -31,7 +31,7 @@ Example (synthetic IDs):
 }
 ```
 
-These fields are identity metadata, not character notes. No Markdown character files or profile-editing model tools are introduced by this change.
+These fields are identity metadata, not character notes. Separate [Markdown character profiles](characters.md) use the same UUID; the model can update those notes but cannot edit this registry.
 
 At startup, the configured `DISCORD_ALLOWED_USER_ID` from `data/discord/.env` is linked to the owner profile if not linked already. No bot token is copied into profiles. With no Discord configuration, terminal profiles still work offline. After adding Discord configuration, restart main chat before connecting Discord. A changed account or conflicting mapping stops startup with an error rather than silently transferring identity; review the saved mapping deliberately before relinking.
 
@@ -43,7 +43,7 @@ Selecting another terminal profile never transfers your Discord account to it. D
 
 The main diagnostic logs record **Sender identity** with these fields; the normal transcript records profile selection, messages and replies. Metadata is counted before generation and retained with each user message. `/clear` resets shared conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
 
-All profiles still share one history, budget, and rollover policy. This adds no relationship records, separate histories, persistent model memory, or file-reading access. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
+All profiles still share one history, budget, and rollover policy. The current sender’s character notes are supplied alongside this metadata on each ordinary message; separate histories and general file-reading access are not implemented. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
 
 ## Command permissions
 

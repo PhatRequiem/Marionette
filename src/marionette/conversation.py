@@ -13,8 +13,9 @@ from commands import execute_clear, recognize
 
 class Conversation:
     """One history and one generation at a time, shared by every input."""
-    def __init__(self, api, capacity, profiles=None, terminal_profile=None):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None, characters=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
+        self.characters = characters
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
         self.reserve = min(32768, capacity // 2)
@@ -49,6 +50,16 @@ class Conversation:
             if self.pending is not None:
                 self.history = self.pending.result()
                 self.pending = None
+            if self.characters is not None:
+                if identity is None:
+                    raise ValueError('Character profiles require a resolved sender identity.')
+                from characters import LIMIT, UpdateCharacter
+                content = self.characters.current(identity)
+                # Join the previous preparation worker before rebinding the current-person tool.
+                self.api.tools = (UpdateCharacter(self.characters, identity, content),)
+                identity['character_profile'] = {'content': content, 'characters': len(content),
+                                                 'character_limit': LIMIT}
+                diagnostics.log(f"Character supplied: person_uuid={identity['person_uuid']}; characters={len(content)}; limit={LIMIT}.")
             candidate, removed, tokens = fit_history(
                 self.history, message_with_identity(message, identity) if identity else message,
                 self.api.count, self.capacity, self.reserve)

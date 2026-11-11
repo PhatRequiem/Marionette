@@ -16,6 +16,7 @@ import terminal
 from connection import LocalConnection
 from conversation import Conversation
 from identity import Profiles
+from characters import Characters
 from inference import API
 
 
@@ -39,7 +40,7 @@ def chat(api, capacity):
     except EOFError:
         return
     terminal.show_profile(selected)
-    conversation = Conversation(api, capacity, profiles, selected)
+    conversation = Conversation(api, capacity, profiles, selected, Characters(data / 'characters'))
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)
