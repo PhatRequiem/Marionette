@@ -67,7 +67,7 @@ def event_message_id(stream, raw):
 def open_read(path):
     connection = sqlite3.connect(Path(path).resolve().as_uri() + '?mode=ro', uri=True, timeout=10)
     connection.row_factory = sqlite3.Row
-    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3):
+    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4):
         connection.close()
         raise ValueError('Unsupported log database version.')
     return connection
@@ -87,7 +87,7 @@ class Store:
             self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, 1, 2, 3):
+        if version not in (0, 1, 2, 3, 4):
             self.db.close()
             raise ValueError('Unsupported log database version; original left unchanged.')
         if version == 0:
@@ -110,9 +110,39 @@ class Store:
                     self.db.execute('DROP INDEX IF EXISTS messages_person')
                     self.db.execute('CREATE INDEX IF NOT EXISTS messages_contact ON messages(contact_uuid, recorded_at)')
                     self.db.execute('PRAGMA user_version=3')
+                if self.db.execute('PRAGMA user_version').fetchone()[0] == 3:
+                    self.db.execute("CREATE TABLE memory_epoch (id INTEGER PRIMARY KEY CHECK(id=1), generation TEXT NOT NULL, ram_ack TEXT NOT NULL, terminal_ack TEXT NOT NULL)")
+                    self.db.execute("INSERT INTO memory_epoch VALUES (1,'','','')")
+                    self.db.execute('PRAGMA user_version=4')
         except BaseException:
             self.db.close()
             raise
+
+        self.generation = self.db.execute('SELECT generation FROM memory_epoch').fetchone()[0]
+
+    def accept_generation(self, generation, stream):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            if self.db.execute('SELECT generation FROM memory_epoch').fetchone()[0] != generation:
+                return False
+            self.generation = generation
+            if stream in ('ram', 'terminal'):
+                self.db.execute(f'UPDATE memory_epoch SET {stream}_ack=?', (generation,))
+        return True
+
+    def reset_memory(self, session, generation):
+        """Keep the live session and ID allocator; erase all prior payloads atomically."""
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            if not self.db.execute('SELECT 1 FROM sessions WHERE id=?', (session,)).fetchone():
+                raise ValueError('Unknown active session.')
+            for table in ('failure_events', 'failures', 'error_evidence', 'recent_diagnostics',
+                          'events', 'diagnostic_batches', 'messages'):
+                self.db.execute('DELETE FROM ' + table)
+            self.db.execute('DELETE FROM sessions WHERE id<>?', (session,))
+            self.db.execute('UPDATE sessions SET started_at=?,ended_at=NULL WHERE id=?', (now(),session))
+            self.db.execute("UPDATE memory_epoch SET generation=?,ram_ack='',terminal_ack=''", (generation,))
+        self.generation = generation
 
     def close(self):
         self.db.close()
@@ -132,6 +162,8 @@ class Store:
         identifier = event_message_id(stream, raw)
         with self.db:
             self.db.execute('BEGIN IMMEDIATE')
+            if self.db.execute('SELECT generation FROM memory_epoch').fetchone()[0] != self.generation:
+                return None  # A pre-reset producer must cross its explicit stream boundary.
             policy = self.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
             event_id, stamp = policy['next_event'], now()
             self.db.execute('UPDATE retention_state SET next_event=next_event+1 WHERE id=1')
@@ -221,17 +253,26 @@ def capture(path, session, stream):
         from ram_logs import capture as capture_ram
         return capture_ram(path, session)
     with closing(Store(path)) as store:
+        from reset_boundary import BoundaryReader
+        boundary = BoundaryReader()
+        def process(raw):
+            for generation, payload in boundary.feed(raw):
+                if generation is not None:
+                    store.accept_generation(generation, stream)
+                elif payload:
+                    store.event(session, stream, payload)
+                    sys.stdout.buffer.write(payload)
+                    sys.stdout.buffer.flush()
         if stream == 'terminal':
             while raw := os.read(sys.stdin.fileno(), 65536):
-                store.event(session, stream, raw)
-                sys.stdout.buffer.write(raw)
-                sys.stdout.buffer.flush()
+                process(raw)
         else:
             for raw in sys.stdin.buffer:
-                store.event(session, stream, raw)
-                if stream == 'discord':
-                    sys.stdout.buffer.write(raw)
-                    sys.stdout.buffer.flush()
+                process(raw)
+        if boundary.pending:
+            store.event(session, stream, boundary.pending)
+            sys.stdout.buffer.write(boundary.pending)
+            sys.stdout.buffer.flush()
 
 
 def backup(path, destination):

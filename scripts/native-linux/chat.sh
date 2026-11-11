@@ -27,7 +27,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
+for source in memory_reset.py reset_boundary.py data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -104,9 +104,11 @@ mkdir -p "$ROOT/data/session"
 chmod 700 "$ROOT/data/session"
 export MARIONETTE_SESSION_SOCKET="$ROOT/data/session/chat.sock"
 python - "$ROOT/data/session/log-session.json" <<'PYTHON'
-import json, os, sys
+import json, os, sys, sqlite3
 from pathlib import Path
-Path(sys.argv[1]).write_text(json.dumps({'database': os.environ['MARIONETTE_LOG_DB'], 'session': os.environ['MARIONETTE_LOG_SESSION']}))
+with sqlite3.connect(os.environ['MARIONETTE_LOG_DB']) as database:
+    generation = database.execute('SELECT generation FROM memory_epoch').fetchone()[0]
+Path(sys.argv[1]).write_text(json.dumps({'database': os.environ['MARIONETTE_LOG_DB'], 'session': os.environ['MARIONETTE_LOG_SESSION'], 'generation': generation}))
 PYTHON
 
 # Viewers read the existing recorder RAM socket, falling back to saved rows after exit.

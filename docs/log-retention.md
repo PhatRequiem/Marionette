@@ -145,3 +145,7 @@ passed**. A separate actual-size test retained exactly 25 × 20 MB batches in RA
 confirmed zero diagnostic/event-window rows on disk before shutdown, then saved
 the 500 MB buffer and protected error evidence with SQLite integrity intact.
 The synthetic database was removed; the user's running session was not changed.
+
+## Explicit live memory reset
+
+The owner-authorized [`/resetmemory`](reset-memory.md) command deliberately discards both saved logs and the recorder's RAM/error windows. It uses private generation markers and acknowledgments in existing capture processes; no helper process or periodic payload writes are added. Schema 4 adds reset-generation metadata. Event allocation remains monotonic and the active session ID is preserved for live viewers. Old-epoch writers and shutdown buffers cannot reinsert erased payloads. Ordinary rolling budgets, protected-error limits, and shutdown-save behavior remain unchanged. Tests include interrupted-boundary suppression, stale writer rejection, and a full launcher reset followed by shutdown.

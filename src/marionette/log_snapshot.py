@@ -329,7 +329,7 @@ def database_snapshot(path, session, identifier, conversation_id):
         version = db.execute('PRAGMA user_version').fetchone()[0]
         query = "SELECT id,recorded_at,raw,0 AS truncated,'events' AS origin FROM events WHERE session_id=? AND message_id=? AND stream='diagnostic'"
         args = [session, identifier]
-        if version in (2, 3):
+        if version in (2, 3, 4):
             query += " UNION ALL SELECT event_id,recorded_at,raw,truncated,'error_evidence' FROM error_evidence WHERE session_id=? AND message_id=? AND stream='diagnostic'"
             args += [session, identifier]
         for row in db.execute(query + ' ORDER BY id', args):

@@ -84,3 +84,7 @@ When the user explicitly asks to **reset memory**, perform this fresh personal-d
 - Preserve source code, documentation (including historical starting-prompt references), configuration, Discord bot credentials, installed environments, model weights, inference runtimes, downloads, and unrelated files. This operation does not alter the diagnostic RAM retention policy.
 - Do not delete Discord-hosted messages, system backups, or backups outside the project without separate authorization. Local file deletion is not a secure-erasure guarantee.
 - Verify both UUIDs and Phat's Discord/owner mapping are unchanged; only Phat's contact profile remains; soul name/description are empty; old revisions, contact notes, and local memory copies are gone; and the database has no session, message, or event records. Keep private values out of Git and reports. Leave the application stopped unless the user asks to restart it, and report the result.
+
+### In-application reset command
+
+`/resetmemory` is an implemented owner-only terminal/Discord command, handled by application code. It performs the reset scope above while keeping the model loaded and the live connection/session metadata active, coordinating recorder generation boundaries rather than deleting open database files. See `docs/reset-memory.md` for authorization, failures, and retained live session metadata. Development-agent requests to stop/reset/relaunch still use the orderly stopped maintenance procedure above.

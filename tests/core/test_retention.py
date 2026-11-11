@@ -174,7 +174,7 @@ class RetentionTests(unittest.TestCase):
             self.assertEqual(migrated.db.execute('SELECT raw FROM events WHERE id=42').fetchone()[0],b'0.1 E runtime: legacy error\n')
             self.assertEqual(migrated.db.execute('SELECT first_event FROM failures').fetchone()[0],42)
             self.assertEqual(migrated.event('old','diagnostic',b'next\n'),43)
-            self.assertEqual(migrated.db.execute('PRAGMA user_version').fetchone()[0],3)
+            self.assertEqual(migrated.db.execute('PRAGMA user_version').fetchone()[0],4)
 
     def test_crash_commits_partial_window_and_recovery_can_finish_it(self):
         code = """import os,sys
@@ -205,7 +205,7 @@ os._exit(0)
             self.assertEqual(db.execute('SELECT raw FROM events').fetchone()[0],b'legacy')
             self.assertIsNone(db.execute("SELECT name FROM sqlite_master WHERE name='failures'").fetchone())
         with closing(Store(legacy)) as recovered:
-            self.assertEqual(recovered.db.execute('PRAGMA user_version').fetchone()[0],3)
+            self.assertEqual(recovered.db.execute('PRAGMA user_version').fetchone()[0],4)
 
     def test_concurrent_writers_rotate_without_reusing_event_ids(self):
         errors=[]

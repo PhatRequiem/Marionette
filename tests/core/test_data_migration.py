@@ -46,6 +46,7 @@ class MigrationTests(unittest.TestCase):
             store.db.execute('ALTER TABLE messages RENAME COLUMN contact_uuid TO person_uuid')
             store.db.execute('DROP INDEX messages_contact')
             store.db.execute('CREATE INDEX messages_person ON messages(person_uuid, recorded_at)')
+            store.db.execute('DROP TABLE memory_epoch')
             store.db.execute('PRAGMA user_version=2')
             store.db.commit()
             store.close()

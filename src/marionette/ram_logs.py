@@ -40,6 +40,7 @@ class RamLogs:
             self.memory.db.execute('INSERT INTO sessions VALUES (?,?,?)', tuple(row))
             self.memory.db.execute('UPDATE retention_state SET part_bytes=?,budget_bytes=?',
                                    (part_bytes or retention.PART_BYTES, budget_bytes or retention.BUDGET_BYTES))
+        self.generation = disk.generation
         self.saved = False
         self.budget = budget_bytes or retention.BUDGET_BYTES
 
@@ -61,6 +62,15 @@ class RamLogs:
                 self.limit = start + ID_BLOCK
             return self.memory.event(self.session, 'diagnostic', raw, category)
 
+    def reset(self, generation):
+        with self.lock:
+            if self.disk.db.execute('SELECT generation FROM memory_epoch').fetchone()[0] != generation:
+                return
+            self.memory.reset_memory(self.session, generation)
+            self.disk.accept_generation(generation, 'ram')
+            self.generation = generation
+            self.limit = 0
+
     def save(self):
         """One disk transaction; preserve original IDs and only surviving RAM rows."""
         if self.saved:
@@ -68,6 +78,9 @@ class RamLogs:
         source, target = self.memory.db, self.disk.db
         with self.lock, target:
             target.execute('BEGIN IMMEDIATE')
+            if target.execute('SELECT generation FROM memory_epoch').fetchone()[0] != self.generation:
+                self.saved = True  # Never resurrect pre-reset RAM, even if the barrier was interrupted.
+                return
             # Save as new disk batches; persisted diagnostics retain their existing budget.
             target.execute('UPDATE diagnostic_batches SET closed=1 WHERE closed=0')
             policy = target.execute('SELECT * FROM retention_state').fetchone()
@@ -171,8 +184,16 @@ def capture(path, session):
     with closing(Store(path)) as disk, closing(RamLogs(disk, session)) as buffer:
         with closing(LiveView(buffer, path)):
             try:
+                from reset_boundary import BoundaryReader
+                boundary = BoundaryReader()
                 for raw in sys.stdin.buffer:
-                    buffer.append(raw, category(raw))
+                    for generation, payload in boundary.feed(raw):
+                        if generation is not None:
+                            buffer.reset(generation)
+                        elif payload:
+                            buffer.append(payload, category(payload))
             finally:
+                if boundary.pending:
+                    buffer.append(boundary.pending, category(boundary.pending))
                 buffer.save()
     signal.signal(signal.SIGTERM, previous)

@@ -12,6 +12,7 @@ import sys
 import discord
 
 from connection import request
+from reset_boundary import current_generation, marker
 
 ROOT = Path(__file__).resolve().parents[2]
 ADDRESS = ROOT / 'data/session/chat.sock'
@@ -139,6 +140,7 @@ class DMChat(discord.Client):
         # Filter before reading/logging content or touching conversation history.
         if (message.author.bot or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
             return
+        memory_epoch = current_generation(self.address)
         received = datetime.datetime.now(datetime.timezone.utc)
         started = time.monotonic()
         context = {'message_id': str(message.id), 'log_message_id': f'discord:{message.id}', 'sender_id': str(message.author.id),
@@ -148,6 +150,11 @@ class DMChat(discord.Client):
             receipt_delay_ms=round((received - message.created_at).total_seconds() * 1000, 2),
             heartbeat_ms=self.heartbeat_ms())
         async with self.turn_lock:
+            if memory_epoch != current_generation(self.address):
+                return  # A queued pre-reset DM must not repopulate cleared memory.
+            if memory_epoch:
+                sys.stdout.buffer.write(marker(memory_epoch)+b'\n')
+                sys.stdout.buffer.flush()
             if message.id <= self.last_message_ids.get(message.channel.id, 0):
                 log('Discord duplicate/older message ignored.', **context)
                 return
@@ -172,8 +179,15 @@ class DMChat(discord.Client):
                 async with message.channel.typing():
                     phase = 'local_response'
                     local_start = time.monotonic()
-                    result = await request(self.address, text, message.author.id, message_id=context['log_message_id'])
+                    result = await request(self.address, text, message.author.id, message_id=context['log_message_id'], generation=memory_epoch)
                     answer, finish = result['answer'], result['finish']
+                    if finish == 'resetmemory':
+                        memory_epoch = current_generation(self.address)
+                        sys.stdout.buffer.write(marker(memory_epoch)+b'\n')
+                        sys.stdout.buffer.flush()
+                        # Keep transport watermarks so Gateway replay cannot restore erased DMs.
+                    elif memory_epoch != current_generation(self.address):
+                        return  # Terminal reset superseded this in-flight response.
                     timings = result.get('timings', {})
                     log('Local response completed.', **context, local_response_ms=elapsed(local_start),
                         main_queue_ms=timings.get('main_queue_ms'),

@@ -6,6 +6,8 @@ Local terminal chat with Qwen3.5 4B using a small Python terminal client and lla
 
 Follow [STARTUP.md](STARTUP.md) to launch her in the terminal and optionally connect Discord. It lists the steps in order and explains how to stop each part.
 
+For quick experiments, the owner can send [`/resetmemory`](docs/reset-memory.md) from terminal or Discord to reset personal memory and all chat histories without reloading the model.
+
 For a new installation, see [local setup](docs/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
 Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, then optionally attach Discord to the same running model in a fourth terminal. It accepts human one-to-one DMs, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
@@ -37,6 +39,7 @@ Start with these files, in order:
 | [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
 | [contact_notes.py](src/marionette/contact_notes.py) | Bounded Markdown contact notes and current-contact add/patch/remove tool |
 | [soul.py](src/marionette/soul.py) | Permanent self UUID, revisioned soul, and self-editing tool |
+| [memory_reset.py](src/marionette/memory_reset.py) and [reset_boundary.py](src/marionette/reset_boundary.py) | Owner-only live memory reset and recorder boundaries |
 | [data_migration.py](src/marionette/data_migration.py) | Preserving legacy contact and soul paths during startup |
 | [contacts.py](src/marionette/contacts.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |

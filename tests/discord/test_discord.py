@@ -58,7 +58,7 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         profiles = ContactProfiles(Path(temporary.name) / 'profiles.json')
         profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
-        async def request(address, text, sender_id, *, message_id=None):
+        async def request(address, text, sender_id, *, message_id=None, generation=None):
             answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id), message_id=message_id)
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
@@ -67,6 +67,20 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.events = patch.object(bot, 'log').start()
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
+
+    async def test_reset_completion_keeps_transport_watermarks_and_delivers_notice(self):
+        token='00000000-0000-0000-0000-000000000001'
+        incoming=message(number=777,content='/resetmemory')
+        self.client.last_message_ids[456]=99
+        with patch.object(bot,'current_generation',side_effect=['','',''+token]), \
+             patch.object(bot,'request',new=AsyncMock(return_value={'answer':'Memory reset.','finish':'resetmemory'})), \
+             patch.object(bot.sys,'stdout',Mock()) as output:
+            await self.client.on_message(incoming)
+        incoming.channel.send.assert_awaited_once()
+        self.assertEqual(incoming.channel.send.call_args.args[0],'Memory reset.')
+        self.assertEqual(self.client.last_message_ids[456],99)
+        self.assertEqual(self.client.last_message_ids[incoming.channel.id],777)
+        output.buffer.write.assert_called_once_with(bot.marker(token)+b'\n')
 
     async def test_message_log_id_and_delivery_boundaries(self):
         await self.client.on_message(message(number=7654))

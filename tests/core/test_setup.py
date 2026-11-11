@@ -99,7 +99,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['data_migration.py', 'storage.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -127,6 +127,21 @@ class LauncherTests(unittest.TestCase):
 
     def run_chat(self, *args):
         return subprocess.run(['bash', str(self.launcher), *args], input='1\nhello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
+
+    def test_live_reset_through_launcher_keeps_server_and_clears_previous_turn(self):
+        self.logs = self.root / 'data/conversations'
+        self.env['MARIONETTE_LOG_DIR'] = str(self.logs)
+        result = subprocess.run(['bash', str(self.launcher)],
+            input='1\nOLD_RESET_SENTINEL\n/resetmemory\nnew turn\n/exit\n', text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=25)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Memory reset. Soul, contact notes', result.stdout)
+        self.assertNotIn('MARIONETTE_RESET:', result.stdout)
+        with closing(open_read(self.logs / 'marionette.sqlite3')) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM sessions').fetchone()[0],1)
+            self.assertEqual([r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")], ['new turn'])
+            self.assertFalse(any(b'OLD_RESET_SENTINEL' in bytes(r[0]) for r in db.execute('SELECT raw FROM events')))
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
 
     def test_private_pairs_separation_quoting_and_viewer_failure(self):
         marker = self.root / 'must-not-exist'

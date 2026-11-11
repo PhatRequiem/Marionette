@@ -63,7 +63,7 @@ def select_profile(profiles):
 def show_ready(capacity, reserve):
     print(paint('Ready.', 'meta', enabled()) + paint(' Context limit: ', 'data', enabled()) + paint(str(capacity), 'tokens', enabled())
           + paint('; reasoning + answer allowance: ', 'data', enabled()) + paint(str(reserve), 'tokens', enabled())
-          + ' tokens. /clear starts fresh; /exit quits.')
+          + ' tokens. /clear starts fresh; /resetmemory wipes memory (owner); /exit quits.')
 
 
 def display_discord(conversation):
@@ -71,6 +71,9 @@ def display_discord(conversation):
         message, sender_id, future, queued_at, timings, message_id = conversation.incoming.get_nowait()
     except queue.Empty:
         return False
+    if getattr(future, 'memory_epoch', conversation.epoch) != conversation.epoch:
+        future.set_result(('Message discarded because memory was reset. Please send it again.', 'stop'))
+        return True
     processing_start = time.monotonic()
     if timings is not None:
         timings['main_queue_ms'] = round((processing_start - queued_at) * 1000, 2)
@@ -86,7 +89,7 @@ def display_discord(conversation):
     color('data')
     try:
         answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id)
-        if recognize(message, 'discord') == 'clear':
+        if recognize(message, 'discord') in ('clear', 'resetmemory'):
             color('meta')
             print(answer)
         if finish == 'length':
@@ -140,8 +143,11 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command == 'clear':
-            answer, _ = conversation.turn('/clear')
+        if command in ('clear', 'resetmemory'):
+            try:
+                answer, _ = conversation.turn(message)
+            except (ValueError, RuntimeError, OSError) as error:
+                answer = str(error)
             color('meta')
             print(answer)
             color('data')

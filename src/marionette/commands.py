@@ -2,12 +2,14 @@
 import diagnostics
 from permissions import require_command
 
-HELP_TEXT = 'Available commands: /clear and /exit.'
+HELP_TEXT = 'Available commands: /clear, /resetmemory (owner only), and /exit.'
 
 
 def recognize(message, source):
-    """Preserve terminal-only exit/help; Discord only interprets /clear."""
+    """Preserve terminal-only exit/help; Discord also accepts owner-only memory reset."""
     command = message.strip()
+    if command == '/resetmemory':
+        return 'resetmemory'
     if command == '/clear':
         return 'clear'
     if source == 'terminal':

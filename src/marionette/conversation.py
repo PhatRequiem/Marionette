@@ -27,6 +27,8 @@ class Conversation:
         self.pending_key = None
         self.lock = threading.Lock()
         self.incoming = queue.Queue()
+        self.epoch = store.generation if store else ''
+        self.resetting = False
 
     @property
     def history(self):
@@ -44,9 +46,13 @@ class Conversation:
             self.pending = None
             self.pending_key = None
 
-    def submit_discord(self, message, *, sender_id, timings=None, message_id=None):
+    def submit_discord(self, message, *, sender_id, timings=None, message_id=None, generation=None):
         # The terminal thread owns rendering, including while awaiting local input.
+        epoch = self.epoch if generation is None else generation
+        if self.resetting or epoch != self.epoch:
+            return 'Message discarded because memory was reset. Please send it again.', 'stop'
         future = Future()
+        future.memory_epoch = epoch
         self.incoming.put((message, sender_id, future, time.monotonic(), timings, message_id))
         while not self.api.closing.is_set():
             try:
@@ -62,13 +68,15 @@ class Conversation:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier)
-            if recognize(message, source) != 'clear':
+            if recognize(message, source) not in ('clear', 'resetmemory'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             return result
 
     def _turn(self, message, *, on_delta, source, sender_id, identifier):
+        if self.resetting:
+            raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
         identity = None
@@ -89,6 +97,14 @@ class Conversation:
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,
                                    sender_id, role, kind, content, status)
+        if recognize(message, source) == 'resetmemory':
+            from permissions import require_reset
+            from memory_reset import reset_memory
+            try:
+                require_reset(identity, self.profiles)
+            except PermissionError as error:
+                return str(error), 'stop'
+            return reset_memory(self), 'resetmemory'
         save('user', 'input', message, 'received')
         if recognize(message, source) == 'clear':
             answer = execute_clear(self, identity)

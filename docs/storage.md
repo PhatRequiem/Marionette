@@ -4,7 +4,7 @@ Marionette stores conversations and shutdown-saved diagnostics in **`data/conver
 
 ## What is stored
 
-Schema version 3 retains these primary tables (introduced in version 1):
+Schema version 4 retains these primary tables (introduced in version 1):
 
 | Table | Contents |
 |---|---|
@@ -93,3 +93,5 @@ On November 11, 2026, an isolated normal-launcher GPU check used synthetic profi
 ## Contact UUID schema migration
 
 Writable opens upgrade conversation databases to schema 3 transactionally: `messages.person_uuid` becomes `messages.contact_uuid`, with the corresponding index renamed. Existing messages, IDs, and raw diagnostic payloads are preserved. Read-only inspection still accepts schemas 1 and 2. Retention behavior and RAM budgets are unchanged. Synthetic tests verify the column migration and reopen; this is SQLite schema migration, not cross-database migration.
+
+Schema 4 adds one private `memory_epoch` metadata row for coordinated live resets. It migrates transactionally from schema 3 without rewriting existing messages. Read-only inspection accepts schemas 1–4. See [live reset](reset-memory.md) for deletion boundaries and retained active session metadata.

@@ -7,6 +7,7 @@ import socketserver
 import threading
 
 import diagnostics
+from reset_boundary import current_generation
 
 MAX_REQUEST = 1024 * 1024
 
@@ -25,6 +26,9 @@ class LocalConnection:
                     if len(raw) > MAX_REQUEST or not raw.endswith(b'\n'):
                         raise ValueError('Invalid local request size.')
                     request = json.loads(raw)
+                    generation = request.get('generation', '')
+                    if generation != current_generation(self.server.server_address):
+                        raise ValueError('Message predates memory reset; send it again.')
                     message = request['message']
                     if not isinstance(message, str) or not message.strip():
                         raise ValueError('A text message is required.')
@@ -35,7 +39,9 @@ class LocalConnection:
                     message_id = diagnostics.message_id(request.get('message_id'))
                     log(f'[message {message_id}] Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
                     timings = {}
-                    answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id)
+                    answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id, generation=generation)
+                    if finish != 'resetmemory' and generation != current_generation(self.server.server_address):
+                        answer, finish = 'Message discarded because memory was reset. Please send it again.', 'stop'
                     log(f'[message {message_id}] Discord answer: ' + json.dumps(answer, ensure_ascii=False))
                     result = {'answer': answer, 'finish': finish, 'timings': timings}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
@@ -64,11 +70,11 @@ class LocalConnection:
         self.path.unlink(missing_ok=True)
 
 
-async def request(address, message, sender_id, *, message_id=None):
+async def request(address, message, sender_id, *, message_id=None, generation=None):
     """No generation timeout: a 32K thinking response can legitimately take minutes."""
     reader, writer = await asyncio.open_unix_connection(str(address), limit=4 * MAX_REQUEST)
     try:
-        payload = (json.dumps({'message': message, 'sender_id': str(sender_id), 'message_id': message_id}) + '\n').encode()
+        payload = (json.dumps({'message': message, 'sender_id': str(sender_id), 'message_id': message_id, 'generation': current_generation(address) if generation is None else generation}) + '\n').encode()
         if len(payload) > MAX_REQUEST:
             raise ValueError('Message is too large for the local connection.')
         writer.write(payload)
