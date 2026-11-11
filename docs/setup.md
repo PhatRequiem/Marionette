@@ -15,12 +15,14 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 ## Shared model storage
 
-Setup and chat both use `~/AI Local Models/Qwen/Qwen3.5/4B/Instruct/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+Setup and chat both use `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+
+The library sits beside `~/AI Infrastructure/AI Apps/`. The capitalization of `AI Infrastructure` matters on Linux. The user moved the library into this parent folder after its initial organization; the library's relative catalog paths still apply, while absolute paths in the original migration history describe the earlier location. Setup verification, all 54 automated checks, shell syntax, and an isolated GPU chat with clean shutdown passed again with this parent path on November 10, 2026.
 
 To use a different library, set `MARIONETTE_MODELS_DIR` to its absolute root path for **both** setup and chat. Quote paths containing spaces:
 
 ```bash
-export MARIONETTE_MODELS_DIR="/path/to/AI Local Models"
+export MARIONETTE_MODELS_DIR="/path/to/AI Infrastructure/AI Local Models"
 python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
@@ -80,7 +82,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally alongside Q4 in `~/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
+Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes) for faster infrastructure testing and lower weight memory use. It trades numerical precision for speed; conversation quality has not been compared systematically against BF16. The full 16-bit BF16 file is retained locally alongside Q4 in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; no character instructions are injected. No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 

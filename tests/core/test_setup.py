@@ -71,7 +71,7 @@ class SetupTests(unittest.TestCase):
                     patch.object(setup, 'download') as download, patch.object(setup, 'install_runtime'):
                 setup.install()
                 model = setup.MANIFEST['model']
-                expected_root = Path(override) if override else home / 'AI Local Models'
+                expected_root = Path(override) if override else home / 'AI Infrastructure' / 'AI Local Models'
                 self.assertEqual(download.call_args.args, (model, expected_root / model['directory'] / model['filename']))
                 self.assertFalse((self.root / 'data/models').exists())
 
@@ -96,7 +96,7 @@ class LauncherTests(unittest.TestCase):
         runtime.write_text('#!/usr/bin/env python\n' + (ROOT / 'tests/core/fake_server.py').read_text())
         runtime.chmod(0o755)
         self.home = self.root / 'synthetic home'
-        self.model = self.home / 'AI Local Models/Language/test/test.gguf'
+        self.model = self.home / 'AI Infrastructure/AI Local Models/Language/test/test.gguf'
         model = self.model
         model.parent.mkdir(parents=True)
         model.write_bytes(b'synthetic')

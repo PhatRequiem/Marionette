@@ -9,7 +9,7 @@ root = Path(sys.argv[1])
 manifest = json.loads((root / 'scripts/native-linux/downloads.json').read_text())
 runtime = manifest['runtime']
 print(root / 'runtime/llama.cpp' / runtime['version'] / runtime['executable'])
-models_root = Path(os.environ.get('MARIONETTE_MODELS_DIR') or Path.home() / 'AI Local Models').expanduser().resolve()
+models_root = Path(os.environ.get('MARIONETTE_MODELS_DIR') or Path.home() / 'AI Infrastructure' / 'AI Local Models').expanduser().resolve()
 print(models_root / manifest['model']['directory'] / manifest['model']['filename'])
 PY
 )
