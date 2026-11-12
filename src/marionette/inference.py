@@ -54,7 +54,7 @@ class API:
         if messages and messages[0]["role"] == "system":
             return messages
         parts = []
-        guidance = {'query_logs': 'log-queries.md',
+        guidance = {'read_docs': 'docs-vault.md', 'query_logs': 'log-queries.md',
                     'update_contact_notes': 'contact-notes.md', 'update_soul': 'soul.md'}
         enabled = {tool.name for tool in self.tools}
         files = [filename for name, filename in guidance.items() if name in enabled]

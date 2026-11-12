@@ -21,3 +21,6 @@ Thumbs.db
 *.log
 __pycache__/
 *.pyc
+
+# Obsidian local settings, plugin binaries and API credentials
+.obsidian/

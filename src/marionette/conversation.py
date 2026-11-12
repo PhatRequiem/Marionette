@@ -46,6 +46,14 @@ class Conversation:
                          socket_path=os.environ.get('MARIONETTE_SESSION_SOCKET'))
         self.api.tools = tuple(t for t in getattr(self.api, 'tools', ()) if t.name != tool.name) + (tool,)
 
+    def bind_vault(self):
+        # Standalone conversations without an application session get no docs access.
+        if self.store is None or not self.session_id:
+            return
+        from vault_tool import ReadDocs
+        self.api.tools = tuple(t for t in getattr(self.api, 'tools', ())
+                               if t.name not in ('query_logs', 'read_docs')) + (ReadDocs(),)
+
     @property
     def history(self):
         return self.histories.setdefault(self.key, [])
@@ -139,7 +147,7 @@ class Conversation:
         if self.soul is not None:
             tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
-        self.bind_log_query(identifier)
+        self.bind_vault()
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,
             self.api.count, self.capacity, self.reserve)

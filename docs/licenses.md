@@ -164,3 +164,9 @@ The following inventory was checked against installed distribution metadata and 
 | uvicorn | 0.54.0 | BSD-3-Clause |
 | websocket-client | 1.9.2 | Apache-2.0 |
 | yarl | 1.25.1 | Apache-2.0 |
+
+## Optional Obsidian docs integration
+
+Obsidian desktop is proprietary, not open source; this optional user-selected integration does not replace the local inference or storage stack. Installed package: 1.14.4-2, app-reported version 1.15.0. Local vault use needs no paid Sync/Publish plan or account. See [Obsidian license](https://obsidian.md/license) and [pricing](https://obsidian.md/pricing). Without Obsidian running, chat still works and vault requests return unavailable; there is no hosted fallback.
+
+Local REST API with MCP 5.5.2 is MIT-licensed, verified from [the release license](https://github.com/coddingtonbear/obsidian-local-rest-api/blob/5.5.2/LICENSE). The pinned bundle, manifest, styles and license hashes are in `scripts/native-linux/obsidian-downloads.json`. The plugin runs inside Obsidian; Marionette uses Python's standard HTTP client and explicit Qwen-Agent tools, not MCP auto-discovery. See [setup and read-only boundaries](obsidian.md).

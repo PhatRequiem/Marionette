@@ -51,7 +51,7 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     api.prepare([])
     conversation = Conversation(api, capacity, profiles, selected, ContactNotes(data / 'contact_notes'),
                                 store, session_id, soul=soul)
-    conversation.bind_log_query()
+    conversation.bind_vault()
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
     terminal.show_ready(capacity, conversation.reserve)

@@ -66,6 +66,10 @@ Application code lives in `src/marionette/`: `session.py` composes the applicati
 
 `scripts/native-linux/` contains the core `setup.py`, `chat.sh`, and `view-log.sh` scripts, plus optional `setup-discord.sh` and `discord.sh`. The pinned download and Discord dependency manifests stay beside their setup scripts. The [README script inventory](../README.md#reviewing-the-code) describes each script. Core application tests live in `tests/core/`; optional Discord transport tests live in `tests/discord/`. llama.cpp lives in the shared app library; the optional Discord environment stays under `runtime/discord/`, and private data stays under `data/`. Use the same setup and launch commands after moving or cloning the complete checkout.
 
+## Optional docs vault
+
+For read-only documentation retrieval, follow [Obsidian docs setup](obsidian.md). Its pinned installer is separate from core setup; chat remains usable when Obsidian is closed. The production log-query tool is disconnected, but its operator CLI remains available.
+
 ## Operation
 
 For everyday launch, chat, and exit commands, see [STARTUP.md](../STARTUP.md).
