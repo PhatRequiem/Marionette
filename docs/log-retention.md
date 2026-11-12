@@ -2,8 +2,7 @@
 
 **Policy:** routine diagnostics live in the **existing recorder process's RAM**,
 with a **500 MB raw-event rolling budget in 20 MB batches**. No new helper or
-watchdog process is added. Conversations remain durable in SQLite. The model
-snapshot tool remains disconnected.
+watchdog process is added. Conversations remain durable in SQLite. Model log access remains disabled.
 
 MB means decimal bytes: 500,000,000 and 20,000,000. `ram_logs.py` owns the live
 buffer and shutdown save; `retention.py` supplies batch/error-window rules.
@@ -52,9 +51,8 @@ and correlation IDs when comparing streams.
 
 Views follow the live RAM buffer and fall back to saved SQLite rows once the
 recorder exits. IDs and receipt timestamps do not change when saved. A viewer
-that falls behind can miss rolled-out events. The standalone snapshot reader
-still reads saved SQLite data/text exports, not the live RAM socket; current
-unsaved diagnostics become available to it after shutdown saving.
+that falls behind can miss rolled-out events. Saved-log commands see current
+RAM diagnostics only after shutdown saving.
 
 ## Latest 20 errors with context
 
@@ -120,7 +118,7 @@ records are preserved under their existing rolling retention policy.
 `retention` reports saved sizes plus `live_ram` policy, size, session, and failure
 count when the recorder is available. `errors` and `error` inspect **saved** failures;
 new RAM failures appear there after shutdown saving. The live diagnostic windows
-show errors as they occur. [Snapshot commands](log-snapshots.md) stay operator-only.
+show errors as they occur. Log inspection remains operator-only.
 
 Use [SQLite backup/export](storage.md) for already saved evidence and conversations.
 A backup while running does not include the unsaved RAM buffer. Stop cleanly first

@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src/marionette'))
 import retention
 from storage import Store, SCHEMA, backup, open_read, view_log
-from log_snapshot import database_snapshot
 
 
 class RetentionTests(unittest.TestCase):
@@ -129,7 +128,7 @@ class RetentionTests(unittest.TestCase):
         self.assertEqual(self.scalar('SELECT next_event FROM retention_state'),before)
         self.assertEqual(len(self.errors()),1)
 
-    def test_snapshot_after_original_message_events_roll_out(self):
+    def test_search_metadata_after_original_message_events_roll_out(self):
         identifier='discord:1234'
         self.store.message(self.session,identifier,'discord:5678',None,'discord','5678','user','input','synthetic','received')
         prefix=b'Client: [message discord:1234] '
@@ -141,12 +140,12 @@ class RetentionTests(unittest.TestCase):
         self.event(prefix+b'========== MESSAGE END | processing | failed ==========\n')
         for i in range(100): self.event(b'padding'*30)
         self.assertEqual(self.scalar("SELECT count(*) FROM events WHERE message_id='discord:1234'"),0)
-        result=database_snapshot(self.path,self.session,identifier,'discord:5678')
-        self.assertEqual(result['context']['prompt_tokens'],100)
-        self.assertEqual(result['processing']['status'],'incomplete')
-        self.assertIn('retained synthetic failure',result['errors'][0]['message'])
-        with self.assertRaises(ValueError):
-            database_snapshot(self.path,self.session,identifier,'discord:9999')
+        rows = self.store.db.execute(
+            'SELECT event_type,raw FROM error_evidence WHERE session_id=? AND message_id=?',
+            (self.session,identifier)).fetchall()
+        self.assertTrue(any(row['event_type']=='prompt_budget' for row in rows))
+        self.assertTrue(any(row['event_type']=='message_failed' and b'retained synthetic failure' in row['raw'] for row in rows))
+        self.assertFalse(any(row['event_type']=='processing_start' for row in rows))
 
     def test_backup_and_sql_restore_include_error_windows(self):
         self.event(b'0.1 E runtime: saved failure\n')
@@ -225,7 +224,7 @@ os._exit(0)
         self.assertLessEqual(self.scalar('SELECT sum(bytes) FROM diagnostic_batches'),900)
         self.assertEqual(self.scalar('PRAGMA integrity_check'),'ok')
 
-    def test_operator_commands_and_database_snapshot_cli(self):
+    def test_operator_commands(self):
         prefix=b'Client: [message discord:1234] '
         self.event(prefix+b'Conversation selected: discord:5678.\n')
         self.event(prefix+b'Message failed: RuntimeError: operator fixture\n')
@@ -236,12 +235,6 @@ os._exit(0)
         evidence=subprocess.check_output(command+['error',str(failures[0]['id'])],text=True)
         self.assertIn('operator fixture',evidence)
         self.assertIn('truncated=False',evidence)
-        result=subprocess.run(['bash',str(ROOT/'scripts/native-linux/log-snapshot.sh'),
-            '--database',str(self.path),'--session',self.session,
-            '--message-id','discord:1234','--conversation-id','discord:5678'],capture_output=True,text=True)
-        self.assertEqual(result.returncode,0,result.stderr)
-        report=json.loads(result.stdout)['message']
-        self.assertIn('operator fixture',report['errors'][0]['message'])
         self.assertEqual(self.scalar('SELECT count(*) FROM events'),2)
 
     def test_live_view_continues_across_pruning(self):

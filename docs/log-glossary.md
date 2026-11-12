@@ -1,6 +1,6 @@
 # Log glossary
 
-Short definitions for current logs and snapshots. Reference only: this glossary is
+Short definitions for current logs. Reference only: this glossary is
 not supplied to the model and does not enable log access.
 
 ## Storage and records
@@ -17,9 +17,6 @@ not supplied to the model and does not enable log access.
 | `failures` | Recognized failures and their retained evidence windows. |
 | `failure_events` | Links failures to before/error/after evidence records. |
 | `diagnostic_batches` | Groups of raw diagnostics used for rolling eviction. |
-| Snapshot | On-demand structured report extracted from supplied evidence. |
-| Setup section | Configuration and application facts, with evidence status. |
-| Message section | Processing and diagnostic facts for one selected message. |
 | Retention | Rules deciding which records remain available. |
 | Eviction | Removal of older diagnostic batches when the budget is exceeded. |
 | Protected window | Retained context around an error: up to 20 events before and after. |
@@ -29,7 +26,7 @@ not supplied to the model and does not enable log access.
 
 | Field | Definition |
 |---|---|
-| `session_id` | UUID identifying an application run; called `session` in snapshots. |
+| `session_id` | UUID identifying an application run. |
 | Event `id` / `event_id` | Event number shared by live views and shutdown-saved evidence. |
 | Message row `id` | Database row number; distinct from the incoming message ID. |
 | `message_id` | Incoming-message correlation ID: `local:UUID` or `discord:ID`. |
@@ -44,14 +41,12 @@ not supplied to the model and does not enable log access.
 | `tool_number` | Tool-call ordinal within a message, stored as text such as `01`. |
 | `tool_name` | Name recorded by an explicit tool-identity event. |
 | `protocol_tool_call_id` | Original tool-call ID supplied by the tool protocol. |
-| `model_request_id` | Snapshot reference combining message ID and request ordinal. |
-| `tool_call_id` | Snapshot reference combining message ID and tool ordinal. |
 | Failure `id` / `failure_id` | Identifier linking a retained failure to its evidence. |
 | `event_type` | Recognized event label extracted from an explicit log envelope. |
 | `recorded_at` | Recorder receipt timestamp; not necessarily the event's original occurrence time. |
 | `stream` | Output source: diagnostic, terminal or Discord. |
 | `category` | Diagnostic-view routing: server, model or both. |
-| `source` | Message interface, or an evidence-source description in setup reports. |
+| `source` | Message interface, not a file path. |
 | `role` | Message participant role, such as user or assistant. |
 | `kind` | Message content kind, such as input, reasoning or answer. |
 | `status` | Outcome or evidence state; meaning depends on its record/section. |
@@ -108,7 +103,7 @@ These are the current searchable labels, not a list of every possible raw log li
 
 An `end` label marks a boundary, not guaranteed success. Read its outcome.
 
-## Snapshot measurements and evidence
+## Measurements and evidence
 
 | Term / field | Definition |
 |---|---|
@@ -117,18 +112,10 @@ An `end` label marks a boundary, not guaranteed success. Read its outcome.
 | `completion_tokens` | Generated tokens, potentially including reasoning and tool syntax. |
 | `total_tokens` | Runtime-reported combined token count for one request. |
 | `reply_allowance_tokens` | Generation budget inside the context capacity. |
-| `remaining_before_generation_tokens` | Capacity minus the recorded prompt size. |
-| `headroom_after_reply_allowance_tokens` | Capacity left after prompt, reply allowance and one spare token. |
 | `removed_exchanges` | Complete exchanges removed during input-time context fitting. |
 | `finish_reason` | Recorded reason generation stopped. |
-| `elapsed_receipt_ms` | Time between recorded processing start/end receipts. |
-| `captured_at` | Time the snapshot report was created. |
-| `observed_at` | Time the supplied setup evidence was observed. |
 | Provenance | Source references explaining where a reported fact came from. |
 | `null` / unavailable | No usable value was obtained; does not mean false or zero. |
-| `unverified` | Setup fact has no supplied observation. |
-| `caller_reported` | Setup value supplied by a caller, not independently verified. |
-| `synthetic_example` | Demonstration value, not a live observation. |
 | Incomplete | Required boundaries or evidence are missing. |
 
 Token counts belong to individual requests; do not sum prompt counts into context
@@ -136,5 +123,5 @@ usage. Missing errors do not prove success. Expired records cannot be reconstruc
 from their IDs. Raw runtime lines are not assigned to a message by proximity alone.
 
 For storage and query details, see [storage](storage.md). For budgets and durability,
-see [retention](log-retention.md). For report fields and current limitations, see
-[snapshots](snapshots.md) and [message snapshots](log-snapshots.md).
+see [retention](log-retention.md). The former snapshot utilities have been removed;
+this glossary describes the logs and does not define a model-facing request interface.

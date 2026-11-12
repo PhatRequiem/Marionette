@@ -94,21 +94,13 @@ class CoordinationTests(unittest.TestCase):
         self.assertIn(prefix + '[request 02] ---------- MODEL REQUEST START', text)
         self.assertIn(prefix + '[request 02] ---------- MODEL REQUEST END | completed', text)
         self.assertIn(prefix + 'Reply completed:', text)
-        # End-to-end routed logs remain readable by the disconnected snapshot reader.
+        # End-to-end routing preserves operation labels.
         from log_router import route
-        from log_snapshot import snapshot
         with tempfile.TemporaryDirectory() as directory:
             server = Path(directory) / 'synthetic-server.txt'
             model = Path(directory) / 'synthetic-model.txt'
             with server.open('wb') as a, model.open('wb') as b:
                 route(io.BytesIO(b''.join(self.log_records)), a, b)
-            report = snapshot([server, model], 'discord:1234', 'terminal:local')
-            self.assertEqual([x['model_request_id'] for x in report['model_requests']],
-                ['discord:1234/request-01', 'discord:1234/request-02'])
-            calls = [x for x in report['operations'] if x['event'] == 'identity']
-            self.assertEqual(calls[0]['model_request_id'], 'discord:1234/request-01')
-            self.assertEqual(calls[0]['tool_call_id'], 'discord:1234/tool-01')
-            self.assertEqual(calls[0]['protocol_tool_call_id'], 'call_1')
             self.assertIn('[message discord:1234] [request 01] [tool 01] [TOOL CALL START]', server.read_text())
 
     def test_unknown_tool_never_executes(self):

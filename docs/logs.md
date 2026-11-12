@@ -81,8 +81,7 @@ remain outside message scopes. A crash or forced process kill can leave a start
 without an end; that is incomplete evidence, not a successful turn.
 
 These IDs are not supplied to the model or saved in conversation history.
-An optional [on-demand snapshot utility](log-snapshots.md) can read the database or exported views for an
-operator; it is not connected to the model and creates no new log file. Legacy text exports remain readable.
+Operators can inspect saved logs with the [storage commands](storage.md). No model log-reading tool is enabled. Legacy text exports remain readable.
 Restart main chat and reconnect Discord to use the updated logging together.
 
 Verification uses synthetic messages: unique terminal IDs, success/failure
@@ -130,16 +129,14 @@ that the requested operation succeeded: the framework can return an error as tex
 and tools can return their own structured error results.
 
 Raw runtime records remain unchanged and are not assigned inferred child IDs.
-Child labels and section markers are also understood by the standalone snapshot
-reader. No snapshot tool is registered. Restart main chat to get the new request
+No model log-reading tool is registered. Restart main chat to get the new request
 and tool labels; reconnect Discord after restarting. Existing saved logs remain
 readable and are not rewritten.
 
 Verification uses the real pinned Qwen-Agent loop with synthetic streamed HTTP
 responses: multi-call turns, repeated calls to the same tool, unchanged protocol
 IDs in tool results, failed/truncated streams, rejected tools, budget rejection,
-raised/returned tool errors, scope cleanup, lossless log routing, and snapshot
-correlation. These checks do not assert live-model tool-selection quality.
+raised/returned tool errors, scope cleanup, and lossless log routing. These checks do not assert live-model tool-selection quality.
 
 ## Log storage and recovery
 

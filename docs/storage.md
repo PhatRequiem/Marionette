@@ -43,7 +43,7 @@ From the checkout, list sessions and substitute the desired UUID below:
 
 Add `--follow` after the view name to follow a running session. `terminal` exports the exact displayed output bytes; those contain active terminal control codes. The diagnostic viewers escape original control bytes for safe reading.
 
-Text exports preserve compatibility with the existing [message snapshot utility](log-snapshots.md). Export related views under the same prefix:
+Export related human-readable views under the same prefix:
 
 ```bash
 umask 077
@@ -53,7 +53,7 @@ mkdir -p data/conversations/exports
 ./scripts/native-linux/storage.sh view SESSION_UUID discord > data/conversations/exports/SESSION-discord.txt
 ```
 
-These are optional operator exports, not additional automatically saved logs. The snapshot utility reads these text exports or the database directly, including retained error evidence; it is not connected to the model.
+These are optional operator exports, not additional automatically saved logs. Model log access is not enabled.
 
 For a portable complete export including structured messages, schema, indexes, provenance, and exact BLOB bytes:
 
@@ -88,7 +88,7 @@ SQLite is [public domain](https://sqlite.org/copyright.html). Design references:
 
 ## Verification of this change
 
-On November 11, 2026, an isolated normal-launcher GPU check used synthetic profiles and a separate database. The unchanged Q4 model answered `2 + 2` with `4`; input, reasoning, and answer were stored separately, 7,806 diagnostic records and the terminal stream were saved, integrity checking passed, and the session/server ended cleanly. All 106 automated checks passed (93 core and 13 mocked Discord), including Ctrl+C shutdown with recorder draining. The existing message snapshot utility successfully read exports from the GPU session. Mocked Discord integration verifies attachment, reconnection, metadata/delivery events, local reasoning, and answers-only delivery without a live Discord login. These checks establish recording and basic functionality, not long-session reliability, answer quality, or a performance improvement.
+On November 11, 2026, an isolated normal-launcher GPU check used synthetic profiles and a separate database. The unchanged Q4 model answered `2 + 2` with `4`; input, reasoning, and answer were stored separately, 7,806 diagnostic records and the terminal stream were saved, integrity checking passed, and the session/server ended cleanly. All 106 automated checks passed (93 core and 13 mocked Discord), including Ctrl+C shutdown with recorder draining. The then-existing message snapshot utility successfully read exports from the GPU session; that utility has since been removed. Mocked Discord integration verifies attachment, reconnection, metadata/delivery events, local reasoning, and answers-only delivery without a live Discord login. These checks establish recording and basic functionality, not long-session reliability, answer quality, or a performance improvement.
 
 ## Contact UUID schema migration
 
@@ -142,8 +142,8 @@ Names remain in the contact registry and searchable retained sender-identity dia
 resolve names to permanent contact UUIDs and handle ambiguity before searching.
 Historical names are not guaranteed after diagnostic expiry. No full-text index,
 natural-language lookup, live model access, or new setup evidence collector is added.
-The existing snapshot reader still needs separate work for SQLite Discord delivery
-extraction and live-buffer access.
+A future model-facing lookup interface would require separate implementation; the
+former snapshot utilities have been removed.
 
 Synthetic checks verify schema-4 backfill, indexed lookup, raw-byte/ID preservation,
 protected evidence after rolling eviction, shutdown saving, and reset deletion.
