@@ -32,3 +32,5 @@ These tests establish application behavior, not answer quality or long-session r
 A real Q4 GPU smoke test in temporary synthetic storage generated before and after `/resetmemory` with one model load, retained only the post-reset conversation, and shut down with SQLite integrity intact. The personal instance was left stopped and no live Discord message was sent. This establishes loading and short functional generation, not broader quality, performance, or long-session reliability.
 
 Verification: 134 core regression checks and 14 mocked Discord checks passed, plus the isolated live GPU reset test.
+
+Temporary [scratchpads](scratchpads.md) are also emptied by `/resetmemory`. Stopping the process clears their RAM state; no scratchpad files exist. Their tool results follow the existing conversation/log reset policy.

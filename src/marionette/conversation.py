@@ -13,10 +13,11 @@ from commands import execute_clear, recognize
 
 class Conversation:
     """One history per terminal profile or Discord sender; one generation at a time."""
-    def __init__(self, api, capacity, profiles=None, terminal_profile=None, contact_notes=None, store=None, session_id=None, soul=None):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None, contact_notes=None, store=None, session_id=None, soul=None, scratchpads=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.contact_notes = contact_notes
         self.soul = soul
+        self.scratchpads = scratchpads
         self.store, self.session_id = store, session_id
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
@@ -147,6 +148,8 @@ class Conversation:
         if self.soul is not None:
             tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
+        if self.scratchpads is not None:
+            self.scratchpads.bind(self.api)
         self.bind_log_query(identifier)
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,

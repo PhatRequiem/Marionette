@@ -15,6 +15,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'src/marionette'))
 from contacts import ContactProfiles
 from contact_notes import ContactNotes
 from soul import Soul
+from scratchpads import Scratchpads
 from conversation import Conversation
 from storage import Store
 from reset_boundary import BoundaryReader, marker
@@ -57,7 +58,9 @@ class MemoryResetTests(unittest.TestCase):
                 old_writer=Store(dbpath)
                 store.message(session,'local:00000000-0000-0000-0000-000000000001','terminal:test',identity,'terminal','test','user','input','OLD_SECRET','received')
                 api=Mock(closing=threading.Event(), tools=())
-                conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul)
+                pads = Scratchpads()
+                pads.update("focus", "OLD_SECRET")
+                conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul,pads)
                 conversation.histories={'terminal:test':[{'role':'user','content':'OLD_SECRET'}], 'discord:123':[{'role':'user','content':'old'}]}
                 capture=Path(__file__).resolve().parents[2]/'src/marionette/storage.py'
                 processes=[]
@@ -79,6 +82,8 @@ class MemoryResetTests(unittest.TestCase):
                     api.reply.assert_not_called()
                     self.assertFalse(api.closing.is_set())
                     self.assertEqual(conversation.histories,{})
+                    self.assertTrue(all(not text for text in pads.contents.values()))
+                    self.assertIn("update_scratchpad", {t.name for t in api.tools})
                     self.assertEqual(len(profiles.profiles),1)
                     self.assertEqual(profiles.profiles[0]['uuid'],owner['uuid'])
                     self.assertEqual(profiles.resolve('discord','123')['contact_uuid'],owner['uuid'])
