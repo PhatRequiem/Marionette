@@ -54,6 +54,7 @@ Start with these files, in order:
 | [retention.py](src/marionette/retention.py) | [Rolling diagnostic batches and protected error windows](docs/log-retention.md) |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |
 | [log_snapshot.py](src/marionette/log_snapshot.py) | Standalone [on-demand message diagnostics](docs/log-snapshots.md); not connected to the model |
+| [startup_snapshot.py](src/marionette/startup_snapshot.py) | Standalone [setup-report preview](docs/startup-snapshot.md); synthetic/caller-supplied evidence only, not connected to the model |
 | [view-log.sh](scripts/native-linux/view-log.sh) | Follow a saved log until the chat ends |
 | [setup.py](scripts/native-linux/setup.py) and [downloads.json](scripts/native-linux/downloads.json) | Install and verify the pinned runtime and model |
 | [setup-agent.sh](scripts/native-linux/setup-agent.sh) | Install pinned Qwen-Agent dependencies for main chat |
