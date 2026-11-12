@@ -233,14 +233,18 @@ class ConfigAndStreamingTests(unittest.TestCase):
             async def close(self):
                 closed.append(True)
                 self.done.set()
+        status_server = Mock(wait_closed=AsyncMock())
         address = Mock()
         address.stat.side_effect = [SimpleNamespace(st_ino=123), FileNotFoundError()]
         with patch.object(bot, 'read_config', return_value=(123, 'synthetic')), \
              patch.object(bot, 'ADDRESS', address), patch.object(bot, 'DMChat', Client), \
              patch.object(bot, 'log'), patch.object(bot.sys, 'argv', ['discord_bot.py']), \
-             patch.object(bot.asyncio, 'sleep', new_callable=AsyncMock):
+             patch.object(bot.asyncio, 'sleep', new_callable=AsyncMock), \
+             patch('operator_status.start', new_callable=AsyncMock, return_value=status_server):
             self.assertEqual(bot.main(), 0)
         self.assertEqual(closed, [True])
+        status_server.close.assert_called_once()
+        status_server.wait_closed.assert_awaited_once()
 
     def test_config_fails_closed_and_does_not_echo_token(self):
         with tempfile.TemporaryDirectory() as directory:

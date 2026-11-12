@@ -1,6 +1,7 @@
 # Log request form
 
-Version 1. Agreed request format only: **no query handler or model connection yet**.
+Version 1. The [operator query handler](log-queries.md) accepts this form.
+**Not connected to the model.**
 The [JSON Schema](log-request-form.schema.json) defines valid forms. Short field
 and evidence definitions are in the [log glossary](log-glossary.md).
 
@@ -58,7 +59,7 @@ Errors for a specific message (synthetic example ID):
 {"lookup": "errors", "target": "message_id", "message_id": "discord:123456789"}
 ```
 
-## Handler rules for the next step
+## Handler rules
 
 - The application supplies conversation, access scope and session context. The form accepts no SQL, file paths, contact IDs, session IDs or extra filters.
 - Validate the form before reading data. Invalid combinations or extra fields are errors, not silently ignored instructions.
@@ -68,7 +69,6 @@ Errors for a specific message (synthetic example ID):
 - No matching errors does not prove success. Missing delivery records do not prove delivery failure. Unsupported checks return unavailable rather than inferred results.
 
 Date ranges, multi-message searches, field selection and vault search are outside
-this first form. A schema-valid request does not yet execute anything. Retrieval,
-result formatting, current-status probes and access enforcement remain to be
-implemented and tested. Native tool-schema compatibility must be checked before
-this contract is registered with the model.
+this first form. The operator binds session and conversation scope when running
+the handler. A future model adapter must derive that scope from the authenticated
+caller, and native tool-schema compatibility must be checked before registration.

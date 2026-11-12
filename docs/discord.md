@@ -86,3 +86,9 @@ Review changed packages and licenses and rerun both test suites when updating.
 Conversation commands are checked by [command permissions](contacts.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
 
 Current separate-history verification and cache measurements are in [the conversation-cache report](experiments/conversation-cache-2026-11-10.md).
+
+The [operator query handler](log-queries.md) can request fresh Discord status
+from a same-user private socket in the existing bot process. The response is
+`online`, `connecting`, or `offline`; an unreachable probe means `unknown`.
+Restart the adapter after updating code to enable this endpoint. It neither
+updates the startup datasheet nor exposes a model tool.

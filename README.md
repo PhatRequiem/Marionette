@@ -20,7 +20,7 @@ Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 
 
 The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
-See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md), with a [short log glossary](docs/log-glossary.md) and the [planned request form](docs/log-request-form.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
+See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md), with a [short log glossary](docs/log-glossary.md) and the [request form](docs/log-request-form.md) and [operator query handler](docs/log-queries.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). The current architecture is captured in `baseline-v4`; the previous [V3 guide](docs/archive/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
@@ -52,6 +52,8 @@ Start with these files, in order:
 | [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
+| [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts for operators |
+| [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |
 | [ram_logs.py](src/marionette/ram_logs.py) | Existing-recorder RAM buffer, live views, and shutdown saving |
 | [retention.py](src/marionette/retention.py) | [Rolling diagnostic batches and protected error windows](docs/log-retention.md) |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |

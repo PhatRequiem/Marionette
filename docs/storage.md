@@ -143,7 +143,8 @@ resolve names to permanent contact UUIDs and handle ambiguity before searching.
 Historical names are not guaranteed after diagnostic expiry. No full-text index,
 natural-language lookup, live model access, or new setup evidence collector is added.
 A future model-facing lookup interface would require separate implementation; the
-former snapshot utilities have been removed.
+former snapshot utilities have been removed. The [operator handler](log-queries.md)
+now accepts bounded request forms without connecting retrieval to the model.
 
 Synthetic checks verify schema-4 backfill, indexed lookup, raw-byte/ID preservation,
 protected evidence after rolling eviction, shutdown saving, and reset deletion.

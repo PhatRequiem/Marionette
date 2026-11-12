@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Log request form",
-  "description": "Version 1 request contract. Not registered as a model tool; no query handler is implemented.",
+  "description": "Version 1 request contract for the operator query handler. Not registered as a model tool.",
   "type": "object",
   "properties": {
     "lookup": {
@@ -27,7 +27,7 @@
     },
     "message_id": {
       "type": "string",
-      "pattern": "^(local:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|discord:[0-9]{1,20})$",
+      "pattern": "^(local:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|discord:[0-9]{1,20})$(?![\\s\\S])",
       "description": "An existing message correlation ID. Required only when target is message_id."
     }
   },

@@ -13,7 +13,7 @@ MAX_REQUEST = 1024 * 1024
 
 
 class LocalConnection:
-    def __init__(self, address, turn, log):
+    def __init__(self, address, turn, log, *, status=None):
         self.path = Path(address)
         self.path.unlink(missing_ok=True)  # Main launcher's lock excludes another owner.
 
@@ -26,6 +26,10 @@ class LocalConnection:
                     if len(raw) > MAX_REQUEST or not raw.endswith(b'\n'):
                         raise ValueError('Invalid local request size.')
                     request = json.loads(raw)
+                    if request == {'query': 'status'}:
+                        result = {'type': 'operator_status', 'data': status()} if status else {'error': 'Status probe unavailable.'}
+                        self.wfile.write((json.dumps(result) + '\n').encode())
+                        return
                     generation = request.get('generation', '')
                     if generation != current_generation(self.server.server_address):
                         raise ValueError('Message predates memory reset; send it again.')

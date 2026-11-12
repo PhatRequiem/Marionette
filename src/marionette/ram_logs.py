@@ -120,7 +120,7 @@ class LiveView:
                 self.connection.settimeout(2)
                 request = json.loads(self.rfile.readline(4097))
                 if ((request.get('session') != buffer.session and request.get('view') != 'status')
-                        or request.get('view') not in ('server','model','status')
+                        or request.get('view') not in ('server','model','status','message')
                         or type(request.get('after')) is not int or request['after'] < 0):
                     return
                 with buffer.lock:
@@ -129,6 +129,17 @@ class LiveView:
                         state.update(session=buffer.session, diagnostic_bytes=buffer.memory.db.execute('SELECT coalesce(sum(bytes),0) FROM diagnostic_batches').fetchone()[0],
                                      failures=buffer.memory.db.execute('SELECT count(*) FROM failures').fetchone()[0])
                         payload, last = json.dumps(state).encode(), request['after']
+                    elif request['view'] == 'message':
+                        from log_query import records as query_records
+                        from diagnostics import message_id
+                        try:
+                            identifier = message_id(request.get('message_id'))
+                            if request.get('message_id') is None:
+                                raise ValueError('Explicit message ID required.')
+                            body = {'events': query_records(buffer.memory.db, buffer.session, identifier), 'generation': buffer.generation}
+                        except ValueError as error:
+                            body = {'error': str(error), 'generation': buffer.generation}
+                        payload, last = json.dumps(body).encode(), request['after']
                     else:
                         rows = records(buffer.memory.db, buffer.session, request['view'], request['after'])
                         payload = b''.join(render_event(row, request['view']) for row in rows)
@@ -150,7 +161,7 @@ class LiveView:
         self.thread.join()
 
 
-def read_live(path, session, view, after):
+def read_live(path, session, view, after, *, message_id=None):
     """None means no matching live recorder; callers then read saved SQLite rows."""
     try:
         with socket.socket(socket.AF_UNIX) as client:
@@ -159,13 +170,14 @@ def read_live(path, session, view, after):
             _, uid, _ = struct.unpack('3i', client.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
             if uid != os.getuid():
                 raise PermissionError('RAM log server belongs to a different OS user.')
-            client.sendall(json.dumps({'session':session,'view':view,'after':after}).encode()+b'\n')
+            client.sendall(json.dumps({'session':session,'view':view,'after':after,'message_id':message_id}).encode()+b'\n')
             with client.makefile('rb') as reader:
                 header = reader.readline(4097)
                 if not header:
                     return None
                 info = json.loads(header)
-                if type(info.get('size')) is not int or not 0 <= info['size'] <= 1024*1024*1024:
+                maximum = 2*1024*1024 if view == 'message' else 1024*1024*1024
+                if type(info.get('size')) is not int or not 0 <= info['size'] <= maximum:
                     raise ValueError('Invalid RAM log response size.')
                 payload = reader.read(info['size'])
                 if len(payload) != info['size']:

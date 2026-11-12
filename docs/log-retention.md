@@ -154,3 +154,10 @@ and reset; routine diagnostic metadata stays in the same in-memory recorder. The
 500,000,000-byte budget still counts raw payload bytes, not SQLite/index overhead.
 No additional payload writes, helper process or durability guarantee is introduced.
 See [search metadata](storage.md#searchable-diagnostic-metadata-schema-5).
+
+The [operator query handler](log-queries.md) can read message-tagged evidence
+through the existing recorder’s private live socket. This bounded read uses the
+same RAM buffer and protected windows; it adds no routine disk payload writes,
+helper process, or retention change. Saved records remain the fallback when the
+recorder is unavailable. `tests/core/test_log_query.py` checks live querying
+without disk event writes.

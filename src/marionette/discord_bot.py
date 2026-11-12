@@ -237,10 +237,14 @@ def main():
                         log('Main chat ended. Disconnecting Discord.')
                         await bot.close()
                         return
+            from operator_status import start as start_status
+            status_server = await start_status(bot, ADDRESS)
             watcher = asyncio.create_task(watch_session())
             try:
                 await bot.start(token)
             finally:
+                status_server.close()
+                await status_server.wait_closed()
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
     asyncio.run(serve())

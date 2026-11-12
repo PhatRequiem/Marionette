@@ -56,7 +56,21 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     terminal.show_ready(capacity, conversation.reserve)
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
-        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log)
+        def operator_status():
+            from datetime import datetime, timezone
+            import json
+            health = 'unknown'
+            try:
+                with api.opener.open(api.address + '/health', timeout=2) as response:
+                    health = 'online' if json.loads(response.read(4096)).get('status') == 'ok' else 'unhealthy'
+            except (OSError, ValueError):
+                pass
+            return {'model_server': health, 'discord': 'unknown',
+                    'tools': sorted(tool.name for tool in api.tools),
+                    'processing': 'busy' if conversation.lock.locked() else 'idle',
+                    'cache_preparation': bool(api.worker and api.worker.is_alive()),
+                    'observed_at': datetime.now(timezone.utc).isoformat()}
+        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status)
     else:
         connection = nullcontext()
     try:

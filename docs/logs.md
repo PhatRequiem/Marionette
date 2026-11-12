@@ -156,3 +156,5 @@ Diagnostics now use [20 MB logical batches and a 500 MB rolling budget](log-rete
 
 Recorded envelopes now provide indexed event types, operation ordinals and explicit
 Discord identity/delivery fields in SQLite. See [search fields and their limits](storage.md#searchable-diagnostic-metadata-schema-5). This does not enable model access.
+
+For bounded facts from a request form, use the [operator query handler](log-queries.md).
