@@ -2,13 +2,19 @@
 
 Audited November 11, 2026 against checkout `48b7da7` and the saved November 11
 multi-user run. This is an operator reference, not a live probe or model prompt.
-No snapshot utility, automatic refresh, or model access is enabled.
+Startup automatically refreshes the marked section below. The remaining audit is historical. No snapshot utility or model access is enabled.
 
 **Evidence labels:** **Design** = current code behavior; **Configured** = requested
 launch setting or pinned artifact; **Recorded** = observed in the archived run;
 **Unverified** = not established by retained evidence. A configured value is not
 proof of what a running process loaded. Recorded values describe that historical
 run, not the current machine state.
+
+<!-- startup-observations:start -->
+## Latest startup observations
+
+No startup has been recorded by the automatic updater yet.
+<!-- startup-observations:end -->
 
 ## Application design
 
@@ -105,6 +111,36 @@ No personal messages, identities or credentials are reproduced here.
 | Application architecture/policy | Review this datasheet when the relevant code changes |
 
 A future setup collector would need to retain verified, session-scoped facts and
-handle refresh/reset explicitly. **That collector is not implemented here.** This
-audit does not launch the model, alter retention, persist a new runtime report or
-supply this datasheet to her. Unknown facts remain unknown until verified.
+handle refresh/reset explicitly. The startup updater now implements the bounded observation section above; it does
+not create a queryable session-history collector. This historical audit did not
+launch the model. The updater does not alter diagnostic retention or supply the
+datasheet to her. Unknown facts remain unknown until verified.
+
+## Automatic startup update
+
+`session.py` updates only the `startup-observations` marker block. It first marks
+the attempt `starting`, then `ready` after runtime readiness, `/health` and the
+existing context agreement check; failed startup is marked `failed`. Every attempt
+clears old observed values. `ready` describes startup verification, not ongoing
+health, profile selection or a completed chat turn. It remains historical after
+shutdown. No updates occur for individual messages or Discord connection changes.
+
+The updater reads bounded, recognized runtime startup fields. Model name, GGUF
+file type, runtime build, loaded devices, offloaded layers, context/parallelism and
+sampling are shown when present; missing/conflicting observations stay unverified.
+Configured filenames, hardware defaults and old audit values never fill gaps.
+Only allowed fields are rendered, with Markdown escaped. No identities, session
+IDs, conversations, paths or credentials are intentionally included.
+
+Updates use atomic replacement in the document directory and preserve text outside
+the markers. Missing/malformed/unwritable files produce a diagnostic warning and
+leave chat startup usable; fix the file/permissions before relying on its freshness.
+Do not remove or duplicate the marker pair. A detected concurrent edit cancels the
+update. There is no backup copy or background updater. Launching changes this tracked
+Markdown file locally; runtime never commits or pushes it.
+
+Default target: `docs/setup-datasheet.md` in this checkout. For isolated tests or
+another operator document, `MARIONETTE_SETUP_DATASHEET_PATH` selects an existing
+file containing the same marker pair. Tests must use temporary documents, never
+the real datasheet. This update is a bounded startup configuration summary, not
+routine per-event disk logging or a change to RAM diagnostic retention.

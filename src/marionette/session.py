@@ -13,6 +13,7 @@ import threading
 import time
 
 import diagnostics
+import setup_datasheet
 import terminal
 from connection import LocalConnection
 from conversation import Conversation
@@ -67,11 +68,25 @@ def chat(api, capacity, store=None, session_id=None):
 
 def run(command):
     facts = {}
+    setup_facts = {}
+    datasheet = Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH',
+        Path(__file__).resolve().parents[2] / 'docs/setup-datasheet.md'))
+    def refresh(status, capacity=None):
+        try:
+            setup_datasheet.update(datasheet, status, setup_facts, capacity=capacity)
+        except (OSError, ValueError) as error:
+            diagnostics.log(f'Setup datasheet update failed ({type(error).__name__}); previous file left intact.')
+    refresh('starting')
+    startup_verified = False
     api = None
     ready = threading.Event()
     # Own the server's lifetime; terminal Ctrl+C is handled by this client.
-    child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                             stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, start_new_session=True)
+    except BaseException:
+        refresh('failed')
+        raise
 
     def read_diagnostics():
         for raw in child.stdout:
@@ -79,6 +94,7 @@ def run(command):
             line = raw.decode('utf-8', errors='replace').rstrip('\r\n')
             if not ready.is_set():
                 observe(line, facts)
+                setup_datasheet.observe(line, setup_facts)
                 if 'update_slots: all slots are idle' in line:
                     ready.set()
 
@@ -101,16 +117,21 @@ def run(command):
         if not address:
             raise RuntimeError('No loopback server address was reported.')
         api = API(address)
-        api.json('/health')
+        if api.json('/health').get('status') != 'ok':
+            raise RuntimeError('Server health check did not report ok.')
         capacity = int(api.json('/props')['default_generation_settings']['n_ctx'])
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
+        refresh('ready', capacity)
+        startup_verified = True
         database = os.environ.get('MARIONETTE_LOG_DB')
         with closing(Store(database)) if database else nullcontext() as store:
             chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'))
         return 0
     finally:
+        if not startup_verified:
+            refresh('failed')
         if api is not None:
             api.closing.set()
         if child.poll() is None:

@@ -30,7 +30,10 @@ class ClientTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        environment = patch.dict(os.environ, {'MARIONETTE_DATA_DIR': directory.name})
+        datasheet = Path(directory.name) / 'observations.md'
+        datasheet.write_text('<!-- startup-observations:start -->\n<!-- startup-observations:end -->\n')
+        environment = patch.dict(os.environ, {'MARIONETTE_DATA_DIR': directory.name,
+            'MARIONETTE_SETUP_DATASHEET_PATH': str(datasheet)})
         environment.start()
         self.addCleanup(environment.stop)
 
@@ -189,6 +192,10 @@ class ClientTests(unittest.TestCase):
                         process.communicate('', timeout=10)
                         self.assertEqual(process.returncode, 0, output_path.read_text())
                         self.assertFalse(list(Path(directory).glob('*setup*')))
+                        report = Path(os.environ['MARIONETTE_SETUP_DATASHEET_PATH']).read_text()
+                        self.assertIn('Startup status: **ready**', report)
+                        self.assertIn('8192 tokens', report)
+                        self.assertIn('| Model name | Unverified |', report)
                         with self.assertRaises(ProcessLookupError):
                             os.kill(pid, 0)
                     finally:

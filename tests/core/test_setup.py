@@ -99,7 +99,7 @@ class LauncherTests(unittest.TestCase):
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -115,6 +115,8 @@ class LauncherTests(unittest.TestCase):
         model = self.model
         model.parent.mkdir(parents=True)
         model.write_bytes(b'synthetic')
+        (self.root / 'docs').mkdir()
+        shutil.copy2(ROOT / 'docs/setup-datasheet.md', self.root / 'docs/setup-datasheet.md')
         (self.root / 'data').mkdir()
         tools = self.root / 'tools'
         tools.mkdir()

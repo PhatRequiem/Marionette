@@ -1,6 +1,6 @@
 # Native Linux terminal chat
 
-See the [setup datasheet](setup-datasheet.md) for audited configuration facts, evidence limits and refresh rules.
+See the [setup datasheet](setup-datasheet.md) for audited configuration facts, evidence limits and refresh rules. Each startup automatically updates its marked observations section; the rest remains operator-maintained.
 
 ## Requirements and repeatable installation
 

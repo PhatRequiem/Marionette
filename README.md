@@ -31,6 +31,7 @@ Start with these files, in order:
 | File | Responsibility |
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
+| [setup_datasheet.py](src/marionette/setup_datasheet.py) | Refresh the marked [setup datasheet](docs/setup-datasheet.md) section from startup observations |
 | [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
 | [conversation.py](src/marionette/conversation.py) | Separate histories, sequential turns, identity resolution, and permission checks |
