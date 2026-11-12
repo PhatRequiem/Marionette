@@ -140,11 +140,10 @@ Protected evidence can be searched with the same metadata fields, using
 A missing record can mean expired evidence, not proof that the event never happened.
 Names remain in the contact registry and searchable retained sender-identity diagnostics;
 resolve names to permanent contact UUIDs and handle ambiguity before searching.
-Historical names are not guaranteed after diagnostic expiry. No full-text index,
-natural-language lookup, live model access, or new setup evidence collector is added.
-A future model-facing lookup interface would require separate implementation; the
-former snapshot utilities have been removed. The [operator handler](log-queries.md)
-now accepts bounded request forms without connecting retrieval to the model.
+Historical names are not guaranteed after diagnostic expiry. No full-text index
+or unrestricted log search is provided. The former snapshot utilities have been
+removed. The [query handler](log-queries.md) accepts bounded request forms from
+operators and the explicitly registered Qwen-Agent `query_logs` tool.
 
 Synthetic checks verify schema-4 backfill, indexed lookup, raw-byte/ID preservation,
 protected evidence after rolling eviction, shutdown saving, and reset deletion.

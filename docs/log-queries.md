@@ -1,7 +1,7 @@
-# Operator log queries
+# Log queries
 
 The handler accepts the [request form](log-request-form.md) and returns JSON facts,
-evidence references and limitations. It is **not registered as a model tool**.
+evidence references and limitations. Qwen-Agent exposes it as **`query_logs`**.
 The glossary explains the fields. No snapshot library is involved.
 
 ## Run a form
@@ -38,8 +38,8 @@ The second form examines the previous user input before `discord:124`, within
 that session and conversation. The triggering message must already be recorded.
 Use `delivery` for delivery facts. Explicit messages must belong to the bound
 conversation; a matching ID alone is insufficient. The operator selects scope;
-a future model adapter must bind it from authenticated caller context, not model
-arguments. No connection to the model is authorized by this operator interface.
+the model adapter binds it from the current application turn, never model
+arguments. The tool cannot select other sessions, conversations, files or SQL.
 
 `--database PATH` reads an alternate SQLite archive. `--saved-only` skips the live
 recorder. `--socket PATH` selects the main chat socket; `--datasheet PATH` selects
@@ -87,6 +87,22 @@ isolated status probes. Discord status uses synthetic bot state, not credentials
 The handler was also exercised through forms against the saved multi-user archive
 for processing, delivery, errors and previous-message retrieval, and against the
 local startup sheet. A fresh synthetic main-chat instance returned current health,
-registered tools and idle state. This verifies handler behavior, not the 4B model's
-ability to choose a form. Model form selection remains to be tested when separately
-connected.
+registered tools and idle state. The Qwen-Agent adapter is additionally checked by `tests/core/test_log_tool.py`: real
+framework dispatch sends the form to the handler and returns facts to a second model
+request; extra scope fields and another conversation’s message are rejected.
+
+The tool is rebound after each conversation switch and before prompt counting.
+Its description includes short definitions and valid request examples rather than
+injecting the entire glossary or startup sheet into every prompt. Facts are fetched
+on demand. Restart chat to load the new tool; Discord must reconnect to that chat.
+Only current-session messages are accessible. A query about current status will
+usually observe processing as busy because it runs during the answering turn.
+
+Live 4B verification (isolated synthetic records, existing Q4 model and normal
+65,536 context/sampling): five natural-language questions selected the correct
+setup, status, processing, delivery and errors forms. The model used the returned
+startup fact, preserved unknown Discord status, reported the fixture’s 120 tokens,
+reported recorded delivery and recognized no matching failures. All five finished
+with `stop`. These are functional examples, not exhaustive answer-quality or
+long-session reliability evidence; the test did not send Discord messages or write
+to personal profiles.

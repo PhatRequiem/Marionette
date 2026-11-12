@@ -1,7 +1,7 @@
 # Log request form
 
 Version 1. The [operator query handler](log-queries.md) accepts this form.
-**Not connected to the model.**
+The model submits the same fields through the Qwen-Agent `query_logs` tool.
 The [JSON Schema](log-request-form.schema.json) defines valid forms. Short field
 and evidence definitions are in the [log glossary](log-glossary.md).
 
@@ -70,5 +70,6 @@ Errors for a specific message (synthetic example ID):
 
 Date ranges, multi-message searches, field selection and vault search are outside
 this first form. The operator binds session and conversation scope when running
-the handler. A future model adapter must derive that scope from the authenticated
-caller, and native tool-schema compatibility must be checked before registration.
+the handler. The model adapter derives that scope from the current application turn.
+Its native tool schema uses simple enums for the pinned framework; the handler
+enforces all allowed combinations and rejects extra fields.

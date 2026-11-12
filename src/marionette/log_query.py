@@ -1,4 +1,4 @@
-"""Bounded, operator-only request-form handler. Never registered as a model tool."""
+"""Bounded request-form handler shared by the operator CLI and Qwen-Agent adapter."""
 import argparse
 from contextlib import closing
 from datetime import datetime, timezone

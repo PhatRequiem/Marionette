@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Log request form",
-  "description": "Version 1 request contract for the operator query handler. Not registered as a model tool.",
+  "description": "Version 1 request contract shared by the operator handler and Qwen-Agent query_logs adapter.",
   "type": "object",
   "properties": {
     "lookup": {

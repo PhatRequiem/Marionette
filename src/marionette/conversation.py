@@ -30,6 +30,22 @@ class Conversation:
         self.epoch = store.generation if store else ''
         self.resetting = False
 
+    def bind_log_query(self, identifier=None):
+        if self.store is None or not self.session_id:
+            return
+        from pathlib import Path
+        import os
+        from log_tool import QueryLogs
+        database = self.store.db.execute('PRAGMA database_list').fetchone()[2]
+        if not database:
+            return  # RAM-only test stores have no read-only database path.
+        root = Path(__file__).resolve().parents[2]
+        tool = QueryLogs(database=database, session=self.session_id,
+                         conversation=self.key, before_message_id=identifier,
+                         datasheet=Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH', root / 'docs/setup-datasheet.md')),
+                         socket_path=os.environ.get('MARIONETTE_SESSION_SOCKET'))
+        self.api.tools = tuple(t for t in getattr(self.api, 'tools', ()) if t.name != tool.name) + (tool,)
+
     @property
     def history(self):
         return self.histories.setdefault(self.key, [])
@@ -123,6 +139,7 @@ class Conversation:
         if self.soul is not None:
             tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
+        self.bind_log_query(identifier)
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,
             self.api.count, self.capacity, self.reserve)

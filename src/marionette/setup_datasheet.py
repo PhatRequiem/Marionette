@@ -185,14 +185,14 @@ def application(api, conversation, store, bridge_bound):
         'Thinking template': ('Enabled', 'Configured: application request'),
     }
     purposes = {'update_soul': 'Edit persistent self name and description',
-                'update_contact_notes': 'Edit notes for the current contact'}
+                'update_contact_notes': 'Edit notes for the current contact',
+                'query_logs': 'Read setup, status and current-conversation diagnostics'}
     for tool in tools:
         result['Tool: ' + tool.name] = ('Available', purposes.get(tool.name, 'Registered tool'))
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:
         result['Tool: update_contact_notes'] = ('Available', 'Contact-note component')
-    # No enabled external read tools exist in the current production registry.
     known = set(names) <= set(purposes)
-    result['Log and vault access'] = ('Not connected' if known else 'Unverified', 'Startup tool registry')
+    result['Log and vault access'] = ('Logs connected; vault not connected' if 'query_logs' in names and known else 'Not connected' if known else 'Unverified', 'Startup tool registry')
     if store is not None:
         policy = store.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
         result['Diagnostic limit'] = (str(policy['budget_bytes']) + ' bytes', 'Configured: recorder policy')
