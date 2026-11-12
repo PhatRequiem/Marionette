@@ -11,15 +11,24 @@ START = '<!-- startup-observations:start -->'
 END = '<!-- startup-observations:end -->'
 PATTERNS = {
     'Model name': r'\bgeneral\.name\s+(?:str\s+)?=\s*(.+)',
-    'GGUF file type': r'\bfile type\s*=\s*(.+)',
-    'Runtime build': r'\bbuild\s*=\s*(\d+\s*\([0-9a-fA-F]+\))',
-    'Loaded device': r'\busing device\s+([^\r\n]+?)\s+-\s+\d+ MiB free',
+    'Weight precision': r'\bfile type\s*=\s*(.+)',
+    'Runtime version': r'\bbuild\s*=\s*(\d+\s*\([0-9a-fA-F]+\))',
+    'GPU': r'\busing device\s+([^\r\n]+?)\s+-\s+\d+ MiB free',
     'GPU layers': r'\boffloaded\s+(\d+/\d+) layers to GPU',
     'Context per sequence': r'\bllama_context: n_ctx_seq\s*=\s*(\d+)\s*$',
-    'Parallel sequences': r'\bllama_context: n_seq_max\s*=\s*(\d+)\s*$',
+    'Inference slots': r'\bllama_context: n_seq_max\s*=\s*(\d+)\s*$',
 }
 SAMPLING = ('temp', 'top_p', 'top_k', 'min_p', 'presence_penalty',
             'repeat_penalty', 'repeat_last_n', 'frequency_penalty')
+
+
+SAMPLING_LABELS = dict(zip(SAMPLING, (
+    'Temperature', 'Top-p', 'Top-k', 'Min-p', 'Presence penalty',
+    'Repetition penalty', 'Repetition window (tokens)', 'Frequency penalty')))
+
+
+def display_label(name):
+    return SAMPLING_LABELS.get(name.removeprefix('Sampling '), name) if name.startswith('Sampling ') else name
 
 
 def observe(line, facts):
@@ -44,32 +53,36 @@ def cell(value):
 
 def render(status, facts, *, capacity=None, details=None):
     stamp = datetime.now(timezone.utc).isoformat()
-    rows = [START, '## Latest startup observations', '',
+    rows = [START, '## Startup information', '',
             f'Updated (UTC): {stamp}', '', f'Startup status: **{status}**.', '',
             'This section describes the last startup attempt, not current server health. '
             'It is not supplied to the model. Missing observations never inherit prior values.', '',
-            '| Fact | Observed value | Evidence |', '|---|---|---|']
+            '| Fact | Value | Evidence |', '|---|---|---|']
     for name in (*PATTERNS, *('Sampling ' + k for k in SAMPLING)):
         values = facts.get(name, set()) if status == 'ready' else set()
         if status == 'ready' and name in (details or {}) and (not values or not details[name][1].startswith('Configured:')):
             value, source = details[name]
         elif not values:
-            value, source = 'Unverified', 'No confirmed startup observation'
-        elif len(values) > 1 and name != 'Loaded device':
-            value, source = 'Unverified', 'Conflicting startup observations'
+            value, source = 'Unverified', 'Not observed'
+        elif len(values) > 1 and name != 'GPU':
+            value, source = 'Unverified', 'Conflicting observations'
         else:
-            value, source = '; '.join(sorted(values)), 'Runtime startup output'
-        rows.append(f'| {name} | {cell(value)} | {source} |')
+            value, source = '; '.join(sorted(values)), 'Runtime output'
+        rows.append(f'| {display_label(name)} | {cell(value)} | {source} |')
     if status == 'ready' and capacity is not None:
-        rows += [f'| Effective context capacity | {capacity} tokens | Runtime output agrees with `/props` |',
-                 f'| Reply allowance | {min(32768, capacity // 2)} tokens | Application policy at this capacity |',
-                 f'| Next-input reserve | {min(2048, capacity // 8)} tokens | Application policy at this capacity |',
-                 '| Local server startup health | Passed | `/health` returned status `ok` before chat |']
+        rows += [f'| Context capacity | {capacity} tokens | Runtime output and /props |',
+                 f'| Reply token limit | {min(32768, capacity // 2)} tokens | Application policy |',
+                 f'| Input token reserve | {min(2048, capacity // 8)} tokens | Application policy |',
+                 '| Server health | Passed | Server health check |']
     else:
-        rows.append('| Effective context / startup health | Unverified | Startup verification not completed |')
+        rows.append('| Context / server health | Unverified | Startup incomplete |')
     if status == 'ready':
         for name, (value, source) in (details or {}).items():
             if name not in PATTERNS and not name.startswith('Sampling '):
+                if name == 'Reasoning token limit' and value == '-1':
+                    value = 'No separate limit'
+                elif name == 'Reasoning mode':
+                    value = {'on': 'Enabled', 'off': 'Disabled'}.get(value, value)
                 rows.append(f'| {cell(name)} | {cell(value)} | {cell(source)} |')
     rows += ['', 'Runtime-reported model/device strings do not verify file checksums. '
              'Thinking is requested by application code; its effective template behavior is not independently verified here. '
@@ -124,10 +137,10 @@ def configuration(command, props, runtime_output=''):
              'min_p': '--min-p', 'presence_penalty': '--presence-penalty',
              'repeat_penalty': '--repeat-penalty', 'repeat_last_n': '--repeat-last-n',
              'frequency_penalty': '--frequency-penalty',
-             'Prompt cache budget (MiB)': '--cache-ram',
-             'Reasoning mode requested': '--reasoning',
-             'Reasoning format requested': '--reasoning-format',
-             'Separate reasoning budget requested': '--reasoning-budget'}
+             'Prompt cache limit (MiB)': '--cache-ram',
+             'Reasoning mode': '--reasoning',
+             'Reasoning format': '--reasoning-format',
+             'Reasoning token limit': '--reasoning-budget'}
     for name, flag in flags.items():
         requested = None
         for i, arg in enumerate(command):
@@ -136,15 +149,15 @@ def configuration(command, props, runtime_output=''):
         label = 'Sampling ' + name if name in SAMPLING else name
         value = params.get(name)
         if name in SAMPLING and type(value) in (int, float) and math.isfinite(value):
-            details[label] = (str(value), 'Observed server defaults: /props')
+            details[label] = (str(value), 'Server defaults (/props)')
         elif requested is not None:
-            details[label] = (requested, 'Configured: effective launch arguments; not independently observed')
+            details[label] = (requested, 'Configured: launch arguments')
         elif name not in SAMPLING:
             details[label] = ('Unverified', 'No explicit launch setting')
     # The launcher already invokes this exact executable with --version.
     for line in runtime_output[:16384].splitlines():
         if line.startswith('version: '):
-            details['Runtime build'] = (line[len('version: '):], 'Executable --version output from this launch')
+            details['Runtime version'] = (line[len('version: '):], 'Runtime --version')
             break
     return details
 
@@ -158,32 +171,32 @@ def application(api, conversation, store, bridge_bound):
     except PackageNotFoundError:
         framework = 'Unverified'
     result = {
-        'Application startup': ('Initialized before accepting input', 'Observed components after profile selection'),
-        'Terminal interface': ('Initialized', 'Observed: profile selected; conversation constructed'),
-        'Local inference': ('Loopback HTTP server', 'Observed listener and startup health check'),
-        'Discord interface': ('Offline', 'Startup boundary before the new chat bridge begins serving; not a later connectivity probe'),
-        'Discord local bridge': ('Bound; starts serving after this capture' if bridge_bound else 'Not enabled', 'Observed: LocalConnection constructed' if bridge_bound else 'No local connection configured'),
-        'Tool coordinator': ('Qwen-Agent ' + framework, 'Installed Python package metadata'),
-        'Registered tools at capture': (', '.join(names) or 'None', 'Observed: api.tools'),
-        'Contact-note memory': ('Enabled; current-contact tool binds on ordinary turns' if conversation.contact_notes is not None else 'Disabled', 'Initialized conversation components'),
-        'Soul memory': ('Enabled; shared persistent profile' if conversation.soul is not None else 'Disabled', 'Initialized conversation components'),
-        'Conversation history': ('Separate per terminal profile / Discord sender; fresh on restart', 'Application design'),
-        'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Observed store connection; not a write durability test'),
-        'Thinking template request': ('enable_thinking=true', 'Configured by inference adapter; not independent template verification'),
+        'Application': ('Initialized', 'Initialized components'),
+        'Terminal': ('Initialized', 'Terminal initialization'),
+        'Local inference': ('Loopback HTTP server', 'Listener and health check'),
+        'Discord': ('Offline', 'Initial startup state'),
+        'Discord bridge': ('Bound' if bridge_bound else 'Disabled', 'Local connection initialized' if bridge_bound else 'No local connection'),
+        'Tool coordinator': ('Qwen-Agent ' + framework, 'Installed package'),
+        'Registered tools': (', '.join(names) or 'None', 'Tool registry'),
+        'Contact notes': ('Enabled' if conversation.contact_notes is not None else 'Disabled', 'Initialized components'),
+        'Soul': ('Enabled' if conversation.soul is not None else 'Disabled', 'Initialized components'),
+        'Conversation history': ('Separate histories; fresh on restart', 'Application design'),
+        'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Open database connection'),
+        'Thinking template': ('Enabled', 'Configured: application request'),
     }
     purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact'}
     for tool in tools:
-        result['Tool: ' + tool.name] = (purposes.get(tool.name, 'Registered; purpose not catalogued'), 'Observed registration; purpose from application design')
+        result['Tool: ' + tool.name] = ('Available', purposes.get(tool.name, 'Registered tool'))
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:
-        result['Tool: update_contact_notes'] = ('Available', 'Observed contact-note component; conversation turn binding policy')
+        result['Tool: update_contact_notes'] = ('Available', 'Contact-note component')
     # No enabled external read tools exist in the current production registry.
     known = set(names) <= set(purposes)
-    result['Log lookup / vault access'] = ('Not connected' if known else 'Unverified: additional tools registered', 'Observed startup tools; no external reader configured by this startup')
+    result['Log and vault access'] = ('Not connected' if known else 'Unverified', 'Startup tool registry')
     if store is not None:
         policy = store.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
-        result['Diagnostic raw-event budget'] = (str(policy['budget_bytes']) + ' bytes', 'Configured recorder policy in SQLite; live occupancy not probed')
-        result['Diagnostic batch size'] = (str(policy['part_bytes']) + ' bytes', 'Configured recorder policy in SQLite')
-        result['Protected error windows'] = (str(policy['error_limit']) + ' windows; ' + str(policy['window_events']) + ' events before/after', 'Configured recorder policy in SQLite')
-    result['Diagnostic persistence'] = ('RAM rolling buffer; saved on orderly recorder shutdown', 'Application design; abrupt recorder loss can lose unsaved diagnostics')
+        result['Diagnostic limit'] = (str(policy['budget_bytes']) + ' bytes', 'Configured: recorder policy')
+        result['Diagnostic batch size'] = (str(policy['part_bytes']) + ' bytes', 'Configured: recorder policy')
+        result['Saved error windows'] = (str(policy['error_limit']) + ' windows; ' + str(policy['window_events']) + ' events before/after', 'Configured: recorder policy')
+    result['Diagnostic storage'] = ('Rolling RAM buffer; saved on clean shutdown', 'Application design')
     return result

@@ -129,7 +129,7 @@ def run(command):
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
-        setup_details['Application startup'] = ('Awaiting profile selection and component initialization', 'Model server ready; application capture pending')
+        setup_details['Application'] = ('Starting', 'Waiting for profile selection')
         refresh('ready', capacity)
         startup_verified = True
         database = os.environ.get('MARIONETTE_LOG_DB')
