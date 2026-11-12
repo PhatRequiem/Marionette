@@ -4,6 +4,8 @@ Main chat enables the cycle at launch. After 30 seconds idle, Marionette gets an
 
 The model can review context, choose a useful step, call any registered tool, evaluate the result and update its working state. Available tools are `read_scratchpads`, `update_scratchpad`, `update_soul`, `update_contact_notes` and `query_logs`. It need not call every tool. Notes remain bound to the active contact; log queries remain bound to that conversation/session. The trigger supplies the latest real input ID when available. Message diagnostics use that known ID; `previous_message` is unavailable for internal triggers. Setup/current status remain available. Docs-vault access stays disconnected.
 
+Log review is an explicit option during reflection: inspect the latest known interaction's processing, delivery or recognized errors when relevant, check current connections/tools, or consult startup configuration. Findings can inform Working Space and Intentions. The prompt requires evidence before operational claims and discourages repeated checks of unchanged facts. Existing log scopes and request forms apply; this does not add raw-file or conversation-text access.
+
 The final result is a JSON object with `action` (`continue` or `wait`) and a `summary` of at most 1,000 characters. Continue schedules another step after 30 idle seconds; wait suspends until an ordinary message or operator resume. Invalid results, limits and errors also wait. The app does not interpret free-form Intentions as executable schedules. Existing feature guidance and the editable soul remain supplied; `prompts/thinking-cycle.md` adds cycle-specific instructions.
 
 ## Controls and limits
