@@ -11,7 +11,7 @@ python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
 
-The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-9B Q4_K_M GGUF, derived from Qwen/Qwen3.5-9B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 6 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
+The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-4B Q4_K_M GGUF, derived from Qwen/Qwen3.5-4B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 3 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
 
 The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of the [shared runtime folder](#shared-inference-runtime), and rerun setup to restore it from the verified archive.
 
@@ -33,7 +33,7 @@ Leave it unset for the default above. Each project pins its runtime version inde
 
 ## Shared model storage
 
-Setup and chat both use `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Instruct/Qwen3.5-9B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+Setup and chat both use `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
 
 The library sits beside `~/AI Infrastructure/AI Apps/`. The capitalization of `AI Infrastructure` matters on Linux.
 
@@ -97,7 +97,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-The selected 9B Q4_K_M uses mixed 4-bit quantization (5,680,522,464 bytes). It uses more weight memory than the previous 4B Q4 (2,740,937,888 bytes) and may generate more slowly. The larger model may improve capability, but answer quality has not been compared systematically. Quantization trades numerical precision for lower memory use; the previous 4B Q4 and BF16 files remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](contact-notes.md). No image projector is installed, so this setup is text-only.
+The selected 4B Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes), returning to the previous model for further testing. It uses less weight memory than 9B Q4 (5,680,522,464 bytes); speed and answer quality have not been compared systematically. Quantization trades numerical precision for lower memory use. The 9B Q4 and 4B BF16 files remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](contact-notes.md). No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
@@ -109,7 +109,7 @@ The model's native template is used with thinking enabled. The [soul](soul.md) s
 
 The context is 65,536 tokens with a 32,768-token combined thinking-and-answer allowance and no separate thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
-Sampling follows [Qwen3.5-9B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
+Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-4B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
 
 ## Verification
 
@@ -117,6 +117,6 @@ Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -
 
 The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 
-For the current weight format and smoke-test result, see [9B switch verification](experiments/9b-switch.md). [BF16 measurements](experiments/bf16-switch.md) and earlier Q4 experiments are historical.
+For the current weight format and smoke-test result, see [4B return verification](experiments/4b-return-2026-11-12.md). [BF16 measurements](experiments/bf16-switch.md) and earlier Q4 experiments are historical.
 
-Current tool-coordination setup and verification are documented in [Qwen-Agent coordination](qwen-agent.md). The runtime and sampling settings remain unchanged by the 9B switch; the manifest now selects the 9B model path.
+Current tool-coordination setup and verification are documented in [Qwen-Agent coordination](qwen-agent.md). The runtime and sampling settings remain unchanged by the return to 4B; the manifest now selects the 4B model path.

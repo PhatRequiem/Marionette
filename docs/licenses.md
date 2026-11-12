@@ -28,7 +28,7 @@ System package versions and license identifiers were checked using `pacman -Qi`;
 
 ## Model weights (separate from software)
 
-[Qwen/Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B) uses [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE), verified from the actual license text. The [Unsloth GGUF distribution](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF/tree/3885219b6810b007914f3a7950a8d1b469d598a5) identifies that base model and the same Apache-2.0 license. We use Q4_K_M at that pinned revision; see the download manifest for its checksum. Unsloth training software is not installed or required. Preserve license and attribution obligations if redistributing weights. This repository does not redistribute weights or runtime binaries.
+[Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) uses [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/LICENSE), verified from the actual license text. The [Unsloth GGUF distribution](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/tree/e87f176479d0855a907a41277aca2f8ee7a09523) identifies that base model and the same Apache-2.0 license. We use Q4_K_M at that pinned revision; see the download manifest for its checksum. Unsloth training software is not installed or required. Preserve license and attribution obligations if redistributing weights. This repository does not redistribute weights or runtime binaries.
 
 ## Resolved system library inventory
 
