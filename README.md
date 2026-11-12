@@ -91,8 +91,6 @@ Start with these files, in order:
 
 See [native Linux setup and operation](docs/setup.md) and [licenses](docs/licenses.md).
 
-For optional color-coded documentation browsing, see [reading the project in Obsidian](docs/obsidian.md). The shared styling lives in `.obsidian/snippets/`; personal vault settings stay local.
-
 ## Archives
 
 Keep inactive material separate from current files:
