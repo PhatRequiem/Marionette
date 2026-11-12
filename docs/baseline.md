@@ -1,104 +1,83 @@
-# Last saved stable baseline — baseline-v3 (2026-11-09)
+# Last saved stable baseline — baseline-v4 (2026-11-11)
 
-Recovery checkpoint: **`baseline-v3`** in GitHub repository `PhatRequiem/Marionette`. This tag identifies the exact code and documentation for this baseline. Keep it fixed; create a new tag for a future baseline instead of moving this one.
+Recovery checkpoint: **`baseline-v4`** in `PhatRequiem/Marionette`. This is the deliberately saved working foundation before further self-knowledge and retrieval changes. Keep this tag fixed. It captures tracked code and documentation, not personal data or an assertion that answer quality is solved. Future changes need their own checkpoint.
 
-This is the last deliberately saved stable checkpoint: a simple, working foundation for future scaling, kept as a recovery point if later development becomes cluttered or unreliable. The configuration and verification below describe the program when this checkpoint was saved; this is not an automatically updated description of future changes. New features and reorganizations are not automatically included. This does not imply that newer code is unstable; it means a newer baseline has not yet been deliberately designated.
+The [V3 guide](archive/baseline-v3-2026-11-09.md) is archived; its original tag remains unchanged. V4 adds Qwen-Agent tool coordination, separate conversations and RAM prompt caching, persistent contacts and editable soul, SQLite storage, rolling RAM diagnostics, and owner-only memory reset. Launch commands remain unchanged.
 
-Return to this checkpoint to resume development without rebuilding the application from scratch. See [README.md](../README.md) for the current program. The [V2 guide](archive/baseline-v2-2026-11-09.md) is archived and its tag remains available. V2 used BF16 and predates profiles, command permissions, and the module separation; V3 captures those additions and the return to Q4 for infrastructure testing.
+## Configuration at this checkpoint
 
-## Fixed configuration
-
-| Part | Baseline |
+| Component | Setting |
 |---|---|
-| Runtime | llama.cpp b12211, commit `7d7f02875`, Vulkan `llama-server` |
-| Model | Qwen3.5-4B Q4_K_M; mixed 4-bit quantization for faster infrastructure testing |
-| Model source | Unsloth GGUF revision `e87f176479d0855a907a41277aca2f8ee7a09523` |
-| Verified hardware | AMD Radeon RX 7900 XT, 20 GB VRAM, Vulkan0; all 33 layers offloaded |
-| Context capacity | 65,536 tokens |
-| Generation allowance | 32,768 tokens shared by reasoning and final answer; no separate reasoning cap |
-| Next-input reserve | 2,048 tokens for between-turn preparation; actual input is counted before generation |
-| Sampling | Temperature 1.0; top-p 0.95; top-k 20; min-p 0; presence penalty 1.5; repetition penalty 1.0; repeat-last-n 65,536 |
-| Reasoning | Enabled; displayed and logged locally; only final answers retained in model history |
-| Server lifetime | Owned by main chat, loopback-only temporary HTTP port, one inference slot; no persistent service |
-| Optional Discord | Owner-only text DMs, shared main-chat history, final answers only plus status/error notices |
-| Identity | Saved UUID profiles; terminal selector; configured Discord account linked to the owner |
-| Commands | Owner-only `/clear` from terminal or Discord; `/exit` remains terminal-only |
+| Runtime | llama.cpp b12211 (`7d7f02875`), Vulkan `llama-server` |
+| Model | Qwen3.5-4B Q4_K_M; Unsloth GGUF revision `e87f176479d0855a907a41277aca2f8ee7a09523` |
+| Hardware used | AMD RX 7900 XT, 20 GB VRAM; Vulkan0, all GPU layers |
+| Context / generation | 65,536 total; 32,768 shared reasoning/answer allowance; 2,048 next-input reserve inside the total |
+| Sampling | Temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, repetition penalty 1.0, repeat-last-n 65,536 |
+| Reasoning | Enabled, separate local display/logging; no separate reasoning cap; Discord receives final answers and status notices |
+| Inference / cache | One sequential inference slot; 5 GiB (5,120 MiB) system-RAM prompt-cache budget; active context/model use VRAM |
+| Tool coordinator | Qwen-Agent 0.0.34; explicit `update_contact_notes` and `update_soul` tools only |
+| Storage | SQLite schema 4 for messages/events; JSON contact registry; Markdown contact notes; revisioned JSON soul |
+| Diagnostic retention | Existing recorder holds 500,000,000 raw bytes in 20,000,000-byte batches; latest 20 recognized failure windows, 20 events before/after |
 
-The pinned URLs and checksums live in [downloads.json](../scripts/native-linux/downloads.json); optional Discord dependencies are hash-locked in [discord-requirements.txt](../scripts/native-linux/discord-requirements.txt). Publisher sampling guidance and host requirements are documented in [setup](setup.md); dependency licenses are in [licenses](licenses.md).
+Q4 is a deliberate speed tradeoff for infrastructure testing; BF16 remains in the shared model library. Publisher guidance, dependencies, licenses and reproducible downloads are documented in [setup](setup.md), [licenses](licenses.md), and [download checksums](../scripts/native-linux/downloads.json). Nothing in this checkpoint changes sampling or model precision.
 
-## Behavior to preserve
+## Behavior and organization
 
-- Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally connect Discord. Main chat opens two diagnostic windows; Discord uses a fourth terminal.
-- Choose **Phat** or **Add new profile** at startup. Profiles persist in private JSON; each message includes source, sender ID, display name, and person UUID. A selected terminal profile is identification, not authentication. See [identities and permissions](contacts.md).
-- Terminal and Discord messages share one conversation and generate sequentially. Main chat shows the Discord sender ID, incoming text, reasoning, and answer.
-- Oldest complete exchanges are removed when needed. Cache preparation happens after replies, with exact input checks before the next generation. See [context policy](context.md).
-- Each main session saves chat, server, and model text logs; each Discord connection adds its own log. Diagnostic events have timestamps and shared event numbers; unknown entries and errors appear in both diagnostic logs. See [log formats and colors](logs.md).
-- No personality file, generated setup report, file-reading tools, conversation summaries, or persistent model memory. `/clear` resets shared history only for the owner UUID and preserves saved profiles/logs; a new main session starts fresh.
-- Disconnecting Discord leaves main chat running. Closing main chat stops its server and disconnects Discord. Successful Gateway resume can replay missed events; a stopped bot does not fetch missed history. See [Discord behavior](discord.md).
+- Follow [STARTUP.md](../STARTUP.md): `./scripts/native-linux/chat.sh`, choose a terminal profile, then optionally `./scripts/native-linux/discord.sh`. Main chat plus two diagnostic views and the optional Discord connection make four terminals.
+- Human one-to-one Discord DMs are accepted. Each sender has a separate conversation; terminal history is separate too. Linked accounts share contact notes, not conversation history. The main terminal displays all exchanges. Generation and preparation are sequential.
+- The client owns exact token counting, oldest-complete-exchange trimming and between-turn cache preparation. Cache eviction does not erase text history. See [context](context.md).
+- [Contacts](contacts.md) have permanent UUIDs and account links. [Contact notes](contact-notes.md) use Markdown entries separated by `§`, with add/patch/remove and a 1,375-character total limit. Current-contact notes are supplied automatically.
+- The [soul](soul.md) has a permanent UUID, editable name (80 characters), and description (1,375 characters). Revisions preserve timestamps/source. Blank name and description produce no custom system message; populated values become system context on subsequent turns. The soul is shared across conversations. Earlier revisions are not supplied to the model.
+- [Qwen-Agent](qwen-agent.md) coordinates only the registered tool loop. Tool results are available within that turn; ordinary retained history contains user messages and final answers. Persistent profile writes survive independently.
+- [SQLite](storage.md) durably stores messages, terminal and Discord output. Routine diagnostics stay in RAM until orderly recorder shutdown; two colored views show shared event IDs and timestamps. [Retention](log-retention.md) governs saving and limits.
+- The [log snapshot utility](log-snapshots.md) exists for operators but remains disconnected from the model. No automatic log recall, general file access, browsing, skill creation, or scheduler is enabled.
+- `/clear` clears only the sender's conversation, preserving saved records/notes. `/resetmemory` is owner-only and clears personal memory/logs while preserving permanent IDs, the owner account link and core installation. Operator resets leave the program stopped; live resets keep it loaded. See [reset scope](reset-memory.md) and [project rules](../AGENTS.md).
+- Local inference needs no hosted API/account. Discord is an optional external service. The temporary unauthenticated HTTP listener remains loopback-only and stops with main chat.
 
-## Folder map
+The [README folder map and source guide](../README.md) remain authoritative: source under `src/marionette/`, application guides under `docs/`, platform scripts under `scripts/native-linux/`, private data under `data/`, project environments under `runtime/`. Shared model weights and inference engines live under `~/AI Infrastructure/`. No private data is included in Git.
 
-| Location | Responsibility |
-|---|---|
-| Root `README.md`, `STARTUP.md`, `AGENTS.md` | Overview, everyday launch instructions, development rules |
-| `src/marionette/` | All 14 application Python files, including Discord; one flat folder |
-| `scripts/native-linux/` | Platform-specific setup/launch scripts and dependency manifests |
-| `tests/core/`, `tests/discord/` | Core and optional transport tests |
-| `docs/`, `docs/experiments/`, `docs/archive/` | Current guides, experiment evidence, retired documentation |
-| `data/` | Private profiles, conversations, credentials, models, downloads, session socket and locks |
-| `runtime/` | Installed llama.cpp and optional Discord environment |
-| `visual design/` | Local untracked visual references |
+## Verification at V4
 
-Manual archives exist under models, conversations, documentation, and visual references. BF16 is in `data/models/archive/`; Q4_K_M is selected. Source history stays in Git. See the [README archive policy](../README.md#archives).
+The November 11 multi-user run lasted approximately 4 hours 53 minutes after its initial memory reset. It recorded 48 inputs, 48 reasoning records and 48 final answers across four Discord conversations. Every answer finished with `stop` and had a matching Discord delivery record. Two reconnects resumed in 120.09 ms and 102.92 ms; no recognized failures were retained. Chat-only end-to-end reply timing was 1.60–14.71 seconds, median 3.19 seconds. These are observations, not a controlled performance benchmark.
 
-Application responsibilities are separated into `session.py` (lifecycle), `terminal.py` (UI), `conversation.py` (shared turns), `context.py` (rollover), `inference.py` (local requests), `identity.py` (profiles), `commands.py` (command handling), and `permissions.py` (authorization). Discord transport, its local socket, diagnostic writing/routing/viewing, and colors occupy the remaining six modules. See the [full code map](../README.md#reviewing-the-code). This separation adds no background service or extra conversation histories.
+There were 62 model usage events, 13 contact-note tool invocations and one soul-update invocation. Maximum recorded prompt usage was 9,073 tokens. No nonzero exchange removal was recorded: **this run did not exercise context rollover**. Separate conversation IDs establish routing behavior, not exhaustive privacy isolation or simultaneous-load resilience.
 
-## Verification and limits
+The operator preserved a private external archive under `~/Marionette Archives/2026-11-11-multi-user-run/` before resetting memory. It contains transcripts, reasoning, retained diagnostics, final personal state, source snapshot and a full run summary. It is outside normal project memory-reset scope, contains no Discord credentials, and must not be committed. The archival source snapshot precedes the V4 documentation/tag. SQLite backup integrity and foreign keys passed; SQL export/import into an isolated SQLite database matched every table. All archived file checksums were verified. This is same-schema SQLite recovery, not cross-engine migration or a complete fresh-machine rebuild. Retention/reset-deleted evidence cannot be reconstructed.
 
-- All 52 automated checks (40 core, 12 mocked Discord) pass at this checkpoint. They cover profile persistence and same-version restore, account mapping, owner authorization, command routing, context fitting/preparation, streaming callbacks and colors, delivery, launcher lifecycle, and log preservation. Shell syntax and documentation links were checked.
-- An isolated real GPU chat was rerun with this reorganized code, the selected Q4 weights, and a temporary synthetic profile. It loaded at 65,536 context, generated separate reasoning and the correct arithmetic answer, and exited cleanly. No real Discord account or personal conversation was used. This verifies loading and generation, not broad answer quality or long-session reliability.
-- Earlier Q4 verification measured 131.83 tokens/second on a short arithmetic prompt and checked effective sampling; see [Q4 return verification](experiments/q4-return.md). A subsequent real Q4 session delivered eight model replies and a Discord `/clear` confirmation before the later command/module refactors. That observation is historical; the refactored Discord path is covered by mocked integration tests, not a fresh live Discord test.
-- Real GPU rollover/cache reuse was verified previously with Q4; it was not forced again during this checkpoint check. The context algorithm is unchanged and automated rollover checks pass. See [historical rollover results](experiments/idle-rollover.md).
-- More users, heavier concurrent load, crash recovery, and long-term answer quality are not established by these checks. The model can give incorrect claims about its own identity and deployment.
-- Context remains finite. Early submission can wait for preparation; old exchanges are omitted, not summarized. Debug logs can grow large and have no automatic retention policy. The local HTTP server has no API key and must remain loopback-only.
+After archiving, the authorized personal-data reset left an empty valid database, blank soul name/description with one initial revision, no contact notes, and only Phat's contact record. Both permanent IDs, owner/Discord mapping and credentials were verified unchanged. Main chat and Discord remain stopped. This local state is **not embedded in the Git tag**.
 
-Repeat the automated checks from the checkout:
+Automated checkpoint checks on 2026-11-11: **134 core and 14 mocked Discord tests passed**; all launch/setup shell scripts passed syntax checks and the changed documentation links were checked. Tests use isolated synthetic data and mocked Discord; they do not send real Discord messages. Prior live GPU/tool/cache experiments are linked from the component guides and are historical evidence, not repeated V4 load tests.
 
 ```bash
-python -m unittest discover -s tests/core -v
+runtime/agent/bin/python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
-bash -n scripts/native-linux/*.sh
+for script in scripts/native-linux/*.sh; do bash -n "$script" || break; done
 ```
 
-## Return to this checkpoint
+## Known limitations
 
-Stop main chat and Discord first. Preserve the current checkout and separately back up private data before changing versions. Do not use a hard reset or clean command to discard later work.
+- Self-knowledge is unreliable: the model invented cloud/enterprise hosting and disclosure restrictions, denied its model family, and accepted an unverified repository link as confirmation. No verified application setup report is supplied. The existing diagnostic snapshot does not answer most model/framework/ownership questions.
+- Contact notes can be duplicated, poetic, subjective or factually overstated. Successful storage does not establish useful memory quality. Soul edits work, but proactive editing and explanations of earlier choices are not reliable. Stored revision provenance is not fully included in system context; persistent files do not establish consciousness or autobiographical recall.
+- Context is finite. Removed exchanges are not summarized, logs are not automatically recalled, and restart begins fresh conversation histories. Heavy concurrent use, near-full-context switching/rollover at the current cache budget, and long-term reliability remain unverified by this run. The cache budget is not a guaranteed number of resident conversations or a total memory cap.
+- A failed answer does not undo earlier successful tool writes. Cross-conversation shared soul changes can invalidate cached prefixes. Model-editable self-description is not an authorization boundary; permissions remain enforced in code.
+- Routine RAM diagnostics can be lost on SIGKILL, OOM, crash or power failure. Expired diagnostics cannot be recovered. Conversation/terminal/Discord storage is not capped by the diagnostic budget. Same-drive archives do not protect against drive loss.
+- The local HTTP server has no API key; keep it bound to loopback. Local terminal profile selection is identification, not strong authentication. Successful observed reconnects do not establish replay behavior for every missed message.
+- Functional tests, loading, answer quality, performance and long-session reliability are separate claims. This checkpoint does not certify all five as complete.
 
-A separate clone lets you recover the code without overwriting the current project. Use an unused destination folder:
+## Recover this checkpoint
+
+Stop main chat and Discord and wait for recorders. Preserve later work and private data separately; do not hard-reset or clean away changes. Use an unused recovery directory:
 
 ```bash
 cd /home/phatkitty/Projects
-git clone --branch baseline-v3 https://github.com/PhatRequiem/Marionette.git Marionette-baseline-v3
-cd Marionette-baseline-v3
-git switch -c restart-from-baseline-v3
+git clone --branch baseline-v4 https://github.com/PhatRequiem/Marionette.git Marionette-baseline-v4
+cd Marionette-baseline-v4
+git switch -c codex/restart-from-baseline-v4
 python scripts/native-linux/setup.py
-./scripts/native-linux/chat.sh
 ```
 
-The tag checkout initially has no development branch; `git switch -c` creates one for new work. Setup requires the host dependencies listed in [setup](setup.md), then downloads and verifies the pinned model/runtime. Inside this recovered checkout, use its local launch scripts.
+Follow [setup prerequisites](setup.md); scripts verify/reuse the shared pinned weights and runtime. Rebuild virtual environments at the new path. For Discord, run `./scripts/native-linux/setup-discord.sh` and restore or enter credentials locally before launch. Stop any other instance using that bot.
 
-Restore `data/identities/profiles.json` from a private backup **before the first launch** if you want to retain existing identities. In the commands above, pause before `chat.sh` to do so. A fresh profile does not restore prior conversation context.
+Before first launch, privately restore `data/contacts/profiles.json` and `data/soul/profile.json` if preserving permanent IDs. Restore matching notes and the database only if wanted; use the stopped [storage recovery procedure](storage.md#backup-and-restore), never mix old WAL/SHM sidecars with a different database. A fresh checkout without those private records creates new IDs. Do not restore stale session sockets. Restore credentials with mode 600; they are never in Git.
 
-For optional Discord, complete its setup before launching main chat: stop any other copy of the bot, run `./scripts/native-linux/setup-discord.sh` in the recovered checkout, restore or fill in `data/discord/.env` locally, and keep it permission `600`. If main chat was already started before restoring Discord configuration, restart it so the account mapping is loaded. Once main chat is ready, run `./scripts/native-linux/discord.sh` in another terminal opened in that same checkout.
-
-## What Git does and does not restore
-
-The tag restores tracked code, guides, safe configuration examples, and dependency manifests. It does **not** contain:
-
-- `data/identities/profiles.json`: restore privately before first launch to preserve person UUIDs and linked accounts. Without it, startup creates a new Phat profile with a new UUID. Stop the application before restoring; do not combine profile files by name alone.
-- `data/discord/.env`: restore privately or enter the bot token and allowed user ID again.
-- Conversation logs and archived sessions: copy from a separate backup to `data/conversations/` if wanted. Restoring these does not restore model memory.
-- Model weights or runtime binaries: recreate through setup, or retain verified model/download files from a private backup. Rebuild the Discord environment with its setup script rather than moving a virtual environment between paths.
-- Visual references: back up and restore `visual design/` separately.
-
-Do not restore an old session socket; launch recreates it. An archive on the same disk is not a backup. This checkpoint pins application files and downloads, not the operating system or GPU driver. A complete fresh-machine restoration has not been exercised for this checkpoint; verified setup routines and GPU checks are documented above.
+Then use `./scripts/native-linux/chat.sh` and optionally `./scripts/native-linux/discord.sh` from that checkout. Database restoration preserves records, not automatic live conversation context. Restore personal state from the external test archive only when deliberately choosing to undo the fresh reset. Model weights, environments, credentials, conversations, profiles, visual references and OS/GPU drivers are outside this tag. A full fresh-machine restoration has not been performed for V4.

@@ -18,11 +18,11 @@ The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-
 
 Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
 
-The **last saved stable baseline** is **`baseline-v3` (2026-11-09)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
+The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
 
-Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). Profiles, owner command permissions, the module organization, and Q4 are included in `baseline-v3`; the previous V2 guide is [archived](docs/archive/baseline-v2-2026-11-09.md). Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
+Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). The current architecture is captured in `baseline-v4`; the previous [V3 guide](docs/archive/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
 ## Reviewing the code
 
