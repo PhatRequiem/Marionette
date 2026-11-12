@@ -1,5 +1,7 @@
 # Reading the logs
 
+See the [log glossary](log-glossary.md) for short definitions of IDs, fields and event types.
+
 Conversations and logs are stored in `data/conversations/marionette.sqlite3`. Contact-note Markdown and identity JSON remain separate. See [storage](storage.md) for schema, provenance, exact-byte preservation, export, backup, and limitations.
 
 The **server** view contains recognized connection, HTTP streaming, request queue, and response-delivery events. The **model** view contains recognized model loading, GPU, context, prompt, token, and timing events. Unknown entries, unprefixed continuations, and all warning/error records appear in both views but are stored only once. Classification remains tied to the pinned runtime.
