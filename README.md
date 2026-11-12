@@ -86,7 +86,7 @@ Start with these files, in order:
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
-See [native Linux setup and operation](docs/setup.md) and [licenses](docs/licenses.md).
+See [native Linux setup and operation](docs/setup.md), the [audited setup datasheet](docs/setup-datasheet.md), and [licenses](docs/licenses.md).
 
 ## Archives
 

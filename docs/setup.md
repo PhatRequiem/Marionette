@@ -1,5 +1,7 @@
 # Native Linux terminal chat
 
+See the [setup datasheet](setup-datasheet.md) for audited configuration facts, evidence limits and refresh rules.
+
 ## Requirements and repeatable installation
 
 Run from the Git checkout. This setup targets x86_64 Linux and Python 3.11 or newer with the standard-library `sqlite3` module and tarfile extraction filters (Python 3.12+ recommended). The verified host uses Python 3.14.8 and Arch Linux. Runtime shared libraries: glibc, GCC runtime, OpenSSL 3, zlib, Brotli, Zstandard, Vulkan loader, and a working Vulkan driver. Setup also requires `uv` to install the hash-locked Qwen-Agent environment under `runtime/agent/`. Logging also requires Bash, util-linux `script` and `flock` (verified version 2.42.4), GNU coreutils, `xdg-terminal-exec`, and a configured desktop terminal. The verified default terminal is Kitty. Setup checks that the required commands and extraction filters exist. The launcher also uses Python’s standard library to read runtime/model paths from the manifest. The host already provided these; no system packages or services were installed.
