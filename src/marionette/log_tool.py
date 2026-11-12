@@ -11,7 +11,7 @@ from log_query import handle
 class QueryLogs(BaseTool):
     name = 'query_logs'
     description = (
-        'Read verified setup, current status, or diagnostic facts when asked about your operation. '
+        'Read verified setup, current status, or diagnostic facts for answers or self-directed reflection. You may review logs whenever you want; no user request or problem is required. '
         'Use setup/startup for recorded model, device, runtime and configuration; '
         'status/current for fresh server, Discord, tools and processing status. '
         'Use processing/previous_message for how the previous user message was processed, '
