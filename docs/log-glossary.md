@@ -124,6 +124,6 @@ from their IDs. Raw runtime lines are not assigned to a message by proximity alo
 
 For storage and query details, see [storage](storage.md). For budgets and durability,
 see [retention](log-retention.md). The former snapshot utilities have been removed;
-this glossary describes the logs and does not define a model-facing request interface.
+this glossary describes the logs. The [request form](log-request-form.md) defines the planned lookup inputs; no handler or model connection is implemented.
 
 For application/setup facts and their verification status, see the [setup datasheet](setup-datasheet.md).

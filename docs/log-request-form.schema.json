@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Log request form",
+  "description": "Version 1 request contract. Not registered as a model tool; no query handler is implemented.",
+  "type": "object",
+  "properties": {
+    "lookup": {
+      "type": "string",
+      "enum": [
+        "setup",
+        "status",
+        "processing",
+        "delivery",
+        "errors"
+      ],
+      "description": "The information to retrieve."
+    },
+    "target": {
+      "type": "string",
+      "enum": [
+        "startup",
+        "current",
+        "previous_message",
+        "message_id"
+      ],
+      "description": "The startup, current state, or message to inspect."
+    },
+    "message_id": {
+      "type": "string",
+      "pattern": "^(local:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|discord:[0-9]{1,20})$",
+      "description": "An existing message correlation ID. Required only when target is message_id."
+    }
+  },
+  "required": [
+    "lookup",
+    "target"
+  ],
+  "additionalProperties": false,
+  "oneOf": [
+    {
+      "properties": {
+        "lookup": {
+          "const": "setup"
+        },
+        "target": {
+          "const": "startup"
+        }
+      },
+      "not": {
+        "required": [
+          "message_id"
+        ]
+      }
+    },
+    {
+      "properties": {
+        "lookup": {
+          "const": "status"
+        },
+        "target": {
+          "const": "current"
+        }
+      },
+      "not": {
+        "required": [
+          "message_id"
+        ]
+      }
+    },
+    {
+      "properties": {
+        "lookup": {
+          "enum": [
+            "processing",
+            "delivery",
+            "errors"
+          ]
+        },
+        "target": {
+          "const": "previous_message"
+        }
+      },
+      "not": {
+        "required": [
+          "message_id"
+        ]
+      }
+    },
+    {
+      "properties": {
+        "lookup": {
+          "enum": [
+            "processing",
+            "delivery",
+            "errors"
+          ]
+        },
+        "target": {
+          "const": "message_id"
+        }
+      },
+      "required": [
+        "message_id"
+      ]
+    }
+  ]
+}
