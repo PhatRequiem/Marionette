@@ -240,7 +240,7 @@ os._exit(0)
             '--database',str(self.path),'--session',self.session,
             '--message-id','discord:1234','--conversation-id','discord:5678'],capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
-        report=json.loads(result.stdout)
+        report=json.loads(result.stdout)['message']
         self.assertIn('operator fixture',report['errors'][0]['message'])
         self.assertEqual(self.scalar('SELECT count(*) FROM events'),2)
 

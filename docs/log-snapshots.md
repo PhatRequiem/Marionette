@@ -1,4 +1,4 @@
-# On-demand message log snapshots
+# Snapshot message section
 
 `src/marionette/log_snapshot.py` builds a fixed-field JSON report for one explicit
 message ID from existing logs. It is an operator utility, **not registered as a
@@ -7,7 +7,7 @@ prepares the extraction code for testing before any model connection is approved
 
 ## Run it
 
-First [export the server/model views from SQLite](storage.md#view-and-export). The utility continues to accept the same reversible text format; it does not directly query SQLite. For saved SQLite logs, no text export is required. The current diagnostic buffer stays in RAM until recorder shutdown; this utility is not connected to that live buffer or to the model.
+For saved SQLite logs, no text export is required. Alternatively, [export server/model views](storage.md#view-and-export) for text mode. The current diagnostic buffer stays in RAM until recorder shutdown; this utility is not connected to that live buffer or to the model.
 
 ```bash
 ./scripts/native-linux/log-snapshot.sh \
@@ -42,7 +42,7 @@ For a Discord message, use `discord:INCOMING_MESSAGE_ID` and
 `discord:SENDER_ACCOUNT_ID`. Add `--discord-log PATH` for its connection log;
 repeat this option only for distinct relevant connection files.
 
-The command prints JSON to standard output. `null` explicitly means unavailable.
+The command prints the `message` section inside the [unified snapshot](snapshots.md) JSON envelope to standard output. `null` explicitly means unavailable.
 A missing message, missing/mismatched conversation, conflicting event copies,
 ambiguous repeated processing boundaries, malformed supported fields, or exceeded
 limits produces a nonzero exit and no report. Logs predating message IDs cannot
@@ -65,7 +65,7 @@ snapshot.
 | Model requests | One entry per recorded usage event, with a full message/request ID when recorded, with prompt/completion/total tokens, reasoning count if provided, corresponding last budget, and source references |
 | Operations | Request/tool boundary events and tool identity records, including parent request, tool number, and original protocol ID when recorded |
 | Timing | First-token time, first-answer time, generation speed; currently unavailable from explicitly tagged records |
-| Model / connections | Reserved fields for model configuration and connection status; unavailable because session-wide raw events are not attributed to a message |
+| Model / connections | Supplied separately in the optional setup section; never inferred from message records |
 | Cache preparation | Recorded section status and relevant preparation details |
 | Delivery | Discord delivery outcome and recorded queue/processing/response/total timings, when the matching Discord log is supplied |
 | Errors / warnings | Recognized tagged failure, interruption, preparation, rejected-contact-notes-update, trimming, and generation-limit records |

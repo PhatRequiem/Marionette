@@ -1,8 +1,5 @@
 """Standalone setup-report preview. Not imported by chat or registered as a tool."""
-import argparse
 from datetime import datetime, timezone
-import json
-from pathlib import Path
 
 TOOL_PURPOSES = {
     'update_contact_notes': 'Add, patch, or remove entries about the current contact (1375 characters total).',
@@ -85,20 +82,9 @@ def build_snapshot(evidence=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--evidence', type=Path, help='Explicit observation JSON; otherwise runtime fields remain unverified.')
-    args = parser.parse_args()
-    try:
-        evidence = None
-        if args.evidence:
-            with args.evidence.open('rb') as stream:
-                raw = stream.read(65537)
-            if len(raw) > 65536:
-                raise ValueError('Evidence exceeds 64 KiB.')
-            evidence = json.loads(raw)
-        print(json.dumps(build_snapshot(evidence), indent=2, ensure_ascii=False))
-    except (OSError, ValueError, TypeError) as error:
-        parser.exit(1, f'Startup snapshot: {error}\n')
+    # Preserve the established entry point using the common report interface.
+    from snapshot import main as snapshot_main
+    snapshot_main('setup')
 
 
 if __name__ == '__main__':

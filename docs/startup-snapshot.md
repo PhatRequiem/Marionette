@@ -1,6 +1,6 @@
-# Startup snapshot preview
+# Snapshot setup section
 
-This is a standalone design prototype, **not connected to main chat, prompts, Qwen-Agent, or Discord**. It prints one JSON application setup report. It does not launch a model, send requests, read private memories or credentials, write a report file, or change launch behavior. Baseline V4 remains fixed.
+This is a standalone design prototype, **not connected to main chat, prompts, Qwen-Agent, or Discord**. It prints the `setup` section inside the [unified snapshot](snapshots.md) envelope. It does not launch a model, send requests, read private memories or credentials, write a report file, or change launch behavior. Baseline V4 remains fixed.
 
 ## Try it
 
@@ -33,7 +33,7 @@ The example is synthetic, modeled on the current configuration. Its GPU, setting
 
 Runtime fields are `null` with status `unverified` when absent. A supplied `false` or empty tool list is distinct from missing evidence. Synthetic fields say `synthetic_example`; other supplied fields say `caller_reported`, never independently verified. Known application behavior is separately labeled as design information. No sender identities, ownership IDs, soul text or contact-note content is included.
 
-The optional JSON input uses four keys: `source` (nonempty description), `observed_at` (timezone-bearing ISO timestamp), `synthetic` (boolean), and `values` (the fields demonstrated by the fixture). Partial observations are allowed. Unknown fields/tools, invalid types and impossible capacity/allowance pairs fail rather than silently inventing values. Evidence input is limited to 64 KiB. Tool names are explicit; the formatter does not inspect live registrations or discover tools.
+The optional JSON input uses four evidence keys (plus optional `session` for the unified interface): `source` (nonempty description), `observed_at` (timezone-bearing ISO timestamp), `synthetic` (boolean), and `values` (the fields demonstrated by the fixture). Partial observations are allowed. Unknown fields/tools, invalid types and impossible capacity/allowance pairs fail rather than silently inventing values. Evidence input is limited to 64 KiB. Tool names are explicit; the formatter does not inspect live registrations or discover tools.
 
 This is a report formatter, not yet an evidence collector. It does not infer a GPU from a requested device flag, connection health from a socket file, or runtime identity from a filename. Source descriptions are caller-supplied, not authentication. Do not feed arbitrary external input into a future system prompt as trusted evidence.
 
@@ -41,7 +41,7 @@ This is a report formatter, not yet an evidence collector. It does not infer a G
 
 A future authorized change would collect confirmed startup facts from runtime output/API responses and registered tools, refresh interface status when it changes, and supply this report separately from the editable soul on every request. This prototype neither collects those facts nor injects the report. Observation time is preserved so an old input file cannot masquerade as a fresh probe merely because the report was regenerated.
 
-The [message log snapshot](log-snapshots.md) remains separate: it concerns processing, token usage, delivery and errors for one message. Neither utility currently gives the model log access.
+The [message log snapshot](log-snapshots.md) is the other section of the same report: it concerns processing, token usage, delivery and errors for one message. Neither utility currently gives the model log access.
 
 ## Verification
 

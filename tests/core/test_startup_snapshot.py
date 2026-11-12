@@ -57,7 +57,7 @@ class StartupSnapshotTests(unittest.TestCase):
                 '--evidence', str(ROOT/'tests/fixtures/startup-observations.json')],
                 cwd=temp, capture_output=True, text=True, check=True)
             self.assertEqual(list(Path(temp).iterdir()), [])
-            self.assertTrue(json.loads(result.stdout)['evidence']['synthetic'])
+            self.assertTrue(json.loads(result.stdout)['setup']['evidence']['synthetic'])
 
     def test_cli_bad_input_has_no_partial_report(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -1,5 +1,4 @@
 """On-demand diagnostic extraction. Deliberately not registered as a model tool."""
-import argparse
 from datetime import datetime, timezone
 import json
 import math
@@ -351,26 +350,9 @@ def database_snapshot(path, session, identifier, conversation_id):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--message-id', required=True)
-    parser.add_argument('--conversation-id', required=True)
-    parser.add_argument('--discord-log', action='append', default=[])
-    parser.add_argument('--database')
-    parser.add_argument('--session')
-    parser.add_argument('logs', nargs='*')
-    args = parser.parse_args()
-    try:
-        if args.database:
-            if not args.session or args.logs or args.discord_log:
-                raise ValueError('Database mode needs --session and cannot be mixed with text files.')
-            result = database_snapshot(args.database, args.session, args.message_id, args.conversation_id)
-        else:
-            if args.session:
-                raise ValueError('--session requires --database.')
-            result = snapshot(args.logs, args.message_id, args.conversation_id, discord_paths=args.discord_log)
-    except (ValueError, LookupError, OSError, sqlite3.Error) as error:
-        parser.exit(1, f'Snapshot unavailable: {error}\n')
-    print(json.dumps(result, ensure_ascii=True, indent=2, allow_nan=False))
+    # Preserve the established entry point using the common report interface.
+    from snapshot import main as snapshot_main
+    snapshot_main('message')
 
 
 if __name__ == '__main__':

@@ -180,6 +180,23 @@ class SnapshotTests(unittest.TestCase):
             '--message-id', ID, '--conversation-id', CONVERSATION, *map(str, self.paths)],
             capture_output=True, text=True, cwd='/tmp')
         self.assertEqual(result.returncode, 0, result.stderr)
-        r = json.loads(result.stdout)
+        r = json.loads(result.stdout)['message']
         self.assertIn('\\literal\\n café\tcontrol', r['errors'][0]['message'])
         self.assertEqual(set(self.root.iterdir()), set(self.paths))
+
+    def test_combined_cli_with_matching_setup_evidence(self):
+        self.write(['Prompt budget: 100 tokens + 200 reply allowance < 1000; removed_exchanges=0.'])
+        evidence = json.loads((ROOT/'tests/fixtures/startup-observations.json').read_text())
+        evidence['session'] = 'synthetic'
+        path = self.root/'observations.json'
+        path.write_text(json.dumps(evidence))
+        before = {p.name: p.read_bytes() for p in self.root.iterdir()}
+        result = subprocess.run(['bash', str(ROOT/'scripts/native-linux/snapshot.sh'),
+            '--section', 'both', '--evidence', str(path), '--message-id', ID,
+            '--conversation-id', CONVERSATION, *map(str, self.paths)],
+            capture_output=True, text=True, check=True)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['setup']['session'], report['message']['session'])
+        self.assertEqual(report['message']['context']['capacity_tokens'], 1000)
+        self.assertEqual(report['setup']['limits']['context_capacity_tokens']['value'], 65536)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.root.iterdir()})
