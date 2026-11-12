@@ -93,7 +93,9 @@ COMMAND=("$CLI" --model "$MODEL" --offline --device "${MARIONETTE_DEVICE:-Vulkan
     printf 'Session started: %s\n' "$(date --iso-8601=seconds)"
     printf 'Database: %s\nSession: %s\n' "$MARIONETTE_LOG_DB" "$MARIONETTE_LOG_SESSION"
     printf 'Command:'; printf ' %q' "${COMMAND[@]}"; printf '\n'
-    "$CLI" --version
+    MARIONETTE_RUNTIME_VERSION_OBSERVATION="$("$CLI" --version 2>&1)"
+    export MARIONETTE_RUNTIME_VERSION_OBSERVATION
+    printf '%s\n' "$MARIONETTE_RUNTIME_VERSION_OBSERVATION"
     script --version
 } >&3 2>&1
 if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi

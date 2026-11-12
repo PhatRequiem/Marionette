@@ -36,7 +36,7 @@ def observe(line, facts):
             facts[key] = match.group(1).strip()
 
 
-def chat(api, capacity, store=None, session_id=None):
+def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     data = Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
     migrate_personal_paths(data)
     profiles = ContactProfiles(data / 'contacts/profiles.json')
@@ -60,6 +60,8 @@ def chat(api, capacity, store=None, session_id=None):
     else:
         connection = nullcontext()
     try:
+        if on_startup is not None:
+            on_startup(conversation, bool(address))
         with connection:
             terminal.run(conversation, external=bool(address))
     finally:
@@ -69,11 +71,12 @@ def chat(api, capacity, store=None, session_id=None):
 def run(command):
     facts = {}
     setup_facts = {}
+    setup_details = {}
     datasheet = Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH',
         Path(__file__).resolve().parents[2] / 'docs/setup-datasheet.md'))
     def refresh(status, capacity=None):
         try:
-            setup_datasheet.update(datasheet, status, setup_facts, capacity=capacity)
+            setup_datasheet.update(datasheet, status, setup_facts, capacity=capacity, details=setup_details)
         except (OSError, ValueError) as error:
             diagnostics.log(f'Setup datasheet update failed ({type(error).__name__}); previous file left intact.')
     refresh('starting')
@@ -119,15 +122,22 @@ def run(command):
         api = API(address)
         if api.json('/health').get('status') != 'ok':
             raise RuntimeError('Server health check did not report ok.')
-        capacity = int(api.json('/props')['default_generation_settings']['n_ctx'])
+        properties = api.json('/props')
+        capacity = int(properties['default_generation_settings']['n_ctx'])
+        setup_details.update(setup_datasheet.configuration(command, properties,
+            os.environ.get('MARIONETTE_RUNTIME_VERSION_OBSERVATION', '')))
         observed = facts.get('context_tokens')
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
+        setup_details['Application startup'] = ('Awaiting profile selection and component initialization', 'Model server ready; application capture pending')
         refresh('ready', capacity)
         startup_verified = True
         database = os.environ.get('MARIONETTE_LOG_DB')
         with closing(Store(database)) if database else nullcontext() as store:
-            chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'))
+            def capture_application(conversation, bridge_bound):
+                setup_details.update(setup_datasheet.application(api, conversation, store, bridge_bound))
+                refresh('ready', capacity)
+            chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'), on_startup=capture_application)
         return 0
     finally:
         if not startup_verified:

@@ -1,6 +1,8 @@
 """Refresh one bounded operator-only Markdown section from startup evidence."""
 from datetime import datetime, timezone
 import os
+import math
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 import re
 import tempfile
@@ -40,7 +42,7 @@ def cell(value):
     return ''.join(c if c.isprintable() else ' ' for c in text).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('|', '&#124;').replace('`', '&#96;').replace('[', '&#91;').replace(']', '&#93;').replace('\\', '&#92;')
 
 
-def render(status, facts, *, capacity=None):
+def render(status, facts, *, capacity=None, details=None):
     stamp = datetime.now(timezone.utc).isoformat()
     rows = [START, '## Latest startup observations', '',
             f'Updated (UTC): {stamp}', '', f'Startup status: **{status}**.', '',
@@ -49,7 +51,9 @@ def render(status, facts, *, capacity=None):
             '| Fact | Observed value | Evidence |', '|---|---|---|']
     for name in (*PATTERNS, *('Sampling ' + k for k in SAMPLING)):
         values = facts.get(name, set()) if status == 'ready' else set()
-        if not values:
+        if status == 'ready' and name in (details or {}) and (not values or not details[name][1].startswith('Configured:')):
+            value, source = details[name]
+        elif not values:
             value, source = 'Unverified', 'No confirmed startup observation'
         elif len(values) > 1 and name != 'Loaded device':
             value, source = 'Unverified', 'Conflicting startup observations'
@@ -63,13 +67,17 @@ def render(status, facts, *, capacity=None):
                  '| Local server startup health | Passed | `/health` returned status `ok` before chat |']
     else:
         rows.append('| Effective context / startup health | Unverified | Startup verification not completed |')
+    if status == 'ready':
+        for name, (value, source) in (details or {}).items():
+            if name not in PATTERNS and not name.startswith('Sampling '):
+                rows.append(f'| {cell(name)} | {cell(value)} | {cell(source)} |')
     rows += ['', 'Runtime-reported model/device strings do not verify file checksums. '
              'Thinking is requested by application code; its effective template behavior is not independently verified here. '
-             'Discord status, personal data, paths, credentials, PIDs and conversation/session IDs are not copied into this file.', END]
+             'Discord is recorded at the initial main-chat boundary only. Personal data, paths, credentials, PIDs and conversation/session IDs are not copied into this file.', END]
     return '\n'.join(rows)
 
 
-def update(path, status, facts, *, capacity=None):
+def update(path, status, facts, *, capacity=None, details=None):
     """Replace only the marked section atomically, without keeping old copies."""
     path = Path(path)
     if path.is_symlink():
@@ -84,7 +92,7 @@ def update(path, status, facts, *, capacity=None):
     start, end = original.index(START), original.index(END)
     if end < start:
         raise ValueError('Datasheet markers are out of order.')
-    revised = original[:start] + render(status, facts, capacity=capacity) + original[end + len(END):]
+    revised = original[:start] + render(status, facts, capacity=capacity, details=details) + original[end + len(END):]
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent,
@@ -101,3 +109,81 @@ def update(path, status, facts, *, capacity=None):
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+
+
+def configuration(command, props, runtime_output=''):
+    """Allowlisted runtime defaults plus explicitly labeled requested settings."""
+    details = {}
+    settings = props.get('default_generation_settings', {})
+    if not isinstance(settings, dict):
+        settings = {}
+    params = settings.get('params', settings)
+    if not isinstance(params, dict):
+        params = {}
+    flags = {'temp': '--temp', 'top_p': '--top-p', 'top_k': '--top-k',
+             'min_p': '--min-p', 'presence_penalty': '--presence-penalty',
+             'repeat_penalty': '--repeat-penalty', 'repeat_last_n': '--repeat-last-n',
+             'frequency_penalty': '--frequency-penalty',
+             'Prompt cache budget (MiB)': '--cache-ram',
+             'Reasoning mode requested': '--reasoning',
+             'Reasoning format requested': '--reasoning-format',
+             'Separate reasoning budget requested': '--reasoning-budget'}
+    for name, flag in flags.items():
+        requested = None
+        for i, arg in enumerate(command):
+            if arg == flag and i + 1 < len(command): requested = command[i + 1]
+            elif arg.startswith(flag + '='): requested = arg.split('=', 1)[1]
+        label = 'Sampling ' + name if name in SAMPLING else name
+        value = params.get(name)
+        if name in SAMPLING and type(value) in (int, float) and math.isfinite(value):
+            details[label] = (str(value), 'Observed server defaults: /props')
+        elif requested is not None:
+            details[label] = (requested, 'Configured: effective launch arguments; not independently observed')
+        elif name not in SAMPLING:
+            details[label] = ('Unverified', 'No explicit launch setting')
+    # The launcher already invokes this exact executable with --version.
+    for line in runtime_output[:16384].splitlines():
+        if line.startswith('version: '):
+            details['Runtime build'] = (line[len('version: '):], 'Executable --version output from this launch')
+            break
+    return details
+
+
+def application(api, conversation, store, bridge_bound):
+    """Inspect initialized components before accepting any external request."""
+    tools = tuple(api.tools)
+    names = sorted(tool.name for tool in tools)
+    try:
+        framework = version('qwen-agent')
+    except PackageNotFoundError:
+        framework = 'Unverified'
+    result = {
+        'Application startup': ('Initialized before accepting input', 'Observed components after profile selection'),
+        'Terminal interface': ('Initialized', 'Observed: profile selected; conversation constructed'),
+        'Local inference': ('Loopback HTTP server', 'Observed listener and startup health check'),
+        'Discord interface': ('Offline at main-chat startup', 'Startup boundary before the new chat bridge begins serving; not a later connectivity probe'),
+        'Discord local bridge': ('Bound; starts serving after this capture' if bridge_bound else 'Not enabled', 'Observed: LocalConnection constructed' if bridge_bound else 'No local connection configured'),
+        'Tool coordinator': ('Qwen-Agent ' + framework, 'Installed Python package metadata'),
+        'Registered tools at capture': (', '.join(names) or 'None', 'Observed: api.tools'),
+        'Contact-note memory': ('Enabled; current-contact tool binds on ordinary turns' if conversation.contact_notes is not None else 'Disabled', 'Initialized conversation components'),
+        'Soul memory': ('Enabled; shared persistent profile' if conversation.soul is not None else 'Disabled', 'Initialized conversation components'),
+        'Conversation history': ('Separate per terminal profile / Discord sender; fresh on restart', 'Application design'),
+        'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Observed store connection; not a write durability test'),
+        'Thinking template request': ('enable_thinking=true', 'Configured by inference adapter; not independent template verification'),
+    }
+    purposes = {'update_soul': 'Edit persistent self name and description',
+                'update_contact_notes': 'Edit notes for the current contact'}
+    for tool in tools:
+        result['Tool: ' + tool.name] = (purposes.get(tool.name, 'Registered; purpose not catalogued'), 'Observed registration; purpose from application design')
+    if conversation.contact_notes is not None and 'update_contact_notes' not in names:
+        result['Tool: update_contact_notes'] = ('Available on ordinary identified-contact turns; not yet bound at capture', 'Observed contact-note component; conversation turn binding policy')
+    # No enabled external read tools exist in the current production registry.
+    known = set(names) <= set(purposes)
+    result['Log lookup / vault access'] = ('Not connected' if known else 'Unverified: additional tools registered', 'Observed startup tools; no external reader configured by this startup')
+    if store is not None:
+        policy = store.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
+        result['Diagnostic raw-event budget'] = (str(policy['budget_bytes']) + ' bytes', 'Configured recorder policy in SQLite; live occupancy not probed')
+        result['Diagnostic batch size'] = (str(policy['part_bytes']) + ' bytes', 'Configured recorder policy in SQLite')
+        result['Protected error windows'] = (str(policy['error_limit']) + ' windows; ' + str(policy['window_events']) + ' events before/after', 'Configured recorder policy in SQLite')
+    result['Diagnostic persistence'] = ('RAM rolling buffer; saved on orderly recorder shutdown', 'Application design; abrupt recorder loss can lose unsaved diagnostics')
+    return result

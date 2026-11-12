@@ -92,3 +92,38 @@ class DatasheetTests(unittest.TestCase):
             with self.assertRaisesRegex(OSError,'original error'): session.run(['synthetic-server'])
         self.assertEqual(self.path.read_text(),'operator text without markers')
         self.assertTrue(any('Setup datasheet update failed' in c.args[0] for c in logged.call_args_list))
+
+
+    def test_effective_settings_and_configured_fallback_are_distinct(self):
+        details = sheet.configuration(['runtime', '--temp', '1', '--temp=0.7', '--cache-ram', '5120', '--reasoning', 'on'],
+            {'default_generation_settings': {'params': {'top_k': 20, 'temperature': 999, 'temp': 0.8}}},
+            'unrelated output\nversion: 12211 (7d7f02875)\n')
+        self.assertEqual(details['Sampling temp'], ('0.8', 'Observed server defaults: /props'))
+        self.assertEqual(details['Prompt cache budget (MiB)'][0], '5120')
+        self.assertIn('12211', details['Runtime build'][0])
+        fallback = sheet.configuration(['runtime','--temp','1','--temp=0.7'], {})
+        self.assertEqual(fallback['Sampling temp'][0], '0.7')
+        report = sheet.render('ready',{'Sampling temp': {'0.9'}},capacity=8192,details=fallback)
+        self.assertIn('| Sampling temp | 0.9 | Runtime startup output |',report)
+        self.assertNotIn('999',sheet.render('ready',{},details=details))
+
+    def test_application_tools_and_interfaces_are_truthful_and_private(self):
+        from types import SimpleNamespace
+        from storage import Store
+        store=Store(None);self.addCleanup(store.close)
+        api=SimpleNamespace(tools=(SimpleNamespace(name='update_soul'),))
+        conversation=SimpleNamespace(contact_notes=object(),soul=object())
+        details=sheet.application(api,conversation,store,True)
+        self.assertEqual(details['Registered tools at capture'][0],'update_soul')
+        self.assertIn('not yet bound',details['Tool: update_contact_notes'][0])
+        self.assertEqual(details['Discord interface'][0],'Offline at main-chat startup')
+        self.assertEqual(details['Diagnostic raw-event budget'][0],'500000000 bytes')
+        sheet.update(self.path,'ready',{},capacity=8192,details=details)
+        self.assertIn('| Terminal interface | Initialized |',self.path.read_text())
+        self.assertIn('| Log lookup / vault access | Not connected |',self.path.read_text())
+        self.assertNotIn(str(self.path.parent),self.path.read_text())
+        api.tools=()
+        details=sheet.application(api,SimpleNamespace(contact_notes=None,soul=None),None,False)
+        self.assertEqual(details['Registered tools at capture'][0],'None')
+        self.assertEqual(details['Conversation storage'][0],'Not attached')
+        self.assertEqual(details['Discord local bridge'][0],'Not enabled')
