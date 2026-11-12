@@ -8,6 +8,12 @@
 .codex/
 .agents/
 
+# Personal Obsidian state; only the shared visual snippet is versioned
+.obsidian/*
+!.obsidian/snippets/
+.obsidian/snippets/*
+!.obsidian/snippets/marionette.css
+
 # Operating system files
 .DS_Store
 Thumbs.db

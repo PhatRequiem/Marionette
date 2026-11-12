@@ -1,0 +1,71 @@
+/* Optional vault styling. Disable in Appearance > CSS snippets to revert. */
+body {
+  --file-line-width: 820px;
+  --line-height-normal: 1.7;
+  --line-height-tight: 1.4;
+  --p-spacing: 1.1rem;
+  --heading-spacing: 1.8em;
+  --h1-size: 2em;
+  --h2-size: 1.5em;
+  --h3-size: 1.2em;
+  --h1-weight: 700;
+  --h2-weight: 650;
+  --nav-item-size: 14px;
+  --nav-item-padding: 6px 10px;
+  --nav-item-radius: 6px;
+  --table-cell-padding: 9px 12px;
+}
+.theme-dark {
+  --mar-guide: #8ac4ff;
+  --mar-idea: #c7a7ff;
+  --mar-experiment: #efc078;
+  --mar-archive: #a9b2c1;
+  --mar-start: #8ed5b5;
+}
+.theme-light {
+  --mar-guide: #195b99;
+  --mar-idea: #7041a8;
+  --mar-experiment: #865209;
+  --mar-archive: #586477;
+  --mar-start: #17694c;
+}
+body {
+  --h1-color: var(--mar-start);
+  --h2-color: var(--mar-guide);
+  --h3-color: var(--mar-idea);
+  --h4-color: var(--text-normal);
+  --h5-color: var(--text-normal);
+  --h6-color: var(--text-normal);
+  --link-color: var(--mar-guide);
+  --link-external-color: var(--mar-guide);
+}
+/* Path-based colors preserve filenames and work with the existing layout. */
+.nav-folder-title[data-path="docs"],
+.nav-file-title[data-path^="docs/"] { color: var(--mar-guide); }
+.nav-folder-title[data-path="docs/ideas"],
+.nav-file-title[data-path^="docs/ideas/"] { color: var(--mar-idea); }
+.nav-folder-title[data-path="docs/experiments"],
+.nav-file-title[data-path^="docs/experiments/"] { color: var(--mar-experiment); }
+.nav-folder-title[data-path="docs/archive"],
+.nav-file-title[data-path^="docs/archive/"] { color: var(--mar-archive); }
+.nav-file-title[data-path="README.md"],
+.nav-file-title[data-path="STARTUP.md"] { color: var(--mar-start); font-weight: 650; }
+.nav-folder-title[data-path="docs"],
+.nav-folder-title[data-path="docs/ideas"],
+.nav-folder-title[data-path="docs/experiments"],
+.nav-folder-title[data-path="docs/archive"] {
+  border-inline-start: 3px solid currentColor;
+  font-weight: 650;
+}
+.nav-file-title.is-active {
+  background: var(--background-modifier-hover);
+  box-shadow: inset 3px 0 var(--interactive-accent);
+  font-weight: 650;
+}
+.markdown-rendered h2 {
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.markdown-rendered tbody tr:nth-child(even) { background: var(--background-secondary); }
+.markdown-rendered pre { border: 1px solid var(--background-modifier-border); border-radius: 8px; }
+.markdown-rendered :not(pre) > code { overflow-wrap: anywhere; }
