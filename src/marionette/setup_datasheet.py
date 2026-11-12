@@ -161,7 +161,7 @@ def application(api, conversation, store, bridge_bound):
         'Application startup': ('Initialized before accepting input', 'Observed components after profile selection'),
         'Terminal interface': ('Initialized', 'Observed: profile selected; conversation constructed'),
         'Local inference': ('Loopback HTTP server', 'Observed listener and startup health check'),
-        'Discord interface': ('Offline at main-chat startup', 'Startup boundary before the new chat bridge begins serving; not a later connectivity probe'),
+        'Discord interface': ('Offline', 'Startup boundary before the new chat bridge begins serving; not a later connectivity probe'),
         'Discord local bridge': ('Bound; starts serving after this capture' if bridge_bound else 'Not enabled', 'Observed: LocalConnection constructed' if bridge_bound else 'No local connection configured'),
         'Tool coordinator': ('Qwen-Agent ' + framework, 'Installed Python package metadata'),
         'Registered tools at capture': (', '.join(names) or 'None', 'Observed: api.tools'),
