@@ -16,6 +16,7 @@ from contacts import ContactProfiles
 from contact_notes import ContactNotes
 from soul import Soul
 from scratchpads import Scratchpads
+from thinking import ThinkingCycle
 from conversation import Conversation
 from storage import Store
 from reset_boundary import BoundaryReader, marker
@@ -60,7 +61,9 @@ class MemoryResetTests(unittest.TestCase):
                 api=Mock(closing=threading.Event(), tools=())
                 pads = Scratchpads()
                 pads.update("focus", "OLD_SECRET")
-                conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul,pads)
+                cycle = ThinkingCycle()
+                cycle.wake('discord', '999', 'discord:999')
+                conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul,pads,cycle)
                 conversation.histories={'terminal:test':[{'role':'user','content':'OLD_SECRET'}], 'discord:123':[{'role':'user','content':'old'}]}
                 capture=Path(__file__).resolve().parents[2]/'src/marionette/storage.py'
                 processes=[]
@@ -82,6 +85,8 @@ class MemoryResetTests(unittest.TestCase):
                     api.reply.assert_not_called()
                     self.assertFalse(api.closing.is_set())
                     self.assertEqual(conversation.histories,{})
+                    self.assertTrue(cycle.waiting)
+                    self.assertEqual((cycle.source, cycle.sender_id, cycle.message_id), ('terminal', None, None))
                     self.assertTrue(all(not text for text in pads.contents.values()))
                     self.assertIn("update_scratchpad", {t.name for t in api.tools})
                     self.assertEqual(len(profiles.profiles),1)

@@ -2,7 +2,7 @@
 import diagnostics
 from permissions import require_command
 
-HELP_TEXT = 'Available commands: /clear, /resetmemory (owner only), and /exit.'
+HELP_TEXT = 'Available commands: /clear, /resetmemory (owner only), /thinking on|off|status (owner terminal), and /exit.'
 
 
 def recognize(message, source):

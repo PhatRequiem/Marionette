@@ -28,6 +28,8 @@ class API:
         self.system_prompt = None
         self.feature_prompts = {}
         self.scratchpads = None
+        self.cycle_check = None
+        self.cycle_active = False
         self.response_messages = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -60,6 +62,8 @@ class API:
                     'update_scratchpad': 'scratchpads.md'}
         enabled = {tool.name for tool in self.tools}
         files = [filename for name, filename in guidance.items() if name in enabled]
+        if self.cycle_active:
+            files.append('thinking-cycle.md')
         if files:
             files.insert(0, 'tool-guidance.md')
         for filename in files:
@@ -129,7 +133,7 @@ class API:
                 'max_retries': 0, 'seed': -1, 'max_tokens': reserve,
                 'stream_options': {'include_usage': True},
                 'extra_body': {'chat_template_kwargs': {'enable_thinking': True}}}})
-        coordinator = Coordinator(model, self.tools, self.closing)
+        coordinator = Coordinator(model, self.tools, self.closing, check=self.cycle_check)
         finish = None
         answer, reasoning = '', ''
         # The framework drops finish/usage metadata. Observe SDK chunks without
@@ -137,6 +141,11 @@ class API:
         with OpenAI(base_url=self.address + '/v1', api_key='EMPTY', max_retries=0,
                     http_client=httpx.Client(trust_env=False, timeout=120)) as client:
             def create(**kwargs):
+                if self.cycle_check is not None:
+                    from thinking import MODEL_CALLS
+                    self.cycle_check()
+                    if coordinator.request_number >= MODEL_CALLS:
+                        raise RuntimeError("Thinking step reached its model-call limit.")
                 coordinator.request_number += 1
                 with diagnostics.operation_scope('MODEL REQUEST', coordinator.request_number):
                     yield from create_request(**kwargs)
@@ -157,6 +166,8 @@ class API:
                     diagnostics.log(f'Tool-loop prompt budget: {tokens} tokens + {reserve} reply allowance < {self.capacity}.')
                 with client.chat.completions.create(**kwargs) as response:
                     for chunk in response:
+                        if self.cycle_check is not None:
+                            self.cycle_check()
                         if self.closing.is_set():
                             raise RuntimeError('Session is closing.')
                         for choice in chunk.choices:

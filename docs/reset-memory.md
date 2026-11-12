@@ -34,3 +34,5 @@ A real Q4 GPU smoke test in temporary synthetic storage generated before and aft
 Verification: 134 core regression checks and 14 mocked Discord checks passed, plus the isolated live GPU reset test.
 
 Temporary [scratchpads](scratchpads.md) are also emptied by `/resetmemory`. Stopping the process clears their RAM state; no scratchpad files exist. Their tool results follow the existing conversation/log reset policy.
+
+The idle thinking cycle is suspended by a successful reset and its contact/message scope returns to the selected terminal owner, so resuming cannot recreate a cleared contact from stale scheduler state.

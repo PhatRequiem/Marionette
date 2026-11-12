@@ -60,3 +60,7 @@ Results remain dated evidence; current status still requires a fresh lookup.
 Keeping results consumes context space and can cause earlier rollover. The SQLite
 conversation schema, diagnostic durability policy, and fresh-history-on-restart
 behavior are unchanged. A failed turn still leaves the previous history intact.
+
+## Internal idle steps
+
+The [thinking cycle](thinking-cycle.md) reuses the most recently active conversation history. Its application-labeled trigger is represented as a user-role boundary for native template/trimming compatibility, but stored as `system/cycle_trigger`, not a real user input. Results are stored as `assistant/cycle_result` and never delivered to Discord. Tool exchanges are retained and trimmed as usual. Each internal model request has a 2,048-token output cap; ordinary user turns retain their existing allowance. Internal steps use input-time fitting and do not start an additional preparation worker. A pending ordinary preparation completes before switching cycle prompt/bindings.

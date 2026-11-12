@@ -124,7 +124,7 @@ def run(conversation, *, external=False):
             color('input')
             print('> ', end='', flush=True)
             try:
-                if external:
+                if external or conversation.thinking is not None:
                     while True:
                         if display_discord(conversation):
                             show_terminal_source(conversation)
@@ -132,11 +132,38 @@ def run(conversation, *, external=False):
                             print('> ', end='', flush=True)
                         if select.select([sys.stdin], [], [], .1)[0]:
                             break
+                        cycle = conversation.thinking
+                        if cycle is not None and cycle.ready():
+                            def pending_input():
+                                return (not conversation.incoming.empty()
+                                        or bool(select.select([sys.stdin], [], [], 0)[0]))
+                            print('\n[Internal thinking cycle]', flush=True)
+                            def internal_delta(phase, text):
+                                if phase == 'reasoning':
+                                    print(text, end='', flush=True)
+                            summary = cycle.run(conversation, pending_input, internal_delta)
+                            if summary is not None:
+                                print('\n[Cycle] ' + summary, flush=True)
+                            show_terminal_source(conversation)
+                            color('input')
+                            print('> ', end='', flush=True)
                 message = input()
             finally:
                 color('data')
         except EOFError:
             return
+        if message.strip().startswith('/thinking'):
+            cycle = conversation.thinking
+            try:
+                from permissions import require_reset
+                identity = conversation.profiles.resolve('terminal', conversation.terminal_profile['uuid'])
+                require_reset(identity, conversation.profiles)
+                parts = message.strip().split()
+                value = parts[1] if len(parts) == 2 and parts[0] == '/thinking' else 'status' if parts == ['/thinking'] else 'invalid'
+                print(cycle.command(value) if cycle is not None else 'Thinking cycle unavailable.')
+            except PermissionError as error:
+                print(str(error))
+            continue
         command = recognize(message, 'terminal')
         if not message.strip():
             continue

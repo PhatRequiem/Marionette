@@ -9,8 +9,9 @@ import diagnostics
 
 
 class Coordinator(FnCallAgent):
-    def __init__(self, model, tools, closing):
+    def __init__(self, model, tools, closing, *, check=None):
         self.closing = closing
+        self.check = check
         self.request_number = 0
         self.tool_number = 0
         self.protocol_tool_id = None
@@ -32,6 +33,11 @@ class Coordinator(FnCallAgent):
         return result
 
     def _call_tool(self, tool_name, tool_args='{}', **kwargs):
+        if self.check is not None:
+            from thinking import TOOL_CALLS
+            self.check()
+            if self.tool_number >= TOOL_CALLS:
+                raise RuntimeError("Thinking step reached its tool-call limit.")
         self.tool_number += 1
         with diagnostics.operation_scope('TOOL CALL', self.tool_number,
                                          request=self.request_number or None):
