@@ -97,6 +97,7 @@ class LauncherTests(unittest.TestCase):
         scripts.mkdir(parents=True)
         for name in ['chat.sh', 'view-log.sh']:
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
+        shutil.copytree(ROOT / 'prompts', self.root / 'prompts')
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
         for name in ['memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'operator_status.py', 'log_tool.py', 'log_query.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:

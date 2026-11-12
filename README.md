@@ -69,6 +69,8 @@ Start with these files, in order:
 
 ## Folder map
 
+- `prompts/`: versioned feature instructions, explicitly bound to the system prompt separately from the soul.
+
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.

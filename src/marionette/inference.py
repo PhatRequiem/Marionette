@@ -1,5 +1,6 @@
 """Local llama.cpp HTTP requests, exact tokenization, and response streaming."""
 import json
+from pathlib import Path
 import secrets
 import threading
 import urllib.error
@@ -25,6 +26,7 @@ class API:
         self.capacity = 65536
         self.tools = tuple(tools)
         self.system_prompt = None
+        self.feature_prompts = {}
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -47,8 +49,22 @@ class API:
         return result
 
     def with_system(self, messages):
-        if self.system_prompt and (not messages or messages[0]["role"] != "system"):
-            return [{"role": "system", "content": self.system_prompt}] + messages
+        # A rendered system message is already present on tool follow-up requests.
+        if messages and messages[0]["role"] == "system":
+            return messages
+        parts = []
+        if any(tool.name == 'query_logs' for tool in self.tools):
+            if 'query_logs' not in self.feature_prompts:
+                path = Path(__file__).resolve().parents[2] / 'prompts/log-queries.md'
+                prompt = path.read_text(encoding='utf-8').strip()
+                if not prompt:
+                    raise ValueError('Log query prompt is empty.')
+                self.feature_prompts['query_logs'] = prompt
+            parts.append(self.feature_prompts['query_logs'])
+        if self.system_prompt:
+            parts.append(self.system_prompt)
+        if parts:
+            return [{"role": "system", "content": '\n\n'.join(parts)}] + messages
         return messages
 
     def body(self, messages):

@@ -33,3 +33,18 @@ class InferenceTests(unittest.TestCase):
                                     ('answer', 'An'), ('answer', 'swer.')])
         self.assertEqual(result, ('Answer.', 'stop'))
         self.assertEqual(output.getvalue(), '')
+
+    def test_feature_prompt_is_separate_from_soul_and_not_duplicated(self):
+        from types import SimpleNamespace
+        api = API('http://localhost', tools=[SimpleNamespace(name='query_logs', function={})])
+        messages = [{'role': 'user', 'content': 'what model are you?'}]
+        api.system_prompt = 'Name: Synthetic soul'
+        rendered = api.with_system(messages)
+        self.assertIn('call `query_logs` before answering', rendered[0]['content'])
+        self.assertTrue(rendered[0]['content'].endswith('Name: Synthetic soul'))
+        self.assertEqual(api.with_system(rendered), rendered)
+        self.assertEqual(api.body(messages)['messages'], rendered)
+        api.system_prompt = None
+        self.assertIn('call `query_logs` before answering', api.with_system(messages)[0]['content'])
+        api.tools = ()
+        self.assertEqual(api.with_system(messages), messages)
