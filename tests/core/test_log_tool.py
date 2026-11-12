@@ -56,6 +56,13 @@ class LogToolTests(unittest.TestCase):
         self.assertEqual((answer, finish), ('Your previous message completed.', 'stop'))
         self.assertEqual(sent[0]['tools'][0]['function']['name'], 'query_logs')
         self.assertTrue(any(m['role'] == 'function' for m in chat.history))
+        reminder = (Path(__file__).resolve().parents[2] / 'prompts/log-results.md').read_text().strip()
+        self.assertNotIn(reminder, sent[0]['messages'][0]['content'])
+        self.assertEqual(sent[1]['messages'][0]['content'].count(reminder), 1)
+        self.assertEqual(sent[1]['messages'][0]['role'], 'system')
+        self.assertNotIn(reminder, sent[1]['messages'][-1]['content'])
+        self.assertNotIn(reminder, json.dumps(chat.history))
+        self.assertNotIn(reminder, api.with_system(chat.history)[0]['content'])
         old = api.tools[0]
         chat.key = 'discord:99'
         chat.bind_log_query('discord:999')

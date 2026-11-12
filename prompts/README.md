@@ -6,6 +6,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 |---|---|
 | `tool-guidance.md` | Any supported tool is registered |
 | `log-queries.md` | `query_logs` is registered (enabled in production) |
+| `log-results.md` | Follow-up model requests after `query_logs` returns in the current turn |
 | `contact-notes.md` | `update_contact_notes` is registered |
 | `soul.md` | `update_soul` is registered |
 
@@ -30,3 +31,7 @@ metadata; earlier evaluation scores do not establish this shorter prompt's quali
 Log-query guidance uses explicit field names and JSON argument examples. This wording
 change does not alter the request schema or permissions; model selection accuracy
 with these examples still needs a live evaluation.
+
+The log-result reminder is appended to a copy of the initial system message for
+follow-up requests only, before exact token counting. It is not tool data and is
+not retained as conversation history or applied to the next ordinary turn.

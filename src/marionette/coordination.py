@@ -13,6 +13,7 @@ class Coordinator(FnCallAgent):
         self.closing = closing
         self.request_number = 0
         self.tool_number = 0
+        self.log_result_received = False
         self.protocol_tool_id = None
         # Use the public base initializer: FnCallAgent's initializer also creates
         # document retrieval/parser tools. We need its loop, not its file memory.
@@ -45,5 +46,7 @@ class Coordinator(FnCallAgent):
             result = Agent._call_tool(self, tool_name, tool_args, **kwargs)
             # The framework can return an error as text. "Returned" describes
             # execution flow, not whether a tool's domain operation succeeded.
+            if tool_name == 'query_logs':
+                self.log_result_received = True
             diagnostics.log(f'Tool returned: {tool_name}.')
             return result

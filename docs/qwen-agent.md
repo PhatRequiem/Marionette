@@ -9,6 +9,10 @@ Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCall
 - `inference.py` supplies the local OpenAI-compatible transport with proxy inheritance and automatic retries disabled. Qwen-Agent assembles streamed messages; the SDK parses HTTP events. Our adapter preserves completion status and actual token usage, and normalizes the pinned framework's legacy tool-result `id` to `tool_call_id` for llama.cpp.
 - `conversation.py` and `context.py` maintain separate conversation histories, exact token fitting, whole-exchange removal, and background cache preparation after replies. Qwen-Agent trimming is disabled with `max_input_tokens=0`. Launch commands, shared terminal/Discord identity, colors, logs, model, context capacity, and sampling configuration remain unchanged.
 
+After `query_logs` returns, follow-up model requests receive the short instruction
+in `prompts/log-results.md` as system guidance. Tool results remain unmodified data.
+This reminder is included in token budgeting and does not persist into later user turns.
+
 ## Tool-turn behavior and boundaries
 
 Registered tool schemas are included in exact native template counting and cache preparation. Every model request in the tool loop is checked against the context capacity and existing reply allowance. An oversized tool result fails the turn instead of silently trimming history. The allowance applies per model request; Qwen-Agent's default limit is 20 model calls per turn (upstream allows `QWEN_AGENT_MAX_LLM_CALL_PER_RUN` to override it). Exhausting that loop without a final response is an error, not a successful answer.
