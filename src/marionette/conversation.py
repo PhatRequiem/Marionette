@@ -155,6 +155,7 @@ class Conversation:
             if on_delta is not None:
                 on_delta(kind, text)
         finish = 'interrupted'
+        self.api.response_messages = None
         try:
             answer, finish = self.api.reply(candidate, self.reserve, on_delta=record_delta if self.store is not None else on_delta)
         finally:
@@ -164,5 +165,7 @@ class Conversation:
             raise RuntimeError('Model produced no final answer.')
         diagnostics.log(f'Reply completed: finish_reason={finish}.')
         save('assistant', 'answer', answer, finish)
-        self.history = candidate + [{'role': 'assistant', 'content': answer}]
+        exchange = self.api.response_messages
+        self.api.response_messages = None
+        self.history = candidate + (exchange if exchange is not None else [{'role': 'assistant', 'content': answer}])
         return answer, finish

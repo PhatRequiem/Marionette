@@ -15,7 +15,7 @@ Registered tool schemas are included in exact native template counting and cache
 
 Only registered tools can execute. Unknown tool names, interrupted tool streams, truncated tool requests, and shutdown prevent dispatch. Tools are called through Qwen-Agent; ordinary tool exceptions are returned to the model by the framework. Future tools must enforce their own argument, access, and authorization rules; this coordinator is not a filesystem sandbox or a complete permission system.
 
-Reasoning stays in local display/logs. With tools enabled, intermediate assistant text is withheld until the final response so it is not mistaken for the answer. The contact-notes tool is registered on ordinary messages, so final answers are buffered while reasoning streams. Only the user message and final answer enter long-term session history; intermediate tool messages are available within that turn and are not retained for the next turn. Contact notes persist separately. Failed turns leave conversation history unchanged, but successful contact-note writes are not automatically undone.
+Reasoning stays in local display/logs. With tools enabled, intermediate assistant text is withheld until the final response so it is not mistaken for the answer. The contact-notes tool is registered on ordinary messages, so final answers are buffered while reasoning streams. Successful turns retain the user input, intermediate assistant/tool-call messages, tool results and final answer in the originating conversation’s active context. Reasoning content is omitted from replay. The next turn receives those calls/results through Qwen-Agent, without re-executing old calls. Token counting and cache preparation use the same native message conversion. Trimming removes the entire exchange at its next user boundary. This does not add durable tool-result storage or reload history after restart. Contact notes persist separately. Failed turns leave conversation history unchanged, but successful contact-note writes are not automatically undone.
 
 Model-request and tool-call start/end markers, each tool-loop prompt budget, model usage, and completed reasoning use the existing diagnostic stream. [Per-message request/tool IDs](logs.md#model-requests-and-tool-calls-within-a-message) link each call and its outcome; tool identity records also preserve the protocol call ID. A tool ending with `returned` can contain an error result and does not certify domain success. No extra log files are created. No tools are sent to Discord; it continues to receive final answers and existing status/error notices.
 
@@ -36,3 +36,8 @@ Full setup verified and reused the existing shared runtime/model and all 68 lock
 For current contact-notes tool verification, see [contact notes](contact-notes.md).
 
 Official references: [Qwen-Agent](https://github.com/QwenLM/Qwen-Agent), [function-call agent](https://github.com/QwenLM/Qwen-Agent/blob/main/qwen_agent/agents/fncall_agent.py), [Qwen3.5 native API example](https://github.com/QwenLM/Qwen-Agent/blob/main/examples/assistant_qwen3.5.py).
+
+Current regression checks cover tool-result replay on the next user turn, preserved
+call IDs across multiple calls, sender isolation, input-time and background trimming
+of whole exchanges, and native-template preparation with retained evidence. Earlier
+verification paragraphs above describe the former final-answer-only policy.

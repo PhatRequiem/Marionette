@@ -27,6 +27,7 @@ class API:
         self.tools = tuple(tools)
         self.system_prompt = None
         self.feature_prompts = {}
+        self.response_messages = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
@@ -75,10 +76,20 @@ class API:
 
     def body(self, messages):
         messages = self.with_system(messages)
-        body = {'messages': messages, 'chat_template_kwargs': {'enable_thinking': True}}
+        body = {'messages': self.wire_messages(messages), 'chat_template_kwargs': {'enable_thinking': True}}
         if self.tools:
             body['tools'] = [{'type': 'function', 'function': tool.function} for tool in self.tools]
         return body
+
+    @staticmethod
+    def wire_messages(messages):
+        # Keep Qwen-Agent's native history internally, using its pinned converter
+        # for both token counting/preparation and the actual model request.
+        if any(m['role'] == 'function' or m.get('function_call') for m in messages):
+            messages = TextChatAtOAI._conv_qwen_agent_messages_to_oai(messages)
+        return [dict(role='tool', content=m['content'],
+                     tool_call_id=m.get('tool_call_id', m.get('id')))
+                if m['role'] == 'tool' else m for m in messages]
 
     def tokenize(self, prompt):
         return self.json('/tokenize', {'content': prompt, 'add_special': True,
@@ -104,6 +115,7 @@ class API:
         diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve, *, on_delta=None):
+        self.response_messages = None
         messages = self.with_system(messages)
         # Qwen-Agent owns message conversion and streamed reasoning/answer assembly.
         # Marionette owns exact context fitting; disable the framework's rough trimming.
@@ -132,9 +144,7 @@ class API:
                 requested_tool = False
                 # Qwen-Agent 0.0.34 emits legacy tool `id`/`extra` fields.
                 # Normalize its tool results to the OpenAI-compatible wire schema.
-                kwargs['messages'] = [
-                    {'role': 'tool', 'content': m['content'], 'tool_call_id': m['id']}
-                    if m['role'] == 'tool' else m for m in kwargs['messages']]
+                kwargs['messages'] = self.wire_messages(kwargs['messages'])
                 if self.tools:
                     tokens = self.count(kwargs['messages'])
                     if tokens + reserve >= self.capacity:
@@ -178,4 +188,13 @@ class API:
             diagnostics.log('Reasoning: ' + json.dumps(reasoning, ensure_ascii=False))
         if self.tools and answer and on_delta is not None:
             on_delta('answer', answer)
+        # Commit only a complete successful response. Past reasoning remains in
+        # diagnostics, not replayed context; calls, IDs and tool results survive.
+        self.response_messages = []
+        for message in response:
+            item = message.model_dump(exclude={'reasoning_content'})
+            if item.get('extra') == {}:
+                item.pop('extra')
+            if item.get('content') or item.get('function_call') or item['role'] == 'function':
+                self.response_messages.append(item)
         return answer, finish

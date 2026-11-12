@@ -163,7 +163,9 @@ class CharacterTests(unittest.TestCase):
         self.assertFalse(json.loads(sent[1]['messages'][-1]['content'])['success'])
         self.assertTrue(json.loads(sent[2]['messages'][-1]['content'])['success'])
         self.assertEqual(self.store.current(self.identity), notes)
-        self.assertEqual([m['role'] for m in convo.history], ['user', 'assistant'])
+        results = [json.loads(m['content']) for m in convo.history if m['role'] == 'function']
+        self.assertEqual([r['success'] for r in results], [False, True])
+        self.assertEqual(convo.history[-1]['content'], 'Saved.')
 
     def test_discord_registration_persists_and_failed_save_rolls_back(self):
         self.profiles.add('Discord 456')

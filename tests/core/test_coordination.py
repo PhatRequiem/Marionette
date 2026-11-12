@@ -71,8 +71,11 @@ class CoordinationTests(unittest.TestCase):
             else:
                 self.assertEqual(conversation.turn('test', on_delta=lambda *x: received.append(x), message_id='discord:1234'),
                                  ('Final answer.', 'stop'))
-                self.assertEqual(conversation.history,
-                    [{'role': 'user', 'content': 'test'}, {'role': 'assistant', 'content': 'Final answer.'}])
+                self.assertEqual(conversation.history[0], {'role': 'user', 'content': 'test'})
+                self.assertEqual(conversation.history[-1]['content'], 'Final answer.')
+                self.assertTrue(any(m['role'] == 'function' and m['content'] == 'tool result: test' for m in conversation.history))
+                self.assertTrue(any(m.get('function_call') for m in conversation.history))
+                self.assertFalse(any('reasoning_content' in m for m in conversation.history))
                 self.assertEqual([x for x in received if x[0] == 'answer'], [('answer', 'Final answer.')])
                 self.assertEqual(''.join(x[1] for x in received if x[0] == 'reasoning'),
                                  'Private thought.Another thought.')
@@ -83,7 +86,7 @@ class CoordinationTests(unittest.TestCase):
                 self.assertEqual(tool.calls, ['test'])
         return tool, sent
 
-    def test_tool_result_returns_to_model_and_only_final_answer_enters_history(self):
+    def test_tool_result_returns_to_model_and_full_exchange_enters_history(self):
         self.run_turn()
         text = b''.join(self.log_records).decode()
         prefix = 'Client: [message discord:1234] '
@@ -168,3 +171,41 @@ class CoordinationTests(unittest.TestCase):
         text = b''.join(self.log_records)
         self.assertIn(b'TOOL CALL END | returned', text)
         self.assertNotIn(b'TOOL CALL END | completed', text)
+
+    def test_tool_evidence_reaches_next_turn_with_original_ids(self):
+        tool = EchoTool()
+        api = API('http://localhost', tools=[tool])
+        counted, sent = [], []
+        def count(messages):
+            counted.append(api.body(messages)['messages'])
+            return 20
+        api.count = count
+        def transport(request):
+            sent.append(json.loads(request.content))
+            if len(sent) == 1:
+                return response({'tool_calls': [
+                    {'index': n, 'id': f'retained_{n}', 'type': 'function',
+                     'function': {'name': tool.name, 'arguments': json.dumps({'value': str(n)})}}
+                    for n in range(2)]}, 'tool_calls')
+            return response({'content': 'Verified answer.'}, 'stop')
+        def sdk(**kwargs):
+            return OpenAI(base_url='http://localhost/v1', api_key='EMPTY',
+                          http_client=httpx.Client(transport=httpx.MockTransport(transport)))
+        chat = Conversation(api, 8192)
+        with patch('inference.OpenAI', side_effect=sdk), patch('diagnostics.write'), patch('conversation.Preparation', return_value=None):
+            chat.turn('look up two values')
+            old = chat.history.copy()
+            chat.turn('What evidence did you use?')
+            followup = sent[-1]['messages']
+            results = [m for m in followup if m['role'] == 'tool']
+            self.assertEqual([m['tool_call_id'] for m in results], ['retained_0','retained_1'])
+            self.assertEqual([m['content'] for m in results], ['tool result: 0','tool result: 1'])
+            calls = [c['id'] for m in followup for c in m.get('tool_calls', [])]
+            self.assertEqual(calls, ['retained_0','retained_1'])
+            self.assertEqual(chat.history[:len(old)], old)
+            self.assertEqual(counted[-1], followup)
+            self.assertEqual(tool.calls, ['0','1'])  # Retaining evidence must not re-execute tools.
+            terminal_history = chat.history.copy()
+            chat.turn('separate sender', source='discord', sender_id='987')
+            self.assertFalse(any(m['role']=='tool' for m in sent[-1]['messages']))
+            self.assertEqual(chat.histories['terminal:local'], terminal_history)

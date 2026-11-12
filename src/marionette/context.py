@@ -6,6 +6,15 @@ import time
 import diagnostics
 
 
+def drop_oldest_exchange(messages):
+    """Remove one user input and all its assistant/tool messages as a unit."""
+    if not messages:
+        return
+    boundary = next((i for i, message in enumerate(messages[1:], 1)
+                     if message['role'] == 'user'), len(messages))
+    del messages[:boundary]
+
+
 def fit_history(history, message, count, capacity, reserve):
     """Return a fitted copy; never mutate history on oversized input or failure."""
     candidate = history + [{'role': 'user', 'content': message}]
@@ -17,7 +26,7 @@ def fit_history(history, message, count, capacity, reserve):
             return candidate, removed, tokens
         if len(candidate) <= 1:
             raise ValueError('This message is too large. Shorten the message; history is unchanged.')
-        del candidate[:2]  # oldest complete user/assistant exchange
+        drop_oldest_exchange(candidate)
         removed += 1
 
 
@@ -50,7 +59,7 @@ class Preparation:
             target = min(capacity * 3 // 4, capacity - incoming - reserve - 1)
             removed = 0
             while candidate and tokens > target:
-                del candidate[:2]
+                drop_oldest_exchange(candidate)
                 removed += 1
                 tokens = api.count(candidate + probe)
             diagnostics.log(f'Rollover preparation started: removed_exchanges={removed}; '
