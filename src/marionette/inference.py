@@ -53,14 +53,20 @@ class API:
         if messages and messages[0]["role"] == "system":
             return messages
         parts = []
-        if any(tool.name == 'query_logs' for tool in self.tools):
-            if 'query_logs' not in self.feature_prompts:
-                path = Path(__file__).resolve().parents[2] / 'prompts/log-queries.md'
+        guidance = {'query_logs': 'log-queries.md',
+                    'update_contact_notes': 'contact-notes.md', 'update_soul': 'soul.md'}
+        enabled = {tool.name for tool in self.tools}
+        files = [filename for name, filename in guidance.items() if name in enabled]
+        if files:
+            files.insert(0, 'tool-guidance.md')
+        for filename in files:
+            if filename not in self.feature_prompts:
+                path = Path(__file__).resolve().parents[2] / 'prompts' / filename
                 prompt = path.read_text(encoding='utf-8').strip()
                 if not prompt:
-                    raise ValueError('Log query prompt is empty.')
-                self.feature_prompts['query_logs'] = prompt
-            parts.append(self.feature_prompts['query_logs'])
+                    raise ValueError(f'Tool guidance prompt is empty: {filename}')
+                self.feature_prompts[filename] = prompt
+            parts.append(self.feature_prompts[filename])
         if self.system_prompt:
             parts.append(self.system_prompt)
         if parts:

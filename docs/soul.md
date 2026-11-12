@@ -14,7 +14,7 @@ The tool description asks the model to proactively maintain its own name and per
 
 ## Context and startup
 
-Before readiness, startup reads the profile and prepares the native chat prefix. With both fields empty, the application sends no system message. Once filled, the system text consists of `Name: <chosen name>` (only if set), followed by the description verbatim (only if set), separated by a blank line. No name is inferred from description text. Name edits do not rename the application, Discord account, or contact profiles.
+Before readiness, startup reads the profile and prepares the native chat prefix. Tool guidance is supplied separately, even while the soul is blank. Once filled, the personal section appended after that guidance consists of `Name: <chosen name>` (only if set), followed by the description verbatim (only if set), separated by a blank line. No name is inferred from description text. Name edits do not rename the application, Discord account, or contact profiles.
 
 Each ordinary turn refreshes this state and the tool binding. Edits become system context on the next turn in any conversation. The ongoing tool loop keeps its original prompt and receives the saved state through the tool result. A failed final answer does not undo a successful save. The inference boundary includes system text in template rendering, exact token counts, generation, and cache preparation. History rollover and `/clear` do not delete the soul. Restart clears conversation histories but preserves the soul.
 

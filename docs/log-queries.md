@@ -112,3 +112,8 @@ into the system prompt whenever this tool is enabled. They require evidence
 lookup for ordinary self-setup/status questions and remain separate from the
 editable soul. Restart chat to load prompt edits. This guides tool selection;
 it does not force a tool call or guarantee model compliance.
+
+The current concise guidance replaces the longer prompt used in the initial
+35-question evaluation. Guidance for contact notes and soul edits is also loaded
+when those tools are registered; see [prompt composition](../prompts/README.md).
+Those earlier behavior scores do not measure this revised prompt.

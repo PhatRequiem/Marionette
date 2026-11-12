@@ -81,7 +81,7 @@ class Soul:
 
     def bind(self, api):
         current = self.read()['revisions'][-1]
-        # No identity instruction or system message until the model saves text.
+        # No personal identity text until saved; tool guidance is composed separately.
         parts = (["Name: " + current['name']] if current['name'] else [])
         if current['content']:
             parts.append(current['content'])

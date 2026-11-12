@@ -88,11 +88,13 @@ class SoulTests(unittest.TestCase):
         with patch('inference.OpenAI', side_effect=make_sdk), patch('diagnostics.log'):
             convo.turn('synthetic edit request')
             convo.finish_preparation()
-            self.assertFalse(any(m['role'] == 'system' for m in captured[0]['messages']))
+            self.assertIn('## update_soul', captured[0]['messages'][0]['content'])
+            self.assertNotIn('Synthetic evolving self.', captured[0]['messages'][0]['content'])
             self.assertTrue(json.loads(captured[1]['messages'][-1]['content'])['success'])
             convo.turn('visitor', source='discord', sender_id='123')
             convo.finish_preparation()
-            self.assertEqual(captured[-1]['messages'][0]['content'], 'Name: Test\n\nSynthetic evolving self.')
+            self.assertTrue(captured[-1]['messages'][0]['content'].endswith('Name: Test\n\nSynthetic evolving self.'))
+            self.assertIn('## update_soul', captured[-1]['messages'][0]['content'])
             convo.turn('/clear', source='discord', sender_id='123')
             convo.history = [{'role': role, 'content': 'old'} for _ in range(10)
                              for role in ('user', 'assistant')]

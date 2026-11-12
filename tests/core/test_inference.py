@@ -40,11 +40,32 @@ class InferenceTests(unittest.TestCase):
         messages = [{'role': 'user', 'content': 'what model are you?'}]
         api.system_prompt = 'Name: Synthetic soul'
         rendered = api.with_system(messages)
-        self.assertIn('call `query_logs` before answering', rendered[0]['content'])
+        self.assertIn('call `query_logs` with setup/startup', rendered[0]['content'])
         self.assertTrue(rendered[0]['content'].endswith('Name: Synthetic soul'))
         self.assertEqual(api.with_system(rendered), rendered)
         self.assertEqual(api.body(messages)['messages'], rendered)
         api.system_prompt = None
-        self.assertIn('call `query_logs` before answering', api.with_system(messages)[0]['content'])
+        self.assertIn('call `query_logs` with setup/startup', api.with_system(messages)[0]['content'])
         api.tools = ()
         self.assertEqual(api.with_system(messages), messages)
+
+    def test_guidance_follows_registered_tools_without_overwriting_soul(self):
+        from types import SimpleNamespace
+        names = ['query_logs', 'update_contact_notes', 'update_soul']
+        api = API('http://localhost')
+        api.system_prompt = 'Name: Synthetic\n\nMy evolving description.'
+        message = [{'role': 'user', 'content': 'hello'}]
+        for name in names:
+            api.tools = (SimpleNamespace(name=name, function={}),)
+            content = api.with_system(message)[0]['content']
+            self.assertEqual(content.count('# Tool guidance'), 1)
+            self.assertIn('## ' + name, content)
+            for other in set(names) - {name}:
+                self.assertNotIn('## ' + other, content)
+            self.assertTrue(content.endswith(api.system_prompt))
+        api.tools = tuple(SimpleNamespace(name=n, function={}) for n in names)
+        content = api.with_system(message)[0]['content']
+        for name in names:
+            self.assertEqual(content.count('## ' + name), 1)
+        api.tools = ()
+        self.assertEqual(api.with_system(message)[0]['content'], api.system_prompt)
