@@ -40,12 +40,12 @@ class InferenceTests(unittest.TestCase):
         messages = [{'role': 'user', 'content': 'what model are you?'}]
         api.system_prompt = 'Name: Synthetic soul'
         rendered = api.with_system(messages)
-        self.assertIn('call `query_logs` with setup/startup', rendered[0]['content'])
+        self.assertIn('call `query_logs` with `lookup` set to `"setup"` and `target` set to `"startup"`', rendered[0]['content'])
         self.assertTrue(rendered[0]['content'].endswith('Name: Synthetic soul'))
         self.assertEqual(api.with_system(rendered), rendered)
         self.assertEqual(api.body(messages)['messages'], rendered)
         api.system_prompt = None
-        self.assertIn('call `query_logs` with setup/startup', api.with_system(messages)[0]['content'])
+        self.assertIn('call `query_logs` with `lookup` set to `"setup"` and `target` set to `"startup"`', api.with_system(messages)[0]['content'])
         api.tools = ()
         self.assertEqual(api.with_system(messages), messages)
 

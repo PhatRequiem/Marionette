@@ -26,3 +26,7 @@ are cached per API instance: restart chat after editing. Missing/empty files fai
 visibly. Adding a file does not enable it; new bindings must be explicit in code.
 The previous detailed log prompt remains in Git history and the private evaluation
 metadata; earlier evaluation scores do not establish this shorter prompt's quality.
+
+Log-query guidance uses explicit field names and JSON argument examples. This wording
+change does not alter the request schema or permissions; model selection accuracy
+with these examples still needs a live evaluation.
