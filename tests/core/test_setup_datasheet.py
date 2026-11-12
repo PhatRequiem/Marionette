@@ -115,7 +115,7 @@ class DatasheetTests(unittest.TestCase):
         conversation=SimpleNamespace(contact_notes=object(),soul=object())
         details=sheet.application(api,conversation,store,True)
         self.assertEqual(details['Registered tools at capture'][0],'update_soul')
-        self.assertIn('not yet bound',details['Tool: update_contact_notes'][0])
+        self.assertEqual(details['Tool: update_contact_notes'][0],'Available')
         self.assertEqual(details['Discord interface'][0],'Offline')
         self.assertEqual(details['Diagnostic raw-event budget'][0],'500000000 bytes')
         sheet.update(self.path,'ready',{},capacity=8192,details=details)

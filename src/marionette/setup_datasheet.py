@@ -176,7 +176,7 @@ def application(api, conversation, store, bridge_bound):
     for tool in tools:
         result['Tool: ' + tool.name] = (purposes.get(tool.name, 'Registered; purpose not catalogued'), 'Observed registration; purpose from application design')
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:
-        result['Tool: update_contact_notes'] = ('Available on ordinary identified-contact turns; not yet bound at capture', 'Observed contact-note component; conversation turn binding policy')
+        result['Tool: update_contact_notes'] = ('Available', 'Observed contact-note component; conversation turn binding policy')
     # No enabled external read tools exist in the current production registry.
     known = set(names) <= set(purposes)
     result['Log lookup / vault access'] = ('Not connected' if known else 'Unverified: additional tools registered', 'Observed startup tools; no external reader configured by this startup')
