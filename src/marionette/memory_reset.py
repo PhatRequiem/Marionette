@@ -42,8 +42,6 @@ def reset_memory(conversation):
     generation = str(uuid.uuid4())
     # Clear the native KV/cache through its existing empty-context preparation path.
     # No new prompt, inference setting, or model process is introduced.
-    if conversation.scratchpads is not None:
-        conversation.scratchpads.clear()
     conversation.api.system_prompt = None
     conversation.api.tools = ()
     conversation.api.prepare([])
@@ -77,8 +75,6 @@ def reset_memory(conversation):
                 if path.is_dir(): shutil.rmtree(path)
                 else: path.unlink()
         conversation.api.tools = (conversation.soul.bind(conversation.api),)
-        if conversation.scratchpads is not None:
-            conversation.scratchpads.bind(conversation.api)
         descriptor = root/'session/log-session.json'
         info = json.loads(descriptor.read_text())
         info['generation'] = generation

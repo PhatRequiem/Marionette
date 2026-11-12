@@ -15,8 +15,6 @@ cd /home/phatkitty/Projects/Marionette
 
 This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/contacts.md). You can now chat in this terminal.
 
-Automatic thinking runs continuously between user turns, with no scheduled gap or model wait option. Use `/thinking off`, `/thinking on`, or `/thinking status` in the owner terminal. Internal cycles remain local; see [cycle behavior and limits](docs/thinking-cycle.md).
-
 The log-query tool is connected; the docs-vault tool remains disconnected. The [Obsidian setup](docs/obsidian.md) is preserved for later reconnection.
 
 ## 2. Connect Discord — optional

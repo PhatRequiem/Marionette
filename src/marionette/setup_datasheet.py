@@ -184,8 +184,7 @@ def application(api, conversation, store, bridge_bound):
         'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Open database connection'),
         'Thinking template': ('Enabled', 'Configured: application request'),
     }
-    purposes = {'read_scratchpads': 'Read temporary Focus, Working Space and Intentions',
-                'update_scratchpad': 'Edit one bounded temporary scratchpad', 'read_docs': 'Read and search the docs Obsidian vault (no writes)', 'update_soul': 'Edit persistent self name and description',
+    purposes = {'read_docs': 'Read and search the docs Obsidian vault (no writes)', 'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',
                 'query_logs': 'Read setup, status and current-conversation diagnostics'}
     for tool in tools:

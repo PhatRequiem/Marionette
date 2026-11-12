@@ -21,8 +21,6 @@ from contacts import ContactProfiles
 from data_migration import migrate_personal_paths
 from contact_notes import ContactNotes
 from soul import Soul
-from scratchpads import Scratchpads
-from thinking import ThinkingCycle
 from inference import API
 from storage import Store
 
@@ -50,11 +48,9 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     terminal.show_profile(selected)
     soul = Soul(data / 'soul/profile.json')
     api.tools = (soul.bind(api),)
-    scratchpads = Scratchpads()
-    scratchpads.bind(api)
     api.prepare([])
     conversation = Conversation(api, capacity, profiles, selected, ContactNotes(data / 'contact_notes'),
-                                store, session_id, soul=soul, scratchpads=scratchpads, thinking=ThinkingCycle())
+                                store, session_id, soul=soul)
     conversation.bind_log_query()
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')

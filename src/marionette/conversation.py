@@ -13,12 +13,10 @@ from commands import execute_clear, recognize
 
 class Conversation:
     """One history per terminal profile or Discord sender; one generation at a time."""
-    def __init__(self, api, capacity, profiles=None, terminal_profile=None, contact_notes=None, store=None, session_id=None, soul=None, scratchpads=None, thinking=None):
+    def __init__(self, api, capacity, profiles=None, terminal_profile=None, contact_notes=None, store=None, session_id=None, soul=None):
         self.profiles, self.terminal_profile = profiles, terminal_profile
         self.contact_notes = contact_notes
         self.soul = soul
-        self.scratchpads = scratchpads
-        self.thinking = thinking
         self.store, self.session_id = store, session_id
         self.api, self.capacity = api, capacity
         self.api.capacity = capacity
@@ -88,28 +86,19 @@ class Conversation:
                     return future.result()  # Also handle completion at the timeout boundary.
         raise RuntimeError('Session is closing.')
 
-    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None, internal=False):
+    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None):
         identifier = diagnostics.message_id(message_id)
         with self.lock:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
-                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, internal=internal)
-            if self.thinking is not None and not internal:
-                if recognize(message, source) in ('clear', 'resetmemory'):
-                    if result[1] == 'resetmemory':
-                        self.thinking.wake('terminal', None, None)
-                    else:
-                        self.thinking.wake(source, sender_id, None)
-                    self.thinking.enabled = False
-                else:
-                    self.thinking.wake(source, sender_id, identifier)
-            if not internal and recognize(message, source) not in ('clear', 'resetmemory'):
+                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier)
+            if recognize(message, source) not in ('clear', 'resetmemory'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             return result
 
-    def _turn(self, message, *, on_delta, source, sender_id, identifier, internal=False):
+    def _turn(self, message, *, on_delta, source, sender_id, identifier):
         if self.resetting:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
@@ -125,7 +114,7 @@ class Conversation:
             raise ValueError('Unknown message source.')
         self.key = source + ':' + (str(sender_id) if sender_id is not None else 'local')
         diagnostics.log(f'Conversation selected: {self.key}.')
-        diagnostics.log(('Internal cycle input: ' if internal else 'Message input: ') + json.dumps(message, ensure_ascii=False))
+        diagnostics.log('Message input: ' + json.dumps(message, ensure_ascii=False))
         if identity is not None:
             identity['conversation_id'] = self.key
         def save(role, kind, content, status):
@@ -140,7 +129,7 @@ class Conversation:
             except PermissionError as error:
                 return str(error), 'stop'
             return reset_memory(self), 'resetmemory'
-        save('system' if internal else 'user', 'cycle_trigger' if internal else 'input', message, 'received')
+        save('user', 'input', message, 'received')
         if recognize(message, source) == 'clear':
             answer = execute_clear(self, identity)
             save('assistant', 'notice', answer, 'stop')
@@ -158,16 +147,11 @@ class Conversation:
         if self.soul is not None:
             tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
-        if self.scratchpads is not None:
-            self.scratchpads.bind(self.api)
-        self.bind_log_query(None if internal else identifier)
-        if internal:
-            from thinking import REPLY_TOKENS
-        reserve = min(self.reserve, REPLY_TOKENS) if internal else self.reserve
+        self.bind_log_query(identifier)
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,
-            self.api.count, self.capacity, reserve)
-        diagnostics.log(f'Prompt budget: {tokens} tokens + {reserve} reply allowance < '
+            self.api.count, self.capacity, self.reserve)
+        diagnostics.log(f'Prompt budget: {tokens} tokens + {self.reserve} reply allowance < '
             f'{self.capacity}; removed_exchanges={removed}.')
         if removed:
             diagnostics.log(f'Input-time rollover: removed_exchanges={removed}; preparing this request.')
@@ -181,17 +165,14 @@ class Conversation:
         finish = 'interrupted'
         self.api.response_messages = None
         try:
-            answer, finish = self.api.reply(candidate, reserve, on_delta=record_delta if self.store is not None else on_delta)
+            answer, finish = self.api.reply(candidate, self.reserve, on_delta=record_delta if self.store is not None else on_delta)
         finally:
             if reasoning:
                 save('assistant', 'reasoning', ''.join(reasoning), finish)
         if not answer.strip():
-            if internal and finish == 'length':
-                from thinking import CycleInterrupted
-                raise CycleInterrupted('Thinking step reached its generation limit; continuing with the next step.')
             raise RuntimeError('Model produced no final answer.')
         diagnostics.log(f'Reply completed: finish_reason={finish}.')
-        save('assistant', 'cycle_result' if internal else 'answer', answer, finish)
+        save('assistant', 'answer', answer, finish)
         exchange = self.api.response_messages
         self.api.response_messages = None
         self.history = candidate + (exchange if exchange is not None else [{'role': 'assistant', 'content': answer}])

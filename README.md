@@ -16,7 +16,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The [Obsidian docs vault setup](docs/obsidian.md) remains intact, but `read_docs` stays disconnected. Its loopback server stops when chat exits.
 
-Three [temporary scratchpads](docs/scratchpads.md)—Focus, Working Space and Intentions—are supplied in context and editable through explicit tools. They last for the running session. An [automatic thinking cycle](docs/thinking-cycle.md) uses the same tools in consecutive steps whenever user input is not pending. Internal results stay local.
+Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
 The selected 4B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 9B Q4 and 4B BF16 files remain available. See [shared model storage](docs/setup.md#shared-model-storage) and [4B return verification](docs/experiments/4b-return-2026-11-12.md).
 
@@ -41,8 +41,6 @@ Start with these files, in order:
 | [inference.py](src/marionette/inference.py) | Local HTTP, exact budgets, cache preparation, and Qwen-Agent response adapter |
 | [coordination.py](src/marionette/coordination.py) | Qwen-Agent tool loop with explicit tool registration |
 | [contact_notes.py](src/marionette/contact_notes.py) | Bounded Markdown contact notes and current-contact add/patch/remove tool |
-| [thinking.py](src/marionette/thinking.py) | Idle-cycle scheduling, limits and continuation decisions |
-| [scratchpads.py](src/marionette/scratchpads.py) | Bounded RAM-only Focus, Working Space and Intentions with read/edit tools |
 | [soul.py](src/marionette/soul.py) | Permanent self UUID, revisioned soul, and self-editing tool |
 | [memory_reset.py](src/marionette/memory_reset.py) and [reset_boundary.py](src/marionette/reset_boundary.py) | Owner-only live memory reset and recorder boundaries |
 | [data_migration.py](src/marionette/data_migration.py) | Preserving legacy contact and soul paths during startup |

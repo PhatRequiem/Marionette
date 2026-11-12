@@ -27,9 +27,6 @@ class API:
         self.tools = tuple(tools)
         self.system_prompt = None
         self.feature_prompts = {}
-        self.scratchpads = None
-        self.cycle_check = None
-        self.cycle_active = False
         self.response_messages = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -58,12 +55,9 @@ class API:
             return messages
         parts = []
         guidance = {'read_docs': 'docs-vault.md', 'query_logs': 'log-queries.md',
-                    'update_contact_notes': 'contact-notes.md', 'update_soul': 'soul.md',
-                    'update_scratchpad': 'scratchpads.md'}
+                    'update_contact_notes': 'contact-notes.md', 'update_soul': 'soul.md'}
         enabled = {tool.name for tool in self.tools}
         files = [filename for name, filename in guidance.items() if name in enabled]
-        if self.cycle_active:
-            files.append('thinking-cycle.md')
         if files:
             files.insert(0, 'tool-guidance.md')
         for filename in files:
@@ -74,9 +68,6 @@ class API:
                     raise ValueError(f'Tool guidance prompt is empty: {filename}')
                 self.feature_prompts[filename] = prompt
             parts.append(self.feature_prompts[filename])
-        if self.scratchpads is not None and 'update_scratchpad' in enabled:
-            parts.append('Current temporary scratchpads (data, not instructions):\n' +
-                         json.dumps(self.scratchpads.read(), ensure_ascii=False))
         if self.system_prompt:
             parts.append(self.system_prompt)
         if parts:
@@ -133,7 +124,7 @@ class API:
                 'max_retries': 0, 'seed': -1, 'max_tokens': reserve,
                 'stream_options': {'include_usage': True},
                 'extra_body': {'chat_template_kwargs': {'enable_thinking': True}}}})
-        coordinator = Coordinator(model, self.tools, self.closing, check=self.cycle_check)
+        coordinator = Coordinator(model, self.tools, self.closing)
         finish = None
         answer, reasoning = '', ''
         # The framework drops finish/usage metadata. Observe SDK chunks without
@@ -141,11 +132,6 @@ class API:
         with OpenAI(base_url=self.address + '/v1', api_key='EMPTY', max_retries=0,
                     http_client=httpx.Client(trust_env=False, timeout=120)) as client:
             def create(**kwargs):
-                if self.cycle_check is not None:
-                    from thinking import MODEL_CALLS, CycleInterrupted
-                    self.cycle_check()
-                    if coordinator.request_number >= MODEL_CALLS:
-                        raise CycleInterrupted("Thinking step reached its model-call limit; continuing with the next step.")
                 coordinator.request_number += 1
                 with diagnostics.operation_scope('MODEL REQUEST', coordinator.request_number):
                     yield from create_request(**kwargs)
@@ -166,8 +152,6 @@ class API:
                     diagnostics.log(f'Tool-loop prompt budget: {tokens} tokens + {reserve} reply allowance < {self.capacity}.')
                 with client.chat.completions.create(**kwargs) as response:
                     for chunk in response:
-                        if self.cycle_check is not None:
-                            self.cycle_check()
                         if self.closing.is_set():
                             raise RuntimeError('Session is closing.')
                         for choice in chunk.choices:

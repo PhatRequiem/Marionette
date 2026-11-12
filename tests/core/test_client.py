@@ -197,7 +197,7 @@ class ClientTests(unittest.TestCase):
                         self.assertIn('8192 tokens', report)
                         self.assertIn('| Model name | Unverified |', report)
                         self.assertIn('| Discord | Offline |', report)
-                        self.assertIn('| Registered tools | read_scratchpads, update_scratchpad, update_soul |', report)
+                        self.assertIn('| Registered tools | update_soul |', report)
                         self.assertIn('| Tool: update_contact_notes | Available |', report)
                         with self.assertRaises(ProcessLookupError):
                             os.kill(pid, 0)
