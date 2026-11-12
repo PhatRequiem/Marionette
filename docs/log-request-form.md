@@ -68,7 +68,7 @@ Errors for a specific message (synthetic example ID):
 - Return a bounded set of relevant facts with observation times and evidence references. Mark missing or incomplete evidence explicitly. Do not claim records expired unless that is established.
 - No matching errors does not prove success. Missing delivery records do not prove delivery failure. Unsupported checks return unavailable rather than inferred results.
 
-Date ranges, multi-message searches, field selection and vault search are outside
+Date ranges, multi-message searches, field selection and general file search are outside
 this first form. The operator binds session and conversation scope when running
 the handler. The model adapter derives that scope from the current application turn.
 Its native tool schema uses simple enums for the pinned framework; the handler

@@ -4,6 +4,20 @@ Recovery checkpoint: **`baseline-v4`** in `PhatRequiem/Marionette`. This is the 
 
 The [V3 guide](archive/baseline-v3-2026-11-09.md) is archived; its original tag remains unchanged. V4 adds Qwen-Agent tool coordination, separate conversations and RAM prompt caching, persistent contacts and editable soul, SQLite storage, rolling RAM diagnostics, and owner-only memory reset. Launch commands remain unchanged.
 
+## Current checkout versus V4
+
+The tag stays fixed. The current checkout keeps V4's model/runtime settings and
+chat, Discord, soul, contact-note and diagnostic-retention foundation, with these later changes:
+
+- Connected scoped `query_logs`, searchable metadata (SQLite schema 5), a request form and automatic startup datasheet updates.
+- Tool calls/results retained with each conversation exchange and trimmed together.
+- Separate feature guidance and a brief system reminder after log-tool results.
+- Removed the old snapshot utilities. The experimental idle cycle, scratchpads and Obsidian integration are also removed.
+
+See [log-query reliability limits](log-queries.md#current-reliability-limits) for
+current answer-quality observations. A memory reset changes personal data, not
+the code version or the baseline tag.
+
 ## Configuration at this checkpoint
 
 | Component | Setting |

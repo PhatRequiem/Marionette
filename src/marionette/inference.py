@@ -49,6 +49,16 @@ class API:
             raise RuntimeError(str(result['error']))
         return result
 
+    def feature_prompt(self, filename):
+        """Load and validate application guidance once per API instance."""
+        if filename not in self.feature_prompts:
+            path = Path(__file__).resolve().parents[2] / 'prompts' / filename
+            prompt = path.read_text(encoding='utf-8').strip()
+            if not prompt:
+                raise ValueError(f'Tool guidance prompt is empty: {filename}')
+            self.feature_prompts[filename] = prompt
+        return self.feature_prompts[filename]
+
     def with_system(self, messages):
         # A rendered system message is already present on tool follow-up requests.
         if messages and messages[0]["role"] == "system":
@@ -60,14 +70,7 @@ class API:
         files = [filename for name, filename in guidance.items() if name in enabled]
         if files:
             files.insert(0, 'tool-guidance.md')
-        for filename in files:
-            if filename not in self.feature_prompts:
-                path = Path(__file__).resolve().parents[2] / 'prompts' / filename
-                prompt = path.read_text(encoding='utf-8').strip()
-                if not prompt:
-                    raise ValueError(f'Tool guidance prompt is empty: {filename}')
-                self.feature_prompts[filename] = prompt
-            parts.append(self.feature_prompts[filename])
+        parts.extend(self.feature_prompt(filename) for filename in files)
         if self.system_prompt:
             parts.append(self.system_prompt)
         if parts:
@@ -146,16 +149,10 @@ class API:
                 # Normalize its tool results to the OpenAI-compatible wire schema.
                 kwargs['messages'] = self.wire_messages(kwargs['messages'])
                 if coordinator.log_result_received:
-                    filename = 'log-results.md'
-                    if filename not in self.feature_prompts:
-                        prompt = (Path(__file__).resolve().parents[2] / 'prompts' / filename).read_text(encoding='utf-8').strip()
-                        if not prompt:
-                            raise ValueError(f'Tool guidance prompt is empty: {filename}')
-                        self.feature_prompts[filename] = prompt
                     # Qwen requires one initial system message. Amend a copy for
                     # this follow-up only; keep instructions out of tool data/history.
                     system = dict(kwargs['messages'][0])
-                    system['content'] += '\n\n' + self.feature_prompts[filename]
+                    system['content'] += '\n\n' + self.feature_prompt('log-results.md')
                     kwargs['messages'] = [system, *kwargs['messages'][1:]]
                 if self.tools:
                     tokens = self.count(kwargs['messages'])

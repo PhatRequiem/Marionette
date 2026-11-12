@@ -1,6 +1,7 @@
 """Local conversation/event storage and operator export, backup, and live views.
 
-No retrieval tool or history restoration is enabled here. Raw output is a BLOB;
+Scoped model retrieval lives in log_query.py/log_tool.py; saved history is not
+automatically restored into model context. Raw output is a BLOB;
 formatting belongs to the viewers, not the stored evidence.
 """
 import argparse

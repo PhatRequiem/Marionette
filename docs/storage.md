@@ -62,7 +62,7 @@ umask 077
 ./scripts/native-linux/storage.sh export > data/conversations/export.sql
 ```
 
-The SQL dump uses one read transaction for a consistent snapshot. It can be imported into an empty SQLite database with Python's `sqlite3.Connection.executescript`. Treat an SQL dump as executable database instructions: import only trusted exports. UUIDs and timestamps are preserved. JSON identity records and Markdown characters must be backed up separately when preserving a complete personal-data state.
+The SQL dump uses one read transaction for a consistent snapshot. It can be imported into an empty SQLite database with Python's `sqlite3.Connection.executescript`. Treat an SQL dump as executable database instructions: import only trusted exports. UUIDs and timestamps are preserved. JSON identity records, soul revisions, and Markdown contact notes must be backed up separately when preserving a complete personal-data state.
 
 ## Backup and restore
 

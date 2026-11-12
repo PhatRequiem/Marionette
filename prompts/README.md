@@ -25,12 +25,13 @@ The wording and brevity here are project choices, not a prescribed Qwen prompt.
 Guidance participates in exact counting, generation and cache preparation. Files
 are cached per API instance: restart chat after editing. Missing/empty files fail
 visibly. Adding a file does not enable it; new bindings must be explicit in code.
-The previous detailed log prompt remains in Git history and the private evaluation
-metadata; earlier evaluation scores do not establish this shorter prompt's quality.
+The previous detailed log prompt remains in Git history; private evaluation
+metadata may have been cleared by memory reset. Earlier evaluation scores do not establish this shorter prompt's quality.
 
 Log-query guidance uses explicit field names and JSON argument examples. This wording
-change does not alter the request schema or permissions; model selection accuracy
-with these examples still needs a live evaluation.
+change does not alter the request schema or permissions; a small live check exercised
+these examples, but does not establish a measured accuracy improvement. See
+[current reliability limits](../docs/log-queries.md#current-reliability-limits).
 
 The log-result reminder is appended to a copy of the initial system message for
 follow-up requests only, before exact token counting. It is not tool data and is

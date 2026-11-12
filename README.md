@@ -16,6 +16,8 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The model’s loopback server stops when chat exits.
 
+Log-tool execution works, but answers can still misinterpret units or add unsupported details; see [current reliability limits](docs/log-queries.md#current-reliability-limits).
+
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
 The selected 4B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 9B Q4 and 4B BF16 files remain available. See [shared model storage](docs/setup.md#shared-model-storage) and [4B return verification](docs/experiments/4b-return-2026-11-12.md).
@@ -24,7 +26,7 @@ The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a delibera
 
 See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md), with a [short log glossary](docs/log-glossary.md) and the [request form](docs/log-request-form.md) and [operator query handler](docs/log-queries.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
 
-Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). The current architecture is captured in `baseline-v4`; the previous [V3 guide](docs/archive/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
+Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/archive/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
 ## Reviewing the code
 
@@ -72,7 +74,6 @@ Start with these files, in order:
 ## Folder map
 
 - `prompts/`: versioned feature instructions, explicitly bound to the system prompt separately from the soul.
-
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
