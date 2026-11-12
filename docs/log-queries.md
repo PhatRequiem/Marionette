@@ -1,6 +1,6 @@
 # Log queries
 
-**Production status:** disconnected from the model. The code, CLI, prompt and adapter tests remain available; [read_docs](obsidian.md) now supplies documentation access. Historical verification below describes earlier connections.
+**Production status:** disconnected from the model. The code, CLI, prompt and adapter tests remain available; the [read_docs setup](obsidian.md) is also retained but disconnected. Historical verification below describes earlier connections.
 
 The handler accepts the [request form](log-request-form.md) and returns JSON facts,
 evidence references and limitations. The retained Qwen-Agent adapter is named **`query_logs`**, but normal startup and turns do not register it.

@@ -15,7 +15,7 @@ cd /home/phatkitty/Projects/Marionette
 
 This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/contacts.md). You can now chat in this terminal.
 
-For documentation access, keep the **docs** vault open in Obsidian with Local REST API enabled. See [Obsidian setup](docs/obsidian.md). Chat runs without it, but `read_docs` will report unavailable.
+Docs-vault and log-query tools are currently disconnected from the model. The [Obsidian setup](docs/obsidian.md) is preserved for later reconnection.
 
 ## 2. Connect Discord — optional
 

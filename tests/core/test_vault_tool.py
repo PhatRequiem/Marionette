@@ -47,7 +47,7 @@ class VaultTests(unittest.TestCase):
             r=json.loads(self.tool.call({'action':'list'}))
             self.assertEqual(r['data']['entries'],['guide.md'])
 
-    def test_production_binding_disconnects_logs(self):
+    def test_explicit_binding_disconnects_logs(self):
         api=SimpleNamespace(tools=[SimpleNamespace(name='query_logs'),SimpleNamespace(name='update_soul')])
         chat=Conversation(api,8192,store=SimpleNamespace(generation=''),session_id='synthetic');chat.bind_vault()
         self.assertEqual([t.name for t in api.tools],['update_soul','read_docs'])

@@ -1,6 +1,6 @@
 # Read-only Obsidian docs vault
 
-Marionette's `docs/` folder is the vault: files are not copied or synchronized elsewhere. The model uses the explicit Qwen-Agent `read_docs` tool through Local REST API 5.5.2. Normal startup and each contact turn register it instead of `query_logs`. The log tool, CLI, prompt and tests remain in the checkout for operators; no model log access is registered.
+Marionette's `docs/` folder is the vault: files are not copied or synchronized elsewhere. The retained Qwen-Agent `read_docs` adapter uses Local REST API 5.5.2. **Currently disconnected:** normal startup and contact turns register neither `read_docs` nor `query_logs`. Vault settings, plugin installation, adapter, prompt and tests remain intact; enabling the Obsidian plugin alone does not reconnect the model. The log tool, CLI, prompt and tests remain in the checkout for operators; no model log access is registered.
 
 ## Setup and operation
 
@@ -28,4 +28,4 @@ Current guides, historical experiments, archived baselines and discussion-only i
 
 ## Verification
 
-Synthetic tests cover path traversal, hidden settings, symlinks, rejected write actions/extra fields, pagination, filtered search/list results, credential-safe errors, and production registration without query_logs. Setup/launcher tests continue using synthetic stores; the retained log adapter tests explicitly opt into their isolated binding. All 163 core and 14 mocked Discord checks passed. The live application registry was verified with `read_docs` and without `query_logs`. The docs vault opened in Obsidian, but its API was not reachable: community-plugin activation is pending. Live vault reads and model retrieval quality are therefore not yet verified.
+Synthetic tests cover path traversal, hidden settings, symlinks, rejected write actions/extra fields, pagination, filtered search/list results, credential-safe errors, and production registration without query_logs. Setup/launcher tests continue using synthetic stores; the retained log adapter tests explicitly opt into their isolated binding. All 163 core and 14 mocked Discord checks passed. Before disconnection, the live application registry was verified with `read_docs` and without `query_logs`. The docs vault opened in Obsidian, but its API was not reachable: community-plugin activation is pending. Live vault reads and model retrieval quality are therefore not yet verified.

@@ -68,7 +68,7 @@ Application code lives in `src/marionette/`: `session.py` composes the applicati
 
 ## Optional docs vault
 
-For read-only documentation retrieval, follow [Obsidian docs setup](obsidian.md). Its pinned installer is separate from core setup; chat remains usable when Obsidian is closed. The production log-query tool is disconnected, but its operator CLI remains available.
+The [Obsidian docs setup](obsidian.md) is retained, but its model tool is currently disconnected. Its pinned installer is separate from core setup; chat remains usable when Obsidian is closed. The production log-query tool is disconnected, but its operator CLI remains available.
 
 ## Operation
 
