@@ -88,7 +88,7 @@ class StorageTests(unittest.TestCase):
         with closing(sqlite3.connect(Path(self.temp.name) / 'imported.sqlite3')) as imported:
             imported.executescript(dump)
             self.assertEqual(self.rows(imported), self.rows(self.store.db))
-            self.assertEqual(imported.execute('PRAGMA user_version').fetchone()[0], 4)
+            self.assertEqual(imported.execute('PRAGMA user_version').fetchone()[0], 5)
 
     def test_concurrent_writers_and_reader(self):
         failures = []

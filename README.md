@@ -48,6 +48,7 @@ Start with these files, in order:
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional human one-to-one DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
+| [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
 | [ram_logs.py](src/marionette/ram_logs.py) | Existing-recorder RAM buffer, live views, and shutdown saving |

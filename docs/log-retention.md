@@ -149,3 +149,10 @@ The synthetic database was removed; the user's running session was not changed.
 ## Explicit live memory reset
 
 The owner-authorized [`/resetmemory`](reset-memory.md) command deliberately discards both saved logs and the recorder's RAM/error windows. It uses private generation markers and acknowledgments in existing capture processes; no helper process or periodic payload writes are added. Schema 4 adds reset-generation metadata. Event allocation remains monotonic and the active session ID is preserved for live viewers. Old-epoch writers and shutdown buffers cannot reinsert erased payloads. Ordinary rolling budgets, protected-error limits, and shutdown-save behavior remain unchanged. Tests include interrupted-boundary suppression, stale writer rejection, and a full launcher reset followed by shutdown.
+
+Schema 5 adds searchable metadata columns and indexes to both retained events and
+protected evidence. They follow their parent rows through eviction, shutdown saving
+and reset; routine diagnostic metadata stays in the same in-memory recorder. The
+500,000,000-byte budget still counts raw payload bytes, not SQLite/index overhead.
+No additional payload writes, helper process or durability guarantee is introduced.
+See [search metadata](storage.md#searchable-diagnostic-metadata-schema-5).

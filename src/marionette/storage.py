@@ -16,6 +16,7 @@ import sys
 import time
 import uuid
 
+import log_metadata
 import retention
 from diagnostics import message_id as validate_message_id
 
@@ -67,7 +68,7 @@ def event_message_id(stream, raw):
 def open_read(path):
     connection = sqlite3.connect(Path(path).resolve().as_uri() + '?mode=ro', uri=True, timeout=10)
     connection.row_factory = sqlite3.Row
-    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4):
+    if connection.execute('PRAGMA user_version').fetchone()[0] not in (1, 2, 3, 4, 5):
         connection.close()
         raise ValueError('Unsupported log database version.')
     return connection
@@ -87,7 +88,7 @@ class Store:
             self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
         version = self.db.execute('PRAGMA user_version').fetchone()[0]
-        if version not in (0, 1, 2, 3, 4):
+        if version not in (0, 1, 2, 3, 4, 5):
             self.db.close()
             raise ValueError('Unsupported log database version; original left unchanged.')
         if version == 0:
@@ -114,6 +115,8 @@ class Store:
                     self.db.execute("CREATE TABLE memory_epoch (id INTEGER PRIMARY KEY CHECK(id=1), generation TEXT NOT NULL, ram_ack TEXT NOT NULL, terminal_ack TEXT NOT NULL)")
                     self.db.execute("INSERT INTO memory_epoch VALUES (1,'','','')")
                     self.db.execute('PRAGMA user_version=4')
+                if self.db.execute('PRAGMA user_version').fetchone()[0] == 4:
+                    log_metadata.migrate(self.db)
         except BaseException:
             self.db.close()
             raise
@@ -168,8 +171,9 @@ class Store:
             event_id, stamp = policy['next_event'], now()
             self.db.execute('UPDATE retention_state SET next_event=next_event+1 WHERE id=1')
             batch = retention.batch_for(self.db, len(raw), policy) if stream == 'diagnostic' else None
-            self.db.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?)',
+            self.db.execute('INSERT INTO events(id,session_id,recorded_at,stream,category,message_id,raw,batch_id) VALUES (?,?,?,?,?,?,?,?)',
                             (event_id, session, stamp, stream, category, identifier, raw, batch))
+            log_metadata.populate(self.db, 'events', event_id, stream, raw)
             retention.retain(self.db, (event_id,session,stamp,stream,category,identifier,raw), policy)
             if stream == 'diagnostic':
                 retention.prune(self.db, policy)

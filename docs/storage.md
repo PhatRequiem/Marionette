@@ -4,7 +4,7 @@ Marionette stores conversations and shutdown-saved diagnostics in **`data/conver
 
 ## What is stored
 
-Schema version 4 retains these primary tables (introduced in version 1):
+Schema version 5 retains these primary tables (introduced in version 1):
 
 | Table | Contents |
 |---|---|
@@ -94,4 +94,58 @@ On November 11, 2026, an isolated normal-launcher GPU check used synthetic profi
 
 Writable opens upgrade conversation databases to schema 3 transactionally: `messages.person_uuid` becomes `messages.contact_uuid`, with the corresponding index renamed. Existing messages, IDs, and raw diagnostic payloads are preserved. Read-only inspection still accepts schemas 1 and 2. Retention behavior and RAM budgets are unchanged. Synthetic tests verify the column migration and reopen; this is SQLite schema migration, not cross-database migration.
 
-Schema 4 adds one private `memory_epoch` metadata row for coordinated live resets. It migrates transactionally from schema 3 without rewriting existing messages. Read-only inspection accepts schemas 1–4. See [live reset](reset-memory.md) for deletion boundaries and retained active session metadata.
+Schema 4 adds one private `memory_epoch` metadata row for coordinated live resets. It migrates transactionally from schema 3 without rewriting existing messages. Read-only inspection accepts schemas 1–5. See [live reset](reset-memory.md) for deletion boundaries and retained active session metadata.
+
+
+## Searchable diagnostic metadata (schema 5)
+
+Writable opens migrate schemas 1–4 transactionally to schema 5, including the
+recorder's in-memory SQLite store. Original payload bytes and IDs are preserved.
+Migration scans existing events and protected evidence once to backfill recognized
+metadata; large retained databases can therefore take longer to open the first time.
+Read-only tools accept older versions without upgrading them. Do not run an older
+writer against a schema-5 database.
+
+Both `events` and `error_evidence` have nullable text columns:
+
+| Column | Meaning |
+|---|---|
+| `event_type` | Recognized envelope type, e.g. `model_usage`, `tool_identity`, `processing_end`, `discord_chunk_sent`, `discord_delivery_end` |
+| `request_number`, `tool_number` | Original per-message ordinals, e.g. `01`; use session + message ID to scope them |
+| `tool_name`, `protocol_tool_call_id` | Name and original protocol ID from the explicit tool-identity record |
+| `contact_uuid`, `display_name`, `preferred_name` | Identity as recorded in the sender-identity event; names are labels, not unique keys |
+| `conversation_id` | Explicit conversation-selection marker or Discord sender envelope |
+| `sender_id`, `channel_id`, `outgoing_message_id` | Explicit identity/delivery envelope values where present |
+
+`log_metadata.py` defines the recognized types. Unknown/raw runtime events retain
+null metadata, rather than gaining guessed message ownership. Conversation prose
+and JSON transcript content are never scanned for embedded metadata. Truncated
+protected evidence is left unclassified. Metadata is not copied from neighboring
+records, so most diagnostic events obtain conversation/contact scope through a join
+on `(session_id, message_id)` to `messages`, not their own `conversation_id` column.
+
+Indexes cover session/type/time, session/message/request/tool, session/tool name,
+message correlation and sender/time, alongside the existing contact/time indexes.
+For example, read recorded model usage for one session:
+
+```sql
+SELECT id, message_id, recorded_at, raw
+FROM events
+WHERE session_id = :session AND event_type = 'model_usage'
+ORDER BY recorded_at, id;
+```
+
+Protected evidence can be searched with the same metadata fields, using
+`event_id` instead of `id`. Deduplicate by event ID when combining both sources.
+A missing record can mean expired evidence, not proof that the event never happened.
+Names remain in the contact registry and searchable retained sender-identity diagnostics;
+resolve names to permanent contact UUIDs and handle ambiguity before searching.
+Historical names are not guaranteed after diagnostic expiry. No full-text index,
+natural-language lookup, live model access, or new setup evidence collector is added.
+The existing snapshot reader still needs separate work for SQLite Discord delivery
+extraction and live-buffer access.
+
+Synthetic checks verify schema-4 backfill, indexed lookup, raw-byte/ID preservation,
+protected evidence after rolling eviction, shutdown saving, and reset deletion.
+The storage suite separately checks same-version backup restore and SQL export/import;
+these are SQLite tests, not cross-engine migration verification.

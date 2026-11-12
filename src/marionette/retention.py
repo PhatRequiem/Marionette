@@ -2,6 +2,8 @@
 import json
 import re
 
+import log_metadata
+
 PART_BYTES = 20_000_000
 BUDGET_BYTES = 500_000_000
 ERROR_LIMIT = 20
@@ -94,7 +96,9 @@ def eligible(stream, raw):
 
 
 def copy_event(db, row):
-    db.execute('INSERT OR IGNORE INTO error_evidence VALUES (?,?,?,?,?,?,?,?,?)', tuple(row))
+    db.execute('INSERT OR IGNORE INTO error_evidence(event_id,session_id,recorded_at,stream,category,message_id,raw,original_bytes,truncated) VALUES (?,?,?,?,?,?,?,?,?)', tuple(row))
+    if db.execute('PRAGMA user_version').fetchone()[0] >= 5:
+        log_metadata.populate(db, 'error_evidence', row[0], row[3], row[6], truncated=bool(row[8]))
 
 
 def retain(db, row, policy):

@@ -14,6 +14,7 @@ import socketserver
 import struct
 import threading
 
+import log_metadata
 import retention
 
 ID_BLOCK = 65536
@@ -86,7 +87,8 @@ class RamLogs:
             policy = target.execute('SELECT * FROM retention_state').fetchone()
             for row in source.execute('SELECT * FROM events ORDER BY id'):
                 batch = retention.batch_for(target, len(row['raw']), policy)
-                target.execute('INSERT INTO events VALUES (?,?,?,?,?,?,?,?)', tuple(row)[:7] + (batch,))
+                target.execute('INSERT INTO events(id,session_id,recorded_at,stream,category,message_id,raw,batch_id) VALUES (?,?,?,?,?,?,?,?)', tuple(row)[:7] + (batch,))
+                log_metadata.populate(target, 'events', row['id'], row['stream'], row['raw'])
             # Merge protected failures independently: their source events may have rolled out.
             for failure in source.execute('SELECT * FROM failures ORDER BY last_error'):
                 values = list(tuple(failure)[1:])

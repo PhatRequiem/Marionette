@@ -152,3 +152,8 @@ Contact notes add `Contact notes supplied`, `Contact notes updated`, and `Contac
 ## Rolling retention and protected errors
 
 Diagnostics now use [20 MB logical batches and a 500 MB rolling budget](log-retention.md) in the existing recorder’s RAM, saved to SQLite on shutdown. The latest 20 recognized diagnostic failures retain 20 preceding/following events separately. Conversations and terminal/Discord transcripts remain preserved. See that guide for completeness flags, read commands, migration, and physical disk-size limits.
+
+## Search metadata
+
+Recorded envelopes now provide indexed event types, operation ordinals and explicit
+Discord identity/delivery fields in SQLite. See [search fields and their limits](storage.md#searchable-diagnostic-metadata-schema-5). This does not enable model access.
