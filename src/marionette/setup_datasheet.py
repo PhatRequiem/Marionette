@@ -184,7 +184,7 @@ def application(api, conversation, store, bridge_bound):
         'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Open database connection'),
         'Thinking template': ('Enabled', 'Configured: application request'),
     }
-    purposes = {'read_docs': 'Read and search the docs Obsidian vault (no writes)', 'update_soul': 'Edit persistent self name and description',
+    purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',
                 'query_logs': 'Read setup, status and current-conversation diagnostics'}
     for tool in tools:
@@ -192,7 +192,7 @@ def application(api, conversation, store, bridge_bound):
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:
         result['Tool: update_contact_notes'] = ('Available', 'Contact-note component')
     known = set(names) <= set(purposes)
-    result['Log and vault access'] = ('Vault tool registered; logs disconnected' if 'read_docs' in names and 'query_logs' not in names else 'Logs connected; vault not connected' if 'query_logs' in names and known else 'Not connected' if known else 'Unverified', 'Startup tool registry')
+    result['Log access'] = ('Connected' if 'query_logs' in names else 'Not connected' if known else 'Unverified', 'Startup tool registry')
     if store is not None:
         policy = store.db.execute('SELECT * FROM retention_state WHERE id=1').fetchone()
         result['Diagnostic limit'] = (str(policy['budget_bytes']) + ' bytes', 'Configured: recorder policy')

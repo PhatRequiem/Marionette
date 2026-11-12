@@ -14,7 +14,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The [Obsidian docs vault setup](docs/obsidian.md) remains intact, but `read_docs` stays disconnected. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The model’s loopback server stops when chat exits.
 
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
@@ -54,7 +54,6 @@ Start with these files, in order:
 | [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
-| [vault_tool.py](src/marionette/vault_tool.py) | Read-only Obsidian docs listing, search and paginated reading |
 | [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |
 | [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |

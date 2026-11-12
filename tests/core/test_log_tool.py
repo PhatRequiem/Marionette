@@ -55,7 +55,6 @@ class LogToolTests(unittest.TestCase):
                                       sender_id='42', message_id='discord:124')
         self.assertEqual((answer, finish), ('Your previous message completed.', 'stop'))
         self.assertEqual(sent[0]['tools'][0]['function']['name'], 'query_logs')
-        self.assertNotIn('read_docs', [t['function']['name'] for t in sent[0]['tools']])
         self.assertTrue(any(m['role'] == 'function' for m in chat.history))
         old = api.tools[0]
         chat.key = 'discord:99'

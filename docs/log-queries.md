@@ -1,6 +1,6 @@
 # Log queries
 
-**Production status:** connected through Qwen-Agent at startup and rebound to the current conversation before each turn. The [read_docs setup](obsidian.md) remains retained but disconnected.
+**Production status:** connected through Qwen-Agent at startup and rebound to the current conversation before each turn.
 
 The handler accepts the [request form](log-request-form.md) and returns JSON facts,
 evidence references and limitations. Qwen-Agent exposes the handler as **`query_logs`**.

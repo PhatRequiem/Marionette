@@ -120,7 +120,7 @@ class DatasheetTests(unittest.TestCase):
         self.assertEqual(details['Diagnostic limit'][0],'500000000 bytes')
         sheet.update(self.path,'ready',{},capacity=8192,details=details)
         self.assertIn('| Terminal | Initialized |',self.path.read_text())
-        self.assertIn('| Log and vault access | Not connected |',self.path.read_text())
+        self.assertIn('| Log access | Not connected |',self.path.read_text())
         self.assertNotIn(str(self.path.parent),self.path.read_text())
         api.tools=()
         details=sheet.application(api,SimpleNamespace(contact_notes=None,soul=None),None,False)
