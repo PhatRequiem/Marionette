@@ -1,6 +1,6 @@
 # Read-only Obsidian docs vault
 
-Marionette's `docs/` folder is the vault: files are not copied or synchronized elsewhere. The retained Qwen-Agent `read_docs` adapter uses Local REST API 5.5.2. **Currently disconnected:** normal startup and contact turns register neither `read_docs` nor `query_logs`. Vault settings, plugin installation, adapter, prompt and tests remain intact; enabling the Obsidian plugin alone does not reconnect the model. The log tool, CLI, prompt and tests remain in the checkout for operators; no model log access is registered.
+Marionette's `docs/` folder is the vault: files are not copied or synchronized elsewhere. The retained Qwen-Agent `read_docs` adapter uses Local REST API 5.5.2. **Currently disconnected:** normal startup and contact turns do not register `read_docs`. The separate `query_logs` tool is connected. Vault settings, plugin installation, adapter, prompt and tests remain intact; enabling the Obsidian plugin alone does not reconnect the model. The log tool, CLI, prompt and tests remain in the checkout for operators; no model log access is registered.
 
 ## Setup and operation
 

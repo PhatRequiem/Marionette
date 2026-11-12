@@ -5,7 +5,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 | File | Loaded when |
 |---|---|
 | `tool-guidance.md` | Any supported tool is registered |
-| `log-queries.md` | Only if `query_logs` is explicitly registered (disconnected in production) |
+| `log-queries.md` | `query_logs` is registered (enabled in production) |
 | `docs-vault.md` | `read_docs` is registered |
 | `contact-notes.md` | `update_contact_notes` is registered |
 | `soul.md` | `update_soul` is registered |

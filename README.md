@@ -14,7 +14,7 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-9B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; both `read_docs` and `query_logs` are disconnected from the model. The [Obsidian docs vault setup](docs/obsidian.md), adapters and operator log handler remain available. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-9B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The [Obsidian docs vault setup](docs/obsidian.md) remains intact, but `read_docs` stays disconnected. Its loopback server stops when chat exits.
 
 The selected 9B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Instruct/`. The previous 4B Q4 and BF16 files remain available. See [shared model storage](docs/setup.md#shared-model-storage) and [9B verification](docs/experiments/9b-switch.md).
 
@@ -53,7 +53,7 @@ Start with these files, in order:
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
 | [vault_tool.py](src/marionette/vault_tool.py) | Read-only Obsidian docs listing, search and paginated reading |
-| [log_tool.py](src/marionette/log_tool.py) | Retained log adapter, disconnected from production |
+| [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |
 | [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |
 | [ram_logs.py](src/marionette/ram_logs.py) | Existing-recorder RAM buffer, live views, and shutdown saving |

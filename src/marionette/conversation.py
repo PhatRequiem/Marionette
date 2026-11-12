@@ -147,6 +147,7 @@ class Conversation:
         if self.soul is not None:
             tool = self.soul.bind(self.api)
             self.api.tools = tuple(t for t in self.api.tools if t.name != tool.name) + (tool,)
+        self.bind_log_query(identifier)
         candidate, removed, tokens = fit_history(
             self.history, message_with_identity(message, identity) if identity else message,
             self.api.count, self.capacity, self.reserve)
