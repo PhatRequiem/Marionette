@@ -16,6 +16,35 @@ MAX_BYTES = 1024 * 1024
 MAX_RESULT = 64 * 1024
 
 
+# Definitions travel with the facts; the model need not infer units or boundaries.
+FIELD_MEANINGS = {
+    'processing': {
+        'prompt_tokens': 'Input tokens for one model request, including history, instructions and tool results; not just the user message. Cached input is included.',
+        'completion_tokens': 'Generated tokens for one request, including reasoning and any tool-call text; not just the visible answer.',
+        'total_tokens': 'Prompt plus completion tokens for that request; not generated tokens.',
+        'recorded_token_totals': 'Sums over available usage records only. Repeated history is counted again across requests; not unique context size or proof all requests were retained.',
+        'processing_boundary_elapsed_ms': 'Elapsed between recorded application processing boundaries; includes tool work and overhead, not pure model generation time.',
+        'budgets': 'Configured allowances and prompt sizes, not actual generated usage.',
+    },
+    'delivery': {
+        'timings_ms': 'All durations are milliseconds. Intervals overlap; do not add them.',
+        'adapter_queue_ms': 'Time from Discord adapter receipt until its turn lock is acquired.',
+        'main_queue_ms': 'Time waiting for the main application to handle the turn.',
+        'processing_ms': 'Main application turn processing, including model requests and tools.',
+        'local_response_ms': 'Local request round trip, including main queue and processing.',
+        'receipt_to_delivery_ms': 'Discord adapter receipt through completed answer sending, including queueing and processing; not send-only time.',
+        'receipt_to_failure_ms': 'Discord adapter receipt until the recorded failure; not successful delivery time.',
+        'chunks_sent': 'Count of retained answer-chunk send records, not necessarily the full original count.',
+    },
+    'setup': {
+        'fields': 'Dated startup observations, not current status. Runtime version belongs to llama.cpp, not Vulkan. GPU layers describes offload count, not GPU utilization.',
+        'Reasoning format': 'Wire format for separating reasoning from the answer; not the model family.',
+    },
+    'status': {'tools': 'Tools bound at the instant of this probe; the application may rebind tools for each contact turn.'},
+    'errors': {'failures': 'Recognized failures in retained evidence only. An empty list does not establish an error-free run.'},
+}
+
+
 def now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -136,7 +165,13 @@ def extract(lookup, rows, identifier, conversation):
                 for key in ('adapter_queue_ms','main_queue_ms','processing_ms','local_response_ms','total_ms'):
                     v=fields.get(key)
                     if type(v) in (int,float) and 0<=v<float('inf'):
-                        output['timings_ms'][key]=v;used=True
+                        if key == 'total_ms':
+                            # A failure timer must never be labeled successful delivery.
+                            name = ('receipt_to_delivery_ms' if title == 'Discord answer delivered.' else
+                                    'receipt_to_failure_ms' if title.startswith('Discord turn failed;') else None)
+                            if name is None:continue
+                        else:name=key
+                        output['timings_ms'][name]=v;used=True
             elif title.startswith(('Discord turn failed;', 'Discord chunk failed.')):
                 output['failures'].append({'component':'delivery','detail':title,**ref});used=True
         if used:evidence.append(ref)
@@ -147,7 +182,15 @@ def extract(lookup, rows, identifier, conversation):
             notes.append('Processing boundaries are incomplete; retained evidence may be missing.')
         elif output['started_at'] and output['ended_at']:
             elapsed=(datetime.fromisoformat(output['ended_at'])-datetime.fromisoformat(output['started_at'])).total_seconds()*1000
-            output['elapsed_receipt_ms']=round(elapsed,3) if elapsed>=0 else None
+            output['processing_boundary_elapsed_ms']=round(elapsed,3) if elapsed>=0 else None
+        requests = output['requests']
+        numbers = [r['request_number'] for r in requests]
+        if len(set(numbers)) != len(numbers):raise ValueError('Repeated request usage is ambiguous.')
+        output['recorded_token_totals'] = {
+            'usage_records': len(requests),
+            'input_tokens_summed': sum(r['prompt_tokens'] for r in requests) if requests and all(r['prompt_tokens'] is not None for r in requests) else None,
+            'generated_tokens_including_reasoning': sum(r['completion_tokens'] for r in requests) if requests and all(r['completion_tokens'] is not None for r in requests) else None,
+        }
         notes.append('Token usage is per request; receipt time is not pure generation time.')
     if lookup=='delivery':notes.append('No delivery ending means unknown; timings overlap and must not be added.')
     if lookup=='errors':notes.append('No matching recognized failures does not prove success; missing or expired evidence may be unavailable.')
@@ -167,6 +210,7 @@ def setup(path):
         parts=line.split('|')
         if len(parts)==5 and parts[0]==parts[-1]=='':
             name,value,source=(x.strip() for x in parts[1:4])
+            if name == 'Runtime version':name = 'llama.cpp runtime version'
             if name not in ('Fact','---'):fields.append({'name':name,'value':value,'source':source})
     stamp=re.search(r'Updated \(UTC\): (\S+)',block)
     state=re.search(r'Startup status: \*\*(\w+)\*\*',block)
@@ -190,7 +234,7 @@ def current(socket_path):
 
 def handle(form, *, database=None, session=None, conversation=None, before_message_id=None, datasheet=None, socket_path=None, live=True):
     validate(form)
-    result={'lookup':form['lookup'],'status':'ok','queried_at':now(),'data':{},'evidence':[],'limitations':[]}
+    result={'lookup':form['lookup'],'status':'ok','queried_at':now(),'data':{},'evidence':[],'limitations':[], 'field_meanings':FIELD_MEANINGS[form['lookup']]}
     if form['lookup']=='setup':
         result['data']=setup(datasheet)
         result['evidence']=[{'source':'setup-datasheet.md','observed_at':result['data']['observed_at']}]
@@ -243,7 +287,8 @@ def handle(form, *, database=None, session=None, conversation=None, before_messa
         with closing(open_read(database)) as db:
             if generation is not None and db.execute('SELECT generation FROM memory_epoch').fetchone()[0]!=generation:raise ValueError('Memory reset during query; retry.')
         data,evidence,notes=extract(form['lookup'],merge(saved),identifier,conversation)
-        result.update(data=data,evidence=evidence,message_id=identifier)
+        result.update(data=data,evidence=evidence,message_id=identifier,
+                      message_id_meaning='Incoming user message ID anchoring this exchange, not the outgoing assistant reply ID.')
         result['limitations']+=notes
         if not evidence:result['status']='unavailable' if form['lookup']!='errors' else 'no_matches'
         elif data.get('outcome') in ('unknown','incomplete'):result['status']='partial'

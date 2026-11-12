@@ -78,6 +78,18 @@ exit code zero. Current status and setup reads also have bounded socket/file rea
 No routine diagnostic writes, retention changes, helper process, or startup-sheet
 updates are introduced. Existing RAM loss and retention limits still apply.
 
+## Explicit result meanings
+
+Every successful handler response includes lookup-specific `field_meanings`. These definitions travel with the evidence rather than relying on a separate glossary being in context. The request form and raw logs are unchanged.
+
+- Processing retains per-request `prompt_tokens`, `completion_tokens` and `total_tokens`. `recorded_token_totals` computes input and generated totals separately over available usage records. Generated tokens include reasoning and tool-call text. Repeated history counts again as input across requests. Missing counts remain null; these sums do not certify complete retention. Duplicate request usage is rejected.
+- `processing_boundary_elapsed_ms` replaces `elapsed_receipt_ms`: application processing boundary elapsed time, not pure inference time. Budgets are allowances, not usage.
+- Delivery replaces ambiguous `total_ms` with `receipt_to_delivery_ms` only for a recorded successful answer-send event, or `receipt_to_failure_ms` for a recorded failure. Queue, processing and local round-trip intervals overlap. No send-only duration is inferred. Chunk counts describe retained send records.
+- Setup explicitly labels `llama.cpp runtime version`, including when reading an older startup sheet. Reasoning format does not identify a model family; GPU offload counts do not measure utilization.
+- Message results identify their ID as the incoming user message anchoring the exchange, not the outgoing reply. Current tool lists describe bindings at the probe instant; empty recognized-error results do not prove an error-free run.
+
+Restart main chat and reconnect Discord to load these handler changes. Historical results already held in active context retain their original format. This change improves the evidence contract; model interpretation still requires evaluation.
+
 ## Verification
 
 `tests/core/test_log_query.py` covers valid/invalid forms, conversation scope,

@@ -43,6 +43,38 @@ class QueryTests(unittest.TestCase):
         self.assertNotIn('SECRET',json.dumps(report))
         with self.assertRaises(ValueError):self.query('processing',conversation='discord:99')
 
+    def test_token_totals_separate_repeated_inputs_from_generated_tokens(self):
+        for number, prompt, completion in [('01',1815,77),('02',3231,192)]:
+            self.event(f'[request {number}] Runtime usage: '+json.dumps({'prompt_tokens':prompt,'completion_tokens':completion,'total_tokens':prompt+completion}))
+        result=self.query('processing')
+        totals=result['data']['recorded_token_totals']
+        self.assertEqual(totals,{'usage_records':2,'input_tokens_summed':5046,'generated_tokens_including_reasoning':269})
+        self.assertEqual(result['status'],'partial')
+        self.assertIn('not unique context',result['field_meanings']['recorded_token_totals'])
+        self.assertIn('Incoming user',result['message_id_meaning'])
+        self.event('[request 03] Runtime usage: {"prompt_tokens":20}')
+        self.assertIsNone(self.query('processing')['data']['recorded_token_totals']['generated_tokens_including_reasoning'])
+        self.event('[request 03] Runtime usage: {"prompt_tokens":20}')
+        with self.assertRaisesRegex(ValueError,'Repeated request usage'):self.query('processing')
+
+    def test_delivery_timer_does_not_turn_failure_into_success(self):
+        for title, extra in [('Local response completed.',{'processing_ms':3858.42,'local_response_ms':3948.21}),
+                             ('Discord answer delivered.',{'total_ms':4350.13}),
+                             ('Discord turn failed; synthetic notice failure',{'total_ms':4500})]:
+            self.store.event(self.session,'discord',('2026-11-11T00:00:00+00:00 '+title+' '+json.dumps({'log_message_id':self.identifier,'sender_id':'42',**extra})+'\n').encode())
+        result=self.query('delivery')
+        timings=result['data']['timings_ms']
+        self.assertEqual(timings['receipt_to_delivery_ms'],4350.13)
+        self.assertEqual(timings['receipt_to_failure_ms'],4500)
+        self.assertNotIn('total_ms',timings)
+        self.assertEqual(result['data']['outcome'],'unknown')
+        self.assertIn('not send-only',result['field_meanings']['receipt_to_delivery_ms'])
+
+    def test_empty_usage_is_unknown_not_zero(self):
+        totals=self.query('processing')['data']['recorded_token_totals']
+        self.assertIsNone(totals['input_tokens_summed'])
+        self.assertIsNone(totals['generated_tokens_including_reasoning'])
+
     def test_previous_is_relative_to_trigger_and_same_conversation(self):
         self.store.message(self.session,'discord:124','discord:99',None,'discord','99','user','input','OTHER','received')
         self.store.message(self.session,'discord:125',self.conversation,None,'discord','42','user','input','trigger','received')
@@ -97,9 +129,10 @@ class QueryTests(unittest.TestCase):
 
     def test_setup_uses_only_marked_section(self):
         path=self.root/'setup.md'
-        path.write_text('SECRET OUTSIDE\n<!-- startup-observations:start -->\nUpdated (UTC): 2026-11-11T00:00:00+00:00\n| Fact | Value | Evidence |\n|---|---|---|\n| Model | Synthetic | Runtime |\n<!-- startup-observations:end -->\n')
+        path.write_text('SECRET OUTSIDE\n<!-- startup-observations:start -->\nUpdated (UTC): 2026-11-11T00:00:00+00:00\n| Fact | Value | Evidence |\n|---|---|---|\n| Model | Synthetic | Runtime |\n| Runtime version | 0.9.0-dev | Runtime --version |\n<!-- startup-observations:end -->\n')
         result=handle({'lookup':'setup','target':'startup'},datasheet=path)
-        self.assertEqual(result['data']['fields'],[{'name':'Model','value':'Synthetic','source':'Runtime'}])
+        self.assertEqual(result['data']['fields'][0],{'name':'Model','value':'Synthetic','source':'Runtime'})
+        self.assertEqual(result['data']['fields'][1]['name'],'llama.cpp runtime version')
         self.assertNotIn('SECRET',json.dumps(result))
 
     def test_bounded_evidence_and_conflicting_endings(self):
