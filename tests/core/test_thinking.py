@@ -23,30 +23,18 @@ from test_coordination import response
 
 
 class ThinkingTests(unittest.TestCase):
-    def test_schedule_wait_continue_disable_and_invalid_results(self):
-        now = [0]
-        cycle = ThinkingCycle(lambda: now[0])
-        self.assertFalse(cycle.ready())
-        now[0] = 30
+    def test_continuous_steps_ignore_model_wait_and_resume_immediately(self):
+        cycle = ThinkingCycle(lambda: 0)
         self.assertTrue(cycle.ready())
-        self.assertEqual(cycle.complete('{"action":"continue","summary":"Next"}'), 'Next')
-        self.assertFalse(cycle.ready())
-        now[0] = 60
-        self.assertTrue(cycle.ready())
-        cycle.complete('{"action":"wait","summary":"No work"}')
-        now[0] = 999
-        self.assertFalse(cycle.ready())
-        cycle.wake('discord', '123', 'discord:456')
-        self.assertEqual(cycle.message_id, 'discord:456')
-        cycle.command('off')
-        now[0] += 30
-        self.assertFalse(cycle.ready())
-        cycle.command('on')
-        now[0] += 30
-        self.assertTrue(cycle.ready())
-        for value in ('not json', '[]', '{}', '{"action":"continue","summary":null}'):
+        for value in ('Reflection.', '{"summary":"Next"}', '{"action":"wait","summary":"No work"}', '[]', '{}'):
             cycle.complete(value)
-            self.assertTrue(cycle.waiting)
+            self.assertTrue(cycle.ready())
+        cycle.command('off')
+        cycle.wake('discord', '123', 'discord:456')
+        self.assertFalse(cycle.ready())
+        self.assertEqual(cycle.message_id, 'discord:456')
+        cycle.command('on')
+        self.assertTrue(cycle.ready())
 
     def test_input_priority_and_deadline_restore_api(self):
         now = [0]
@@ -60,7 +48,7 @@ class ThinkingTests(unittest.TestCase):
             conversation.api.cycle_check()
         conversation.turn.side_effect = turn
         self.assertIn('time limit', cycle.run(conversation, lambda: False))
-        self.assertTrue(cycle.waiting)
+        self.assertTrue(cycle.ready())
         self.assertIsNone(conversation.api.cycle_check)
         self.assertFalse(conversation.api.cycle_active)
 
@@ -91,7 +79,7 @@ class ThinkingTests(unittest.TestCase):
             now[0] = 31
             with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.write'):
                 self.assertEqual(cycle.run(conversation, lambda: False), 'Updated focus.')
-            self.assertTrue(cycle.waiting)
+            self.assertTrue(cycle.ready())
             self.assertEqual(pads.contents['focus'], 'Review complete')
             self.assertEqual({t['function']['name'] for t in sent[0]['tools']},
                              {'update_soul', 'update_contact_notes', 'query_logs', 'read_scratchpads', 'update_scratchpad'})
@@ -155,3 +143,16 @@ class ThinkingTests(unittest.TestCase):
                 api.reply([{'role': 'user', 'content': 'Internal test'}], 2048)
         self.assertEqual(len(calls), 4)
         self.assertIsNone(api.response_messages)
+
+    def test_empty_length_result_continues_but_runtime_failure_stops(self):
+        api = API('http://localhost')
+        api.count = lambda messages: 20
+        cycle = ThinkingCycle()
+        conversation = Conversation(api, 8192, thinking=cycle)
+        with patch.object(api, 'reply', return_value=('', 'length')), patch('diagnostics.write'):
+            self.assertIn('generation limit', cycle.run(conversation, lambda: False))
+        self.assertTrue(cycle.ready())
+        self.assertEqual(conversation.history, [])
+        with patch.object(api, 'reply', side_effect=RuntimeError('Synthetic failure')), patch('diagnostics.write'):
+            self.assertIn('Synthetic failure', cycle.run(conversation, lambda: False))
+        self.assertFalse(cycle.ready())

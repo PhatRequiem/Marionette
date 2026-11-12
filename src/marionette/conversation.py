@@ -100,7 +100,7 @@ class Conversation:
                         self.thinking.wake('terminal', None, None)
                     else:
                         self.thinking.wake(source, sender_id, None)
-                    self.thinking.waiting = True
+                    self.thinking.enabled = False
                 else:
                     self.thinking.wake(source, sender_id, identifier)
             if not internal and recognize(message, source) not in ('clear', 'resetmemory'):
@@ -186,6 +186,9 @@ class Conversation:
             if reasoning:
                 save('assistant', 'reasoning', ''.join(reasoning), finish)
         if not answer.strip():
+            if internal and finish == 'length':
+                from thinking import CycleInterrupted
+                raise CycleInterrupted('Thinking step reached its generation limit; continuing with the next step.')
             raise RuntimeError('Model produced no final answer.')
         diagnostics.log(f'Reply completed: finish_reason={finish}.')
         save('assistant', 'cycle_result' if internal else 'answer', answer, finish)

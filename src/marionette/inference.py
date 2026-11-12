@@ -142,10 +142,10 @@ class API:
                     http_client=httpx.Client(trust_env=False, timeout=120)) as client:
             def create(**kwargs):
                 if self.cycle_check is not None:
-                    from thinking import MODEL_CALLS
+                    from thinking import MODEL_CALLS, CycleInterrupted
                     self.cycle_check()
                     if coordinator.request_number >= MODEL_CALLS:
-                        raise RuntimeError("Thinking step reached its model-call limit.")
+                        raise CycleInterrupted("Thinking step reached its model-call limit; continuing with the next step.")
                 coordinator.request_number += 1
                 with diagnostics.operation_scope('MODEL REQUEST', coordinator.request_number):
                     yield from create_request(**kwargs)

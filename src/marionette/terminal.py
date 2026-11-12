@@ -130,7 +130,9 @@ def run(conversation, *, external=False):
                             show_terminal_source(conversation)
                             color('input')
                             print('> ', end='', flush=True)
-                        if select.select([sys.stdin], [], [], .1)[0]:
+                        cycle = conversation.thinking
+                        poll_delay = 0 if cycle is not None and cycle.ready() else .1
+                        if select.select([sys.stdin], [], [], poll_delay)[0]:
                             break
                         cycle = conversation.thinking
                         if cycle is not None and cycle.ready():

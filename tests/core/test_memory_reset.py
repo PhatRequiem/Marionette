@@ -85,7 +85,7 @@ class MemoryResetTests(unittest.TestCase):
                     api.reply.assert_not_called()
                     self.assertFalse(api.closing.is_set())
                     self.assertEqual(conversation.histories,{})
-                    self.assertTrue(cycle.waiting)
+                    self.assertFalse(cycle.enabled)
                     self.assertEqual((cycle.source, cycle.sender_id, cycle.message_id), ('terminal', None, None))
                     self.assertTrue(all(not text for text in pads.contents.values()))
                     self.assertIn("update_scratchpad", {t.name for t in api.tools})
