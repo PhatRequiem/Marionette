@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
+Local terminal chat with Qwen3.5 9B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -14,9 +14,9 @@ Optional phone access: [Discord DM setup](docs/discord.md). Launch her first, th
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; startup facts and current status are available on request through `query_logs`. Its loopback server stops when chat exits.
+The current base runs Qwen3.5-9B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/qwen-agent.md). Her [editable soul](docs/soul.md) starts blank and supplies system context only once filled; startup facts and current status are available on request through `query_logs`. Its loopback server stops when chat exits.
 
-Q4 is selected for faster infrastructure testing; both Q4 and the retained BF16 file live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. See [shared model storage](docs/setup.md#shared-model-storage) and [Q4 return verification](docs/experiments/q4-return.md).
+The selected 9B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Instruct/`. The previous 4B Q4 and BF16 files remain available. See [shared model storage](docs/setup.md#shared-model-storage) and [9B verification](docs/experiments/9b-switch.md).
 
 The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
@@ -87,7 +87,7 @@ Start with these files, in order:
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: optional Discord transport tests—human one-to-one DM filtering, delivery, attachment to main chat, and reasoning isolation.
-- `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/setup.md#shared-model-storage) use `Qwen/Qwen3.5/4B/Instruct/`.
+- `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/setup.md#shared-model-storage) use `Qwen/Qwen3.5/9B/Instruct/`.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
