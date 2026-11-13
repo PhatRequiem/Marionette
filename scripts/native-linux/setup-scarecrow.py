@@ -85,8 +85,8 @@ def install(vault, data, port=27124):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--vault', type=Path, default=ROOT / 'data/conversations/obsidian-vault')
-    parser.add_argument('--data', type=Path, default=ROOT / 'data')
+    parser.add_argument('--vault', type=Path, default=Path(os.environ.get('MARIONETTE_DATA_DIR', ROOT / 'data')) / 'conversations/obsidian-vault')
+    parser.add_argument('--data', type=Path, default=Path(os.environ.get('MARIONETTE_DATA_DIR', ROOT / 'data')))
     parser.add_argument('--port', type=int, default=27124)
     args = parser.parse_args()
     install(args.vault, args.data, args.port)

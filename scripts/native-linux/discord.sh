@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+DATA="${MARIONETTE_DATA_DIR:-$ROOT/data}"
 PYTHON="$ROOT/runtime/discord/bin/python"
 [[ -x "$PYTHON" ]] || { echo 'Run ./scripts/native-linux/setup-discord.sh first.' >&2; exit 1; }
-[[ -S "$ROOT/data/session/chat.sock" ]] || { echo 'Launch her with ./scripts/native-linux/chat.sh first and wait until ready.' >&2; exit 1; }
+[[ -S "$DATA/session/chat.sock" ]] || { echo 'Launch her with ./scripts/native-linux/chat.sh first and wait until ready.' >&2; exit 1; }
 "$PYTHON" "$ROOT/src/marionette/discord_bot.py" --check-config
 (( $# == 0 )) || { echo 'Usage: discord.sh' >&2; exit 1; }
 umask 077
-exec 9>"$ROOT/data/discord/.connection.lock"
+exec 9>"$DATA/discord/.connection.lock"
 flock -n 9 || { echo 'Discord is already connected.' >&2; exit 1; }
 # Use the main session's database, even when its log directory was overridden.
-mapfile -t LOG_INFO < <("$PYTHON" - "$ROOT/data/session/log-session.json" <<'PYTHON'
+mapfile -t LOG_INFO < <("$PYTHON" - "$DATA/session/log-session.json" <<'PYTHON'
 import json, sys
 from pathlib import Path
 info = json.loads(Path(sys.argv[1]).read_text())

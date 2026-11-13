@@ -118,3 +118,7 @@ Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -
 Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 
 Tool-coordination setup is documented in [Qwen-Agent coordination](../current-operation/qwen-agent.md).
+
+## Alternate personal-data directory
+
+Set `MARIONETTE_DATA_DIR` to the same absolute directory for chat, Discord setup/launch, Scarecrow setup, storage commands and manual mirror refresh. Profiles, notes, soul, Discord credentials and session files use that directory; the default database and mirror live under its `conversations/` folder. `MARIONETTE_LOG_DIR` still overrides the database location; live memory reset refuses logs outside the active data directory. The checkout-wide chat lock remains under the checkout's `data/` to prevent simultaneous instances of one checkout. Runtime environments remain checkout-local.

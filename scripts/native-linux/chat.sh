@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+DATA="${MARIONETTE_DATA_DIR:-$ROOT/data}"
 command -v python >/dev/null || { echo 'Python 3.11+ is required; see the setup guide.' >&2; exit 1; }
 mapfile -t PATHS < <(python - "$ROOT" <<'PY'
 import json, os, sys
@@ -53,9 +54,12 @@ done
 
 # Private session records; an override keeps synthetic tests out of real logs.
 umask 077
+mkdir -p "$ROOT/data" "$DATA"
+DATA="$(cd -- "$DATA" && pwd)"
+export MARIONETTE_DATA_DIR="$DATA"
 exec 9>"$ROOT/data/.chat.lock"
 flock -n 9 || { echo 'A chat is already running. Stop it before starting another.' >&2; exit 1; }
-LOG_DIR="${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}"
+LOG_DIR="${MARIONETTE_LOG_DIR:-$DATA/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
 export MARIONETTE_LOG_DB="$LOG_DIR/marionette.sqlite3"
@@ -77,7 +81,7 @@ finish() {
     fi
     python "$ROOT/src/marionette/storage.py" "$MARIONETTE_LOG_DB" end "$MARIONETTE_LOG_SESSION" || status=1
     # Both main recorders have drained; publish the final saved conversation state.
-    local data_root="${MARIONETTE_DATA_DIR:-$ROOT/data}"
+    local data_root="$DATA"
     if python "$ROOT/src/marionette/conversation_vault.py" "$MARIONETTE_LOG_DB" \
         --profiles "$data_root/contacts/profiles.json" \
         --contact-notes "$data_root/contact_notes" --docs "$ROOT/docs" >/dev/null; then
@@ -86,7 +90,7 @@ finish() {
         echo 'Conversation vault refresh failed; saved SQLite records remain. Run sync-conversation-vault.sh to retry.' >&2
         status=1
     fi
-    rm -f "$ROOT/data/session/log-session.json"
+    rm -f "$DATA/session/log-session.json"
     trap - EXIT
     if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[0m'; fi
     exit "$status"
@@ -112,10 +116,10 @@ if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[97m'; fi
 printf 'Conversation and diagnostic database: %s\nSession: %s\n' "$MARIONETTE_LOG_DB" "$MARIONETTE_LOG_SESSION"
 printf 'Diagnostics: 500 MB rolling RAM buffer; saved on orderly shutdown.\n'
 printf 'To exit, type /exit or press Ctrl+D at an empty prompt. Use /clear for a fresh conversation.\n'
-mkdir -p "$ROOT/data/session"
-chmod 700 "$ROOT/data/session"
-export MARIONETTE_SESSION_SOCKET="$ROOT/data/session/chat.sock"
-python - "$ROOT/data/session/log-session.json" <<'PYTHON'
+mkdir -p "$DATA/session"
+chmod 700 "$DATA/session"
+export MARIONETTE_SESSION_SOCKET="$DATA/session/chat.sock"
+python - "$DATA/session/log-session.json" <<'PYTHON'
 import json, os, sys, sqlite3
 from pathlib import Path
 with sqlite3.connect(os.environ['MARIONETTE_LOG_DB']) as database:

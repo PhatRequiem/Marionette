@@ -24,6 +24,34 @@ from ram_logs import RamLogs
 
 
 class MemoryResetTests(unittest.TestCase):
+    def test_alternate_vault_refused_before_any_memory_changes(self):
+        from memory_reset import reset_memory
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root/'session').mkdir()
+            (root/'session/log-session.json').write_text('{}')
+            profiles = ContactProfiles(root/'contacts/profiles.json')
+            soul = Soul(root/'soul/profile.json')
+            notes = ContactNotes(root/'contact_notes')
+            store = Store(root/'conversations/marionette.sqlite3')
+            self.addCleanup(store.close)
+            api = Mock()
+            convo = Conversation(api,8192,profiles,profiles.profiles[0],notes,store,store.start(),soul)
+            external = root/'alternate-vault'
+            external.mkdir()
+            old = external/'old.md'
+            old.write_text('synthetic old memory')
+            config = root/'scarecrow/connection.json'
+            config.parent.mkdir()
+            before = profiles.path.read_bytes(), soul.path.read_bytes()
+            for enabled in (True, False):
+                config.write_text(json.dumps({'enabled':enabled,'vault':str(external)}))
+                with self.assertRaisesRegex(ValueError,'alternate Scarecrow vault'):
+                    reset_memory(convo)
+                api.prepare.assert_not_called()
+                self.assertEqual(before,(profiles.path.read_bytes(),soul.path.read_bytes()))
+                self.assertEqual(old.read_text(),'synthetic old memory')
+
     def test_marker_survives_every_chunk_boundary(self):
         token='00000000-0000-0000-0000-000000000001'
         value=b'before'+marker(token)+b'after'

@@ -56,7 +56,7 @@ def render(status, facts, *, capacity=None, details=None):
     rows = [START, '## Startup information', '',
             f'Updated (UTC): {stamp}', '', f'Startup status: **{status}**.', '',
             'This section describes the last startup attempt, not current server health. '
-            'It is not supplied to the model. Missing observations never inherit prior values.', '',
+            'It is not automatically injected into model context; it can be retrieved through query_logs or the vault mirror. Missing observations never inherit prior values.', '',
             '| Fact | Value | Evidence |', '|---|---|---|']
     for name in (*PATTERNS, *('Sampling ' + k for k in SAMPLING)):
         values = facts.get(name, set()) if status == 'ready' else set()

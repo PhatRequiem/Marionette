@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Optional, one-to-one Discord DM transport for the local chat engine."""
+import os
 import asyncio
 import datetime
 import json
@@ -15,7 +16,8 @@ from connection import request
 from reset_boundary import current_generation, marker
 
 ROOT = Path(__file__).resolve().parents[2]
-ADDRESS = ROOT / 'data/session/chat.sock'
+DATA = Path(os.environ.get('MARIONETTE_DATA_DIR', ROOT / 'data')).resolve()
+ADDRESS = DATA / 'session/chat.sock'
 
 
 def log(message, **fields):
@@ -218,7 +220,7 @@ class DMChat(discord.Client):
 
 
 def main():
-    owner, token = read_config(ROOT / 'data/discord/.env')
+    owner, token = read_config(DATA / 'discord/.env')
     if sys.argv[1:] == ['--check-config']:
         return 0
 

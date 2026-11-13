@@ -95,7 +95,7 @@ class LauncherTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         scripts = self.root / 'scripts/native-linux'
         scripts.mkdir(parents=True)
-        for name in ['chat.sh', 'view-log.sh']:
+        for name in ['chat.sh', 'view-log.sh', 'sync-conversation-vault.sh']:
             shutil.copy2(ROOT / 'scripts/native-linux' / name, scripts / name)
         shutil.copytree(ROOT / 'prompts', self.root / 'prompts')
         source = self.root / 'src/marionette'
@@ -130,6 +130,27 @@ class LauncherTests(unittest.TestCase):
 
     def run_chat(self, *args):
         return subprocess.run(['bash', str(self.launcher), *args], input='1\nhello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
+
+    def test_alternate_data_directory_reset_and_manual_mirror(self):
+        data = self.root/'alternate data'
+        self.env['MARIONETTE_DATA_DIR'] = str(data)
+        self.env.pop('MARIONETTE_LOG_DIR', None)
+        result = subprocess.run(['bash',str(self.launcher)],
+            input='1\nold sentinel\n/resetmemory\nnew sentinel\n/exit\n', text=True,
+            capture_output=True, env=self.env, cwd='/tmp', timeout=25)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertIn('Memory reset. Soul, contact notes',result.stdout)
+        self.assertTrue((data/'contacts/profiles.json').exists())
+        self.assertFalse((self.root/'data/contacts').exists())
+        self.assertFalse((data/'session/log-session.json').exists())
+        with closing(open_read(data/'conversations/marionette.sqlite3')) as db:
+            self.assertEqual([r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")],['new sentinel'])
+        result = subprocess.run(['bash',str(self.launcher.with_name('sync-conversation-vault.sh'))],
+            capture_output=True,text=True,env=self.env,cwd='/tmp',timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+        pages = list((data/'conversations/obsidian-vault/Generated/Contacts').rglob('*.md'))
+        self.assertTrue(any('new sentinel' in p.read_text() for p in pages))
+        self.assertTrue(any('Phat' in p.read_text() for p in pages))
 
     def test_owner_shutdown_uses_orderly_launcher_cleanup(self):
         result = subprocess.run(['bash', str(self.launcher)],

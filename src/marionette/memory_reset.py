@@ -29,6 +29,16 @@ def preflight(conversation):
             raise ValueError('Reset refuses symbolic links in memory paths.')
     if not (root/'session/log-session.json').is_file():
         raise ValueError('Reset requires the active logging session descriptor.')
+    config_path = root/'scarecrow/connection.json'
+    if config_path.exists():
+        config = json.loads(config_path.read_text())
+        vault = config.get('vault') if isinstance(config, dict) else None
+        if not isinstance(vault, str) or not Path(vault).is_absolute():
+            raise ValueError('Reset requires a valid absolute Scarecrow vault path; operator review required.')
+        # Even disabled connectors can retain old personal memory. Never delete
+        # arbitrary configured locations or silently leave their contents behind.
+        if Path(vault).resolve() != (root/'conversations/obsidian-vault').resolve():
+            raise ValueError('Reset refuses an alternate Scarecrow vault; operator review required.')
     return root, database
 
 

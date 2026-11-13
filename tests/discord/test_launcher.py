@@ -18,15 +18,23 @@ spec.loader.exec_module(fixtures)
 
 class DiscordLauncherTests(unittest.TestCase):
     def test_attach_detach_reuses_session_and_fourth_terminal(self):
+        self.check_attach(False)
+
+    def test_attach_with_alternate_data_directory(self):
+        self.check_attach(True)
+
+    def check_attach(self, alternate):
         fixture = fixtures.LauncherTests()
         fixture.setUp()
         self.addCleanup(fixture.doCleanups)
         root = fixture.root
-        fixture.env['SYNTHETIC_PROFILE_FILE'] = str(root / 'data/contacts/profiles.json')
+        data = root / ('alternate data' if alternate else 'data')
+        fixture.env['MARIONETTE_DATA_DIR'] = str(data)
+        fixture.env['SYNTHETIC_PROFILE_FILE'] = str(data / 'contacts/profiles.json')
         (root / 'runtime').mkdir(exist_ok=True)
         (root / 'runtime/discord').symlink_to(sys.prefix, target_is_directory=True)
-        config = root / 'data/discord/.env'
-        config.parent.mkdir()
+        config = data / 'discord/.env'
+        config.parent.mkdir(parents=True)
         config.write_text('DISCORD_ALLOWED_USER_ID=123\nDISCORD_BOT_TOKEN=synthetic-token\n')
         config.chmod(0o600)
         source = root / 'src/marionette'
@@ -76,7 +84,7 @@ raise SystemExit(adapter.main())
             assert identity['sender_id'] == ('123' if expected_source == 'discord' else profiles['owner_uuid'])
             print('Verified identity at inference: ' + expected_source, file=sys.stderr, flush=True)
 """))
-        address = root / 'data/session/chat.sock'
+        address = data / 'session/chat.sock'
         address.parent.mkdir(mode=0o700)
         from storage import Store, view_log
         database = fixture.logs / 'marionette.sqlite3'
