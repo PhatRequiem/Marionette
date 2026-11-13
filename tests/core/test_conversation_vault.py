@@ -37,7 +37,7 @@ class ConversationVaultTests(unittest.TestCase):
         result = sync(self.database, self.profiles)
         self.assertEqual((result['messages'], result['conversations']), (3, 2))
         vault = Path(result['vault'])
-        files = list((vault / 'Generated').glob('conversation-*.md'))
+        files = list((vault / 'Generated').rglob('conversation-*.md'))
         self.assertEqual(len(files), 2)
         content = ''.join(p.read_text() for p in files)
         self.assertIn('Sample User', content)
@@ -52,10 +52,10 @@ class ConversationVaultTests(unittest.TestCase):
         vault = Path(sync(self.database)['vault'])
         note = vault / 'Annotations' / 'mine.md'
         note.write_text('My annotation')
-        original = list((vault / 'Generated').glob('conversation-*.md'))[0]
+        original = list((vault / 'Generated').rglob('conversation-*.md'))[0]
         self.message('Second', 'answer')
         sync(self.database)
-        self.assertEqual(len(list((vault / 'Generated').glob('conversation-*.md'))), 1)
+        self.assertEqual(len(list((vault / 'Generated').rglob('conversation-*.md'))), 1)
         self.assertIn('Second', original.read_text())
         self.assertEqual(note.read_text(), 'My annotation')
 
@@ -66,7 +66,7 @@ class ConversationVaultTests(unittest.TestCase):
             self.store.db.execute('DELETE FROM messages')
         result = sync(self.database)
         self.assertEqual(result['messages'], 0)
-        self.assertEqual(list((vault / 'Generated').glob('conversation-*.md')), [])
+        self.assertEqual(list((vault / 'Generated').rglob('conversation-*.md')), [])
         self.assertNotIn('Old memory', ''.join(p.read_text() for p in vault.rglob('*.md')))
 
     def test_rejects_symlink_and_unmanaged_destination(self):
@@ -114,3 +114,32 @@ class ConversationVaultTests(unittest.TestCase):
         self.assertFalse(worker.is_alive())
         self.assertEqual(failures, [])
         self.assertTrue(finished.is_set())
+
+    def test_contact_compartments_and_v1_migration(self):
+        self.message('First person')
+        self.message('Second person', contact='two')
+        vault = self.database.parent / 'obsidian-vault'
+        generated = vault / 'Generated'
+        generated.mkdir(parents=True)
+        (generated / '.marionette-managed').write_text('Marionette conversation mirror v1\n')
+        (generated / 'day-old.md').write_text('[[contact-old]]')
+        (generated / 'contact-old.md').write_text('old hub')
+        (vault / 'Annotations').mkdir()
+        (vault / 'Annotations/mine.md').write_text('Keep this')
+        sync(self.database, self.profiles)
+        self.assertFalse((generated / 'day-old.md').exists())
+        self.assertFalse((generated / 'contact-old.md').exists())
+        compartments = list((generated / 'Contacts').iterdir())
+        self.assertEqual(len(compartments), 2)
+        import re
+        for compartment in compartments:
+            self.assertTrue((compartment / 'Profile.md').exists())
+            self.assertTrue((compartment / 'Dates.md').exists())
+            self.assertEqual(len(list((compartment / 'Conversations').glob('*.md'))), 1)
+            for page in compartment.rglob('*.md'):
+                for target in re.findall(r'\[\[([^]|]+)', page.read_text()):
+                    self.assertTrue(target.startswith('Generated/Contacts/' + compartment.name + '/'))
+                    self.assertTrue((vault / (target + '.md')).exists())
+        self.assertNotIn('[[', (generated / 'Conversations.md').read_text())
+        self.assertEqual((vault / 'Annotations/mine.md').read_text(), 'Keep this')
+        self.assertTrue((generated / 'Groups').is_dir())

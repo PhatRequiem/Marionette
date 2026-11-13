@@ -17,7 +17,7 @@ From the checkout:
 In Obsidian, choose **Open folder as vault**, then select
 `data/conversations/obsidian-vault` inside this checkout. Open `Welcome` or
 `Generated/Conversations`. Search finds message text; the graph links conversation,
-contact and date pages. No Obsidian Sync, Publish, account or community plugin is
+contact pages and contact-specific date indexes. No Obsidian Sync, Publish, account or community plugin is
 needed. Keep this private vault separate from the source-code vault.
 
 Sync is **on demand**, not automatic. Run the same command again to refresh saved
@@ -28,9 +28,18 @@ Alternate log locations require operator review for memory reset, as before.
 
 ## Contents and ownership
 
-- `Generated/`: replaceable conversation pages, contact hubs, date hubs and index.
-  One conversation page represents one session + conversation ID, with stable
-  hash-based filenames. Contacts link by permanent UUID, not name.
+- `Generated/Contacts/<name>-<ID hash>/Profile.md`: contact name/ID and links to
+  that contact's conversations. These are browsing pages, not full saved profiles.
+- Each contact folder has its own `Dates.md` and `Conversations/` directory.
+  Conversations are grouped by session + conversation ID + contact UUID. Names
+  are readable labels; the ID suffix distinguishes contacts with identical names.
+  Renaming a contact moves its generated folder on the next sync.
+- `Generated/Groups/`: reserved empty folder; group chat ingestion and member links
+  are not implemented. No group membership is inferred from messages.
+- `Generated/Conversations.md`: plain folder directory without graph links. There
+  are no shared date pages or shared linking hub across contacts. All generated
+  conversation/profile/date links stay within the contact's folder. These are
+  organizational compartments, not access restrictions.
 - `Annotations/`: your own optional notes; ordinary sync leaves them alone.
 - `Welcome.md`: starting instructions. Obsidian manages its own `.obsidian/` settings.
 
@@ -45,7 +54,10 @@ wikilinks do not become active graph links or remote image fetches. The generate
 links supply the graph. No semantic relationships or tags are inferred.
 
 SQLite remains authoritative. Generated edits are overwritten on the next sync;
-removed records lose their generated pages. Put annotations outside Generated.
+removed records lose their generated pages. Sync also migrates the earlier flat
+layout by removing its generated shared contact/date pages. Existing annotations
+and Obsidian settings are preserved; manually created links to old paths may need
+updating. Put annotations outside Generated.
 The vault is a replaceable mirror, **not a backup or a new memory database**.
 
 ## Reset, consistency and limits
@@ -68,6 +80,7 @@ permissions protect newly generated private files (600) and directories (700).
 
 Synthetic tests cover literal message preservation, IDs, contact separation,
 repeat sync, annotations, stale-page deletion, symlink refusal, missing databases,
+contact-local link resolution, migration from the flat layout,
 and live reset deleting both generated conversations and annotations. Existing
 SQLite backup/restore tests remain separate; this feature adds no restoration or
 cross-database migration capability.
