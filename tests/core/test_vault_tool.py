@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -71,6 +73,32 @@ class ScarecrowTests(unittest.TestCase):
         self.assertTrue(any(m['role']=='function' for m in chat.history))
         self.assertIn('read_vault',[t['function']['name'] for t in sent[0]['tools']])
         self.assertNotIn(self.settings['token'],json.dumps(sent))
+
+    def test_cli_vault_defaults_follow_selected_paths(self):
+        checkout = self.root/'checkout'
+        script = checkout/'scripts/native-linux/setup-scarecrow.py'
+        script.parent.mkdir(parents=True)
+        shutil.copy2(ROOT/'scripts/native-linux/setup-scarecrow.py',script)
+        shutil.copytree(ROOT/'plugins/scarecrow',checkout/'plugins/scarecrow')
+        environment = dict(os.environ)
+        for key in ('MARIONETTE_DATA_DIR','MARIONETTE_LOG_DIR'):
+            environment.pop(key,None)
+        cases = [
+            ('default', [], {}, checkout/'data', checkout/'data/conversations/obsidian-vault'),
+            ('data argument', ['--data',str(self.root/'argument data')], {}, self.root/'argument data', self.root/'argument data/conversations/obsidian-vault'),
+            ('data environment', [], {'MARIONETTE_DATA_DIR':str(self.root/'env data')}, self.root/'env data', self.root/'env data/conversations/obsidian-vault'),
+            ('logs', ['--data',str(self.root/'log config')], {'MARIONETTE_LOG_DIR':str(self.root/'logs')}, self.root/'log config', self.root/'logs/obsidian-vault'),
+            ('explicit vault', ['--data',str(self.root/'explicit data'),'--vault',str(self.root/'explicit vault')], {'MARIONETTE_DATA_DIR':str(self.root/'unused data'),'MARIONETTE_LOG_DIR':str(self.root/'unused logs')}, self.root/'explicit data', self.root/'explicit vault'),
+        ]
+        for name, arguments, overrides, data, vault in cases:
+            with self.subTest(name=name):
+                (vault/'Generated').mkdir(parents=True)
+                (vault/'Generated/.marionette-managed').write_text('synthetic')
+                result = subprocess.run([sys.executable,str(script),*arguments],
+                    env=environment|overrides,capture_output=True,text=True,check=True)
+                config = json.loads((data/'scarecrow/connection.json').read_text())
+                self.assertEqual(config['vault'],str(vault))
+                self.assertTrue((vault/'.obsidian/plugins/scarecrow/main.js').is_file())
 
     def test_repeatable_setup_and_preserved_plugins(self):
         spec=importlib.util.spec_from_file_location('setup_scarecrow',ROOT/'scripts/native-linux/setup-scarecrow.py')

@@ -131,6 +131,30 @@ class LauncherTests(unittest.TestCase):
     def run_chat(self, *args):
         return subprocess.run(['bash', str(self.launcher), *args], input='1\nhello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
 
+    def test_application_startup_failures_never_report_ready(self):
+        sheet = self.root/'docs/active/setup-and-maintenance/setup-datasheet.md'
+        for component in ('profiles', 'soul', 'connection'):
+            with self.subTest(component=component):
+                if component == 'profiles':
+                    broken = self.root/'data/contacts/profiles.json'
+                elif component == 'soul':
+                    broken = self.root/'data/soul/profile.json'
+                else:
+                    broken = self.root/'data/session/chat.sock'
+                broken.parent.mkdir(parents=True,exist_ok=True)
+                if component == 'connection':
+                    broken.mkdir()
+                else:
+                    broken.write_text('{}')
+                try:
+                    result = self.run_chat()
+                    self.assertNotEqual(result.returncode,0)
+                    self.assertIn('Startup status: **failed**',sheet.read_text())
+                    self.assertNotIn('Ready. Context limit:',result.stdout)
+                finally:
+                    if broken.is_dir(): broken.rmdir()
+                    else: broken.unlink()
+
     def test_alternate_data_directory_reset_and_manual_mirror(self):
         data = self.root/'alternate data'
         self.env['MARIONETTE_DATA_DIR'] = str(data)

@@ -11,11 +11,14 @@ No startup has been recorded by the automatic updater yet.
 ## Automatic startup update
 
 `session.py` updates only the `startup-observations` marker block. It first marks
-the attempt `starting`, then `ready` after runtime readiness, `/health` and the
-existing context agreement check; failed startup is marked `failed`. Every attempt
-clears old observed values. `ready` describes startup verification, not ongoing
-health, profile selection or a completed chat turn. It remains historical after
-shutdown. After profile selection and component initialization, a final startup capture adds application state before the local bridge begins serving. No updates occur for individual messages or Discord connection changes.
+the attempt `starting`. It becomes `ready` only after runtime readiness, `/health`,
+the context agreement check, profile selection, personal-data initialization and
+entry into the local connection context. Startup failures or exit before that
+point are marked `failed`. Every attempt clears old observed values. `ready`
+describes completed startup verification, not ongoing health or a completed chat
+turn. It remains historical after shutdown. The final startup capture adds
+application state before the input loop accepts messages. No updates occur for
+individual messages or Discord connection changes.
 
 The updater reads bounded, recognized runtime startup fields. Model name, GGUF
 file type, runtime build, loaded devices, offloaded layers, context/parallelism and

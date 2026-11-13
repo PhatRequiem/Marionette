@@ -85,8 +85,10 @@ def install(vault, data, port=27124):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--vault', type=Path, default=Path(os.environ.get('MARIONETTE_DATA_DIR', ROOT / 'data')) / 'conversations/obsidian-vault')
+    parser.add_argument('--vault', type=Path, help='Explicit vault; otherwise use the selected log/data directory.')
     parser.add_argument('--data', type=Path, default=Path(os.environ.get('MARIONETTE_DATA_DIR', ROOT / 'data')))
     parser.add_argument('--port', type=int, default=27124)
     args = parser.parse_args()
-    install(args.vault, args.data, args.port)
+    logs = Path(os.environ.get('MARIONETTE_LOG_DIR') or args.data / 'conversations')
+    vault = args.vault if args.vault is not None else logs / 'obsidian-vault'
+    install(vault, args.data, args.port)

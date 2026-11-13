@@ -55,7 +55,6 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     conversation.bind_log_query()
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')
-    terminal.show_ready(capacity, conversation.reserve)
     address = os.environ.get('MARIONETTE_SESSION_SOCKET')
     if address:
         def operator_status():
@@ -76,9 +75,10 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     else:
         connection = nullcontext()
     try:
-        if on_startup is not None:
-            on_startup(conversation, bool(address))
         with connection:
+            if on_startup is not None:
+                on_startup(conversation, bool(address))
+            terminal.show_ready(capacity, conversation.reserve)
             terminal.run(conversation, external=bool(address))
     finally:
         api.closing.set()
@@ -146,13 +146,14 @@ def run(command):
         if str(capacity) != observed:
             raise RuntimeError(f'Context observations disagree: diagnostics={observed}, server={capacity}.')
         setup_details['Application'] = ('Starting', 'Waiting for profile selection')
-        refresh('ready', capacity)
-        startup_verified = True
+        refresh('starting', capacity)
         database = os.environ.get('MARIONETTE_LOG_DB')
         with closing(Store(database)) if database else nullcontext() as store:
             def capture_application(conversation, bridge_bound):
+                nonlocal startup_verified
                 setup_details.update(setup_datasheet.application(api, conversation, store, bridge_bound))
                 refresh('ready', capacity)
+                startup_verified = True
             chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'), on_startup=capture_application)
         return 0
     finally:
