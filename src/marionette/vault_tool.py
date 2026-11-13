@@ -20,10 +20,12 @@ class ReadVault(BaseTool):
     parameters = {'type': 'object', 'properties': {
         'action': {'type': 'string', 'enum': ['list', 'search', 'read', 'inspect', 'tags', 'links', 'open']},
         'path': {'type': 'string', 'description': 'Exact returned vault-relative path. Required for read, inspect, links, open; optional folder for list.'},
-        'query': {'type': 'string', 'description': 'Search words; partial matches are ranked. Check matched/missing terms and source lines.'},
+        'query': {'type': 'string', 'description': 'Search words; passages are ranked independently and grouped by note. Check matched/missing terms and source lines.'},
         'mode': {'type': 'string', 'enum': ['exact', 'prefix', 'fuzzy'], 'description': 'Search only. Default exact whole tokens; prefix expands tokens of 3+ characters, fuzzy allows one edit for tokens of 4+ characters. Inspect term_matches.'},
         'folder': {'type': 'string', 'description': 'Search only within this vault folder.'},
         'tag': {'type': 'string', 'description': 'Search filter: exact tag.'},
+        'passage_id': {'type': 'string', 'description': 'Read only: exact passage_id from search with its path. Search again if stale. Do not combine with section.'},
+        'context': {'type': 'string', 'enum': ['none', 'neighbors'], 'description': 'Read with passage_id: optionally include preceding and following exchange/section.'},
         'section': {'type': 'string', 'description': 'Read only: exact unique heading from inspect; otherwise read the whole note.'}},
         'required': ['action']}
 

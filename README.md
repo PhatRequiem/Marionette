@@ -18,7 +18,7 @@ The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-
 
 Log-tool execution works, but answers can still misinterpret units or add unsupported details; see [current reliability limits](docs/active/current-operation/log-queries.md#current-reliability-limits).
 
-The [Scarecrow Obsidian plugin](docs/active/setup-and-maintenance/obsidian-connection.md) provides optional read-only local access to the conversation and documentation mirror. It runs inside Obsidian and exposes browsing, ranked lexical search, metadata, links and UI opening through `read_vault`. Its independent search engine supports BM25 scoring and optional prefix/typo matching without an embedding model.
+The [Scarecrow Obsidian plugin](docs/active/setup-and-maintenance/obsidian-connection.md) provides optional read-only local access to the conversation and documentation mirror. It runs inside Obsidian and exposes browsing, ranked lexical search, metadata, links and UI opening through `read_vault`. Its independent search engine ranks conversation exchanges and documentation sections with BM25, optional prefix/typo matching, source references and neighboring-context reads. No embedding model is required.
 
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 

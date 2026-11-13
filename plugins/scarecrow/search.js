@@ -33,6 +33,7 @@ function evidence(doc, terms, sourceTerms) {
   const queryPairs = new Set(terms.slice(1).map((term,i) => terms[i]+'\0'+term));
   const matching_lines = [];
   for (const {line,text,words} of doc.lines) {
+    if (!line && doc.note.passage_id) continue; // Shared paths are not passage proximity evidence.
     if (line && words.some(word => sourceTerms.has(word))) matching_lines.push({line,text});
     for (let i=0; i<words.length; i++) {
       if (!wanted.has(words[i])) continue;
@@ -46,10 +47,11 @@ function evidence(doc, terms, sourceTerms) {
   return {nearby, phrases, matching_lines};
 }
 class SearchIndex {
-  constructor() {
+  constructor(weights=FIELD_WEIGHTS) {
+    this.weights=weights;
     this.documents = new Map();
-    this.postings = new Map(); // token -> set of note paths
-    this.lengths = Object.fromEntries(Object.keys(FIELD_WEIGHTS).map(field => [field,0]));
+    this.postings = new Map(); // token -> set of document/passage keys
+    this.lengths = Object.fromEntries(Object.keys(this.weights).map(field => [field,0]));
   }
   remove(name) {
     const doc = this.documents.get(name);
@@ -59,11 +61,12 @@ class SearchIndex {
       posting.delete(name);
       if (!posting.size) this.postings.delete(term);
     }
-    for (const field of Object.keys(FIELD_WEIGHTS)) this.lengths[field] -= doc.fields[field].length;
+    for (const field of Object.keys(this.weights)) this.lengths[field] -= doc.fields[field].length;
     this.documents.delete(name);
   }
   add(note, content, headings=[]) {
-    this.remove(note.path);
+    const id=note.passage_id ? note.path+"#"+note.passage_id : note.path;
+    this.remove(id);
     const title = note.path.split('/').at(-1).replace(/\.md$/i,'');
     const texts = {body:content, path:note.path, title, headings:headings.join('\n')};
     const fields = {}, terms = new Set();
@@ -73,11 +76,11 @@ class SearchIndex {
       this.lengths[field] += words.length;
       for (const term of words) terms.add(term);
     }
-    const lines = [note.path,...content.split('\n')].map((text,line) => ({line,text,words:tokens(text)}));
-    this.documents.set(note.path,{note, fields, terms, lines});
+    const lines = [note.path,...content.split('\n')].map((text,line) => ({line:line ? line+(note.start_line || 1)-1 : 0,text,words:tokens(text)}));
+    this.documents.set(id,{note, fields, terms, lines});
     for (const term of terms) {
       if (!this.postings.has(term)) this.postings.set(term,new Set());
-      this.postings.get(term).add(note.path);
+      this.postings.get(term).add(id);
     }
   }
   idf(term) {
@@ -86,7 +89,7 @@ class SearchIndex {
   }
   termScore(doc, term) {
     let score = 0;
-    for (const [field,weight] of Object.entries(FIELD_WEIGHTS)) {
+    for (const [field,weight] of Object.entries(this.weights)) {
       const {length,counts} = doc.fields[field], frequency = counts.get(term) || 0;
       if (!frequency) continue;
       const average = this.lengths[field]/this.documents.size;
@@ -141,7 +144,7 @@ class SearchIndex {
         term_matches,nearby_pairs:[...nearby].map(pair => pair.split('\0')),
         matched_phrases:[...phrases].map(pair => pair.replace('\0',' ')),matching_lines});
     }
-    return matches.sort((a,b) => b.score-a.score || a.path.localeCompare(b.path));
+    return matches.sort((a,b) => b.score-a.score || a.path.localeCompare(b.path) || (a.start_line || 0)-(b.start_line || 0));
   }
 }
 module.exports = {SearchIndex, tokens};

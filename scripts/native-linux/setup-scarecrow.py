@@ -31,10 +31,10 @@ def bundle():
     """Assemble our fixed CommonJS modules for Obsidian's single-file loader."""
     source = ROOT / 'plugins/scarecrow'
     modules = []
-    for name in ('search', 'operations', 'server', 'main'):
+    for name in ('search', 'passages', 'operations', 'server', 'main'):
         modules.append(json.dumps('./' + name) + ': function(module, exports, require) {\n' +
                        (source / (name + '.js')).read_text() + '\n}')
-    return ("// Scarecrow 0.2.0: generated from versioned project source.\n" +
+    return ("// Scarecrow 0.3.0: generated from versioned project source.\n" +
             "const nativeRequire = require;\nconst factories = {" + ',\n'.join(modules) + "};\n" +
             "const cache = {};\nfunction load(name) {\n" +
             "  if (!Object.hasOwn(factories, name)) return nativeRequire(name);\n" +
@@ -61,7 +61,7 @@ def install(vault, data, port=27124):
     plugin.mkdir(parents=True, exist_ok=True)
     safe(plugin / 'main.js')
     (plugin / 'main.js').write_text(bundle())
-    for name in ('search.js', 'operations.js', 'server.js'):
+    for name in ('search.js', 'passages.js', 'operations.js', 'server.js'):
         stale = plugin / name
         safe(stale)
         if stale.exists():
@@ -80,7 +80,7 @@ def install(vault, data, port=27124):
         enabled.append('scarecrow')
     private_json(enabled_path, enabled)
     private_json(data / 'scarecrow/connection.json', dict(settings, enabled=True, vault=str(vault)))
-    print('Scarecrow 0.2.0 installed. Open/reload this vault in Obsidian; restart Marionette to register read_vault.')
+    print('Scarecrow 0.3.0 installed. Open/reload this vault in Obsidian; restart Marionette to register read_vault.')
 
 
 if __name__ == '__main__':

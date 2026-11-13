@@ -51,7 +51,11 @@ test('HTTP authentication, origin, routes, reset, large results and shutdown',as
  assert.equal((await fetch(url+'/v1/query',{method:'DELETE',headers})).status,404);
  const call=body=>fetch(url+'/v1/query',{method:'POST',headers,body:JSON.stringify(body)});
  assert.equal((await call({action:'delete',path:'Welcome.md'})).status,400);
+ const search=await (await call({action:'search',query:'STRAW'})).json();
+ const passage_id=search.data.matches[0].passages[0].passage_id;
+ assert.equal((await call({action:'read',path:'Welcome.md',passage_id,context:'neighbors'})).status,200);
  fs.writeFileSync(path.join(root,'Welcome.md'),'large text '.repeat(110000));
+ assert.equal((await call({action:'read',path:'Welcome.md',passage_id})).status,409);
  assert.ok((await (await call({action:'read',path:'Welcome.md'})).json()).data.content.length>1000000);
  fs.unlinkSync(path.join(root,'Generated/.marionette-managed'));
  assert.equal((await call({action:'read',path:'Welcome.md'})).status,503);
