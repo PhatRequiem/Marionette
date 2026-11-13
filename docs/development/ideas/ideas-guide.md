@@ -8,4 +8,4 @@ Keep one topic per `.md` or `.txt` file with a descriptive name. Include a title
 
 Ideas may be incomplete, contradictory, or abandoned. They do not override `AGENTS.md`, the current baseline, or operating guides. If an idea is later explicitly approved, record that decision separately; update its note to point to the approved work and document actual behavior in the normal guides when implemented.
 
-This folder stays outside the Obsidian mirror. Use [Active documentation](../../README.md#active--mirrored-into-obsidian) for implemented behavior and [Experiments](../experiments/README.md) for recorded tests. Return to the [Development index](../README.md).
+This folder stays outside the Obsidian mirror. Use [Active documentation](../../documentation-map.md#active--mirrored-into-obsidian) for implemented behavior and [Experiments](../experiments/experiment-index.md) for recorded tests. Return to the [Development index](../development-index.md).

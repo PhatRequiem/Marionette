@@ -39,7 +39,7 @@ it does not force a tool call or guarantee model compliance.
 
 The current concise guidance replaces the longer prompt used in the initial
 35-question evaluation. Guidance for contact notes and soul edits is also loaded
-when those tools are registered; see [prompt composition](../../../../prompts/README.md).
+when those tools are registered; see [prompt composition](../../../../prompts/prompt-guide.md).
 Those earlier behavior scores do not measure this revised prompt.
 
 ---

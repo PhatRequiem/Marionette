@@ -94,7 +94,7 @@ Every successful handler response includes lookup-specific `field_meanings`. The
 
 The tool is rebound after each conversation switch and before prompt counting. Its description includes short definitions and valid request examples; the full glossary and datasheet are not injected into every prompt. Only current-session messages are accessible. A current-status query usually observes processing as busy because it runs during the answering turn.
 
-Enabled [log-query instructions](../../../prompts/log-queries.md) are composed separately from the editable soul. They guide evidence lookup for setup/status questions without forcing a tool call or guaranteeing compliance. Other registered tools receive their own concise guidance; see [prompt composition](../../../prompts/README.md). Restart chat to load prompt edits.
+Enabled [log-query instructions](../../../prompts/log-queries.md) are composed separately from the editable soul. They guide evidence lookup for setup/status questions without forcing a tool call or guaranteeing compliance. Other registered tools receive their own concise guidance; see [prompt composition](../../../prompts/prompt-guide.md). Restart chat to load prompt edits.
 
 ## Current reliability limits
 

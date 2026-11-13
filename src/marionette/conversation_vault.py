@@ -150,8 +150,9 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
                     continue
                 destination = 'Self documentation/active/' + relative.as_posix()
                 pages[destination] = source.read_bytes()
-                if len(relative.parts) == 1 or relative.name == 'README.md':
-                    heading = relative.parent.name.replace('-', ' ').capitalize() if relative.name == 'README.md' else relative.stem
+                section_index = len(relative.parts) == 2 and relative.stem == relative.parent.name and relative.suffix == '.md'
+                if len(relative.parts) == 1 or section_index:
+                    heading = relative.stem.replace('-', ' ').capitalize() if section_index else relative.stem
                     index += '- [' + label(heading) + '](' + quote(destination, safe='/') + ')\n'
                 documentation_count += 1
             pages['Self documentation.md'] = index

@@ -2,7 +2,7 @@
 
 Implemented behavior, supported data formats and current limitations. These guides are mirrored into Obsidian under Self documentation. Dated test reports and retired behavior belong in `docs/development/`, outside the mirror.
 
-For installation and upkeep, see [Setup and maintenance](../setup-and-maintenance/README.md).
+For installation and upkeep, see [Setup and maintenance](../setup-and-maintenance/setup-and-maintenance.md).
 
 - [Contact notes](contact-notes.md)
 - [Profiles and sender identity](contacts.md)

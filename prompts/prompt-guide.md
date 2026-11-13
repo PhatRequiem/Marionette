@@ -39,4 +39,4 @@ Contact-note guidance allows optional inline citations using the exact stable
 these internal destinations on sync; the model does not construct filenames or
 gain file access. See [contact-note citations](../docs/active/current-operation/contact-notes.md#optional-conversation-links).
 
-These files are application inputs, not part of the `docs/active/` mirror. Current tool behavior is documented in [Qwen-Agent coordination](../docs/active/current-operation/qwen-agent.md); test reports and retired guidance belong in [Development](../docs/development/README.md) or Git history. Only Active documentation is mirrored into Obsidian.
+These files are application inputs, not part of the `docs/active/` mirror. Current tool behavior is documented in [Qwen-Agent coordination](../docs/active/current-operation/qwen-agent.md); test reports and retired guidance belong in [Development](../docs/development/development-index.md) or Git history. Only Active documentation is mirrored into Obsidian.

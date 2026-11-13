@@ -30,9 +30,9 @@ Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 
 
 ## Documentation
 
-Start with the [documentation map](docs/README.md). [Current operation](docs/active/current-operation/README.md) explains implemented behavior; [Setup and maintenance](docs/active/setup-and-maintenance/README.md) covers installation and upkeep. These Active guides are mirrored into Obsidian.
+Start with the [documentation map](docs/documentation-map.md). [Current operation](docs/active/current-operation/current-operation.md) explains implemented behavior; [Setup and maintenance](docs/active/setup-and-maintenance/setup-and-maintenance.md) covers installation and upkeep. These Active guides are mirrored into Obsidian.
 
-[Development](docs/development/README.md) contains test reports, historical checkpoints and discussion-only ideas. It stays outside the vault. Keep dated results there; keep current limitations and supported procedures in Active.
+[Development](docs/development/development-index.md) contains test reports, historical checkpoints and discussion-only ideas. It stays outside the vault. Keep dated results there; keep current limitations and supported procedures in Active.
 
 ## Reviewing the code
 
@@ -83,13 +83,13 @@ Start with these files, in order:
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
-- `docs/`: [documentation map](docs/README.md).
+- `docs/`: [documentation map](docs/documentation-map.md).
 - `docs/active/current-operation/`: current behavior and feature guides; mirrored into Obsidian.
 - `docs/active/setup-and-maintenance/`: installation, configuration, maintenance and licenses; mirrored into Obsidian.
-- `docs/development/`: [development index](docs/development/README.md); excluded from Obsidian.
-- `docs/development/experiments/`: [test reports and investigations](docs/development/experiments/README.md), including reports extracted from Active guides.
-- `docs/development/history/`: [saved baselines and retired documentation](docs/development/history/README.md).
-- `docs/development/ideas/`: [discussion-only ideas](docs/development/ideas/README.md), separate from approved work and current behavior.
+- `docs/development/`: [development index](docs/development/development-index.md); excluded from Obsidian.
+- `docs/development/experiments/`: [test reports and investigations](docs/development/experiments/experiment-index.md), including reports extracted from Active guides.
+- `docs/development/history/`: [saved baselines and retired documentation](docs/development/history/history-index.md).
+- `docs/development/ideas/`: [discussion-only ideas](docs/development/ideas/ideas-guide.md), separate from approved work and current behavior.
 - `docs/active/setup-and-maintenance/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/active/setup-and-maintenance/setup.md#shared-inference-runtime).
 - `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.

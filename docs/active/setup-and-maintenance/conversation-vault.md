@@ -57,7 +57,7 @@ Alternate log locations require operator review for memory reset, as before.
   Contacts hub in graph view, but there are no shared date pages. Conversation,
   profile and date links within each collection stay local to that contact.
   These are organizational compartments, not access restrictions.
-- `Generated/Self documentation.md`: index linked from Welcome.
+- `Generated/Self documentation.md`: index linked from Welcome. It links Active section indexes whose filename matches their folder (`current-operation.md` and `setup-and-maintenance.md`), plus files directly under Active. Descriptive source filenames are preserved in the mirror; sync removes old README copies.
 - `Generated/Self documentation/active/`: one-way mirror of the project `docs/`
   `active/` subtree only, preserving subfolders and file bytes, including Markdown, JSON and text.
   Hidden/editor files are excluded and symlinks refused. Ordinary sync refreshes

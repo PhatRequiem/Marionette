@@ -2,7 +2,7 @@
 
 Installation, configuration and upkeep for the current checkout. These guides are mirrored into Obsidian under Self documentation. Keep supported maintenance procedures here; record test outcomes and retired audits in `docs/development/`, outside the mirror.
 
-For implemented behavior and feature limits, see [Current operation](../current-operation/README.md).
+For implemented behavior and feature limits, see [Current operation](../current-operation/current-operation.md).
 
 - [Browse saved conversations in Obsidian](conversation-vault.md)
 - [Discord DMs](discord.md)
