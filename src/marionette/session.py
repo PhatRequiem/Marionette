@@ -78,7 +78,8 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     database = store.db.execute('PRAGMA database_list').fetchone()[2] if store is not None else None
     conversation.discord_control = DiscordControl(data, address, database, session_id)
     try:
-        with connection:
+        from vault_diagnostics import VaultDiagnostics
+        with connection, VaultDiagnostics(data):
             if on_startup is not None:
                 on_startup(conversation, bool(address))
             terminal.show_ready(capacity, conversation.reserve)

@@ -32,6 +32,22 @@ class RamLogTests(unittest.TestCase):
         self.addCleanup(buffer.close)
         return buffer
 
+    def test_vault_events_use_existing_ram_and_shutdown_save(self):
+        from log_router import category
+        buffer = self.buffer()
+        raw = b'Client: Connection event: {"source":"Scarecrow","event":"request_failed","http_status":503}\n'
+        identifier = buffer.append(raw, category(raw))
+        self.assertEqual(self.disk.db.execute('SELECT count(*) FROM events').fetchone()[0], 0)
+        self.assertEqual(buffer.memory.db.execute('SELECT count(*) FROM failures').fetchone()[0], 1)
+        with closing(LiveView(buffer, self.path)):
+            self.assertIn(b'Scarecrow', read_live(self.path, self.session, 'server', 0)[1])
+            self.assertNotIn(b'Scarecrow', read_live(self.path, self.session, 'model', 0)[1])
+            self.assertNotIn(b'Scarecrow', read_live(self.path, self.session, 'reasoning', 0)[1])
+        buffer.save()
+        row = self.disk.db.execute('SELECT id,raw FROM events WHERE id=?', (identifier,)).fetchone()
+        self.assertEqual(tuple(row), (identifier, raw))
+        self.assertEqual(self.disk.db.execute('SELECT count(*) FROM failures').fetchone()[0], 1)
+
     def test_reasoning_stream_is_live_and_saved_without_chat_or_query_pollution(self):
         from log_router import category
         from log_view import render

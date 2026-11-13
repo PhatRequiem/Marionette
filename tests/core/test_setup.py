@@ -100,7 +100,7 @@ class LauncherTests(unittest.TestCase):
         shutil.copytree(ROOT / 'prompts', self.root / 'prompts')
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['discord_control.py', 'vault_tool.py', 'conversation_vault.py', 'conversation_refs.py', 'memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'operator_status.py', 'log_tool.py', 'log_query.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['discord_control.py', 'vault_diagnostics.py', 'vault_tool.py', 'conversation_vault.py', 'conversation_refs.py', 'memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'operator_status.py', 'log_tool.py', 'log_query.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))

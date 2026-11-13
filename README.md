@@ -65,6 +65,7 @@ Start with these files, in order:
 | [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/active/current-operation/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
+| [vault_diagnostics.py](src/marionette/vault_diagnostics.py) | Live Scarecrow/Obsidian metadata into Connections and Requests via the existing recorder |
 | [vault_tool.py](src/marionette/vault_tool.py) | Read-only HTTP adapter for Scarecrow |
 | [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |

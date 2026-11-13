@@ -43,7 +43,7 @@ Results carry exact vault-relative paths and note modification timestamps where 
 
 ## Boundaries and lifecycle
 
-The listener requires a private bearer token, checks the loopback Host header and rejects browser Origin requests. It offers only `GET /v1/status` and `POST /v1/query`; there are no write, delete or command routes. The Python adapter fixes the hostname to 127.0.0.1, does not use proxies or follow redirects, and verifies the response vault ID. Unknown actions and action-inappropriate fields fail.
+The listener requires a private bearer token, checks the loopback Host header and rejects browser Origin requests. It offers `GET /v1/status`, `POST /v1/query` and the authenticated diagnostic stream `GET /v1/events`; there are no write, delete or command routes. The Python adapter fixes the hostname to 127.0.0.1, does not use proxies or follow redirects, and verifies the response vault ID. Unknown actions and action-inappropriate fields fail.
 
 Operations use the public Vault, MetadataCache and Workspace APIs. Only visible vault paths are accepted; hidden directories (including `.obsidian`), traversal, absolute paths and symlinked note paths are excluded, including from search and link results. All contact collections remain readable. Open operates only on an existing Markdown file; it cannot create a missing note. It changes the human's visible workspace, not note content.
 
@@ -68,3 +68,13 @@ Node is needed to run plugin tests, not as a separate production server. Tests u
 Official design references: [Vault API](https://docs.obsidian.md/Plugins/Vault), [public API definitions](https://github.com/obsidianmd/obsidian-api/blob/master/obsidian.d.ts), [plugin lifecycle](https://docs.obsidian.md/plugins/guides/lifecycle-management), [manifest](https://docs.obsidian.md/Reference/Manifest). The HTTP protocol and tool interface are Marionette design choices.
 
 Reset refuses configured alternate Scarecrow vault locations before changing personal data, even when the connector is disabled. An operator must review and clear those memory copies separately; reset never deletes arbitrary configured folders.
+
+## Connections and Requests logs
+
+While configured access is enabled, a reader thread inside main chat subscribes to Scarecrow's authenticated `/v1/events` stream. Plugin/listener observations, Obsidian readiness, request receipt/completion/failure, HTTP status and elapsed milliseconds appear in **Connections and Requests**, labeled `Scarecrow` or `Obsidian`. The Python tool also records request start/end with the same UUID passed in `X-Request-ID`; its existing message/request/tool scope connects that UUID to the model call. Reasoning retains its brief tool summaries.
+
+The stream reports the listener and vault state observed at connection, then live events. It does not replay startup events from before Marionette connected. Unload emits `plugin_stopping` best-effort; a crash or broken connection appears as `unavailable`, not a verified graceful shutdown. Main chat retries every two seconds and records state changes rather than every failed retry. Fifteen-second blank keepalives are not logged. `ready` describes workspace/index readiness; request results still determine whether a particular vault operation succeeded. Missing mirror markers are reported on stream connection and rejected by query operations. A listener that cannot bind cannot stream its own failure; its local Obsidian notice remains available and Marionette observes the connection as unavailable.
+
+Only metadata is forwarded: no bearer tokens, query text, note paths, note contents or response bodies. The stream has no replay queue or disk log; events during disconnection are not recoverable. Slow subscribers are disconnected rather than accumulating a backlog. The reader stops before main chat's recorder shuts down. Events share the existing 500 MB RAM budget and shutdown save; no helper process or additional storage system is introduced. This captures Scarecrow integration events, not Obsidian's entire developer console.
+
+After a code update, rerun setup and reload the vault to load the new plugin bundle; restart Marionette to start the diagnostic subscriber.

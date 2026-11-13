@@ -73,6 +73,14 @@ def failure_identity(stream, raw):
         match = re.match(rb'Client: (?:\[message ([^\]\r\n]+)\] )?(?:\[request (\d+)\] )?(?:\[tool (\d+)\] )?(.*)', raw)
         if match:
             msg, request, tool, text = match.groups()
+            if text.startswith(b'Connection event: '):
+                try:
+                    event = json.loads(text.removeprefix(b'Connection event: '))
+                except ValueError:
+                    event = {}
+                if isinstance(event, dict) and event.get('source') in ('Scarecrow', 'Obsidian') and event.get('event') in (
+                        'listener_failed', 'request_failed', 'request_aborted', 'unavailable', 'mirror_unavailable'):
+                    return tuple(x.decode() if x else None for x in (msg, request, tool)) + ('vault',)
             for prefix, component in ((b'Model Request failed:', 'model'), (b'Tool Call failed:', 'tool'),
                                       (b'Message failed:', 'message'), (b'Discord local request failed:', 'bridge'),
                                       (b'Rollover preparation failed;', 'preparation'), (b'Client error:', 'client')):

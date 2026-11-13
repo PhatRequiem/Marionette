@@ -152,3 +152,5 @@ Reasoning display chunks use the same diagnostic RAM budget and shutdown save.
 They do not create routine disk payload writes. Scoped log queries exclude these
 presentation chunks before applying evidence limits; the reasoning viewer can
 read them live and replay retained chunks after shutdown.
+
+Scarecrow/Obsidian integration metadata enters the same RAM diagnostic stream. Explicit connection-unavailable, mirror-unavailable, listener-failure and request-failure/abort events qualify for the existing protected error windows. Routine payload writes, budget sizes and shutdown-saving policy are unchanged; plugin events missed before subscription or during disconnection have no replay store.

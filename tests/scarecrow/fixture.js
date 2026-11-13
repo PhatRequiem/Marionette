@@ -35,15 +35,15 @@ function fixture(root) {
   };
   return {app,files,cache,opened:()=>opened};
 }
-async function start(root) {
+async function start(root, port=0) {
   const data=fixture(root), settings={port:27124,token:'a'.repeat(64),vault_id:'fixture'};
   const server=createServer(settings,new Operations(data.app),()=>true);
-  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
   settings.port=server.address().port;
   return {...data,server,settings};
 }
 module.exports={fixture,start};
-if(require.main===module) start(process.argv[2]).then(({server,settings})=>{
+if(require.main===module) start(process.argv[2],Number(process.argv[3] || 0)).then(({server,settings})=>{
   process.stdout.write(JSON.stringify(settings)+'\n');
   process.on('SIGTERM',()=>{server.close();server.closeAllConnections();});
 });

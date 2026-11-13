@@ -15,8 +15,8 @@ module.exports = class Scarecrow extends Plugin {
           .setDesc('Local access for Marionette. Run the project setup script to configure credentials and port. No note editing or command execution.');
       }
     }(this.app,this));
-    this.registerEvent(this.app.metadataCache.on('resolved', () => {this.ready=true;}));
-    this.app.workspace.onLayoutReady(() => { if (!this.stopped) this.ready=true; });
+    this.registerEvent(this.app.metadataCache.on('resolved', () => {this.ready=true;this.server?.diagnostic('Obsidian','ready');}));
+    this.app.workspace.onLayoutReady(() => { if (!this.stopped) {this.ready=true;this.server?.diagnostic('Obsidian','ready');} });
     try {
       this.server = createServer(this.settings || {}, new Operations(this.app), () => this.ready);
       this.server.on('error', () => {this.status='Offline: local listener could not start.';new Notice('Scarecrow: local listener unavailable. Check port and settings.');});
@@ -25,7 +25,7 @@ module.exports = class Scarecrow extends Plugin {
   }
   onunload() {
     this.stopped=true; this.ready=false;
-    if (this.server) {this.server.close();this.server.closeAllConnections();this.server=null;}
+    if (this.server) {this.server.endDiagnostics();this.server.close();this.server.closeAllConnections();this.server=null;}
     this.status='Offline';
   }
 };

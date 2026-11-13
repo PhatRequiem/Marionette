@@ -72,3 +72,24 @@ test('plugin load/unload and reload release listener',async t=>{
   assert.equal(plugin.server,null);assert.equal(plugin.ready,false);
  }
 });
+test('authenticated diagnostics stream correlates requests without content and ends on unload',async t=>{
+ const {server,settings}=await start(temp(t));
+ t.after(()=>{server.close();server.closeAllConnections();});
+ const url=`http://127.0.0.1:${settings.port}`,headers={Authorization:'Bearer '+settings.token};
+ assert.equal((await fetch(url+'/v1/events')).status,403);
+ const stream=await fetch(url+'/v1/events',{headers});
+ assert.equal(stream.headers.get('x-vault-id'),'fixture');
+ const reader=stream.body.getReader(), decoder=new TextDecoder();let text='';
+ const until=async needle=>{while(!text.includes(needle)){const chunk=await reader.read();assert.equal(chunk.done,false);text+=decoder.decode(chunk.value);} };
+ await until('listener_observed');
+ const request_id='12345678-1234-1234-1234-123456789abc';
+ const result=await fetch(url+'/v1/query',{method:'POST',headers:{...headers,'Content-Type':'application/json','X-Request-ID':request_id},body:JSON.stringify({action:'search',query:'private search'})});
+ assert.equal(result.headers.get('x-request-id'),request_id);
+ await result.json();await until('request_completed');
+ assert.ok(text.includes(request_id));assert.ok(text.includes('duration_ms'));assert.ok(text.includes('"action":"search"'));
+ assert.equal(text.includes('private search'),false);assert.equal(text.includes(settings.token),false);assert.equal(text.includes('STRAW-42'),false);
+ const denied=await fetch(url+'/v1/query',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{"action":"write"}'});
+ await denied.json();await until('request_failed');
+ server.endDiagnostics();await until('plugin_stopping');
+ await reader.cancel();
+});
