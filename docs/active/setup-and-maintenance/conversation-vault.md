@@ -2,8 +2,7 @@
 
 The operator-only exporter builds a local Markdown vault containing saved conversations,
 contact profiles and notes, and Active project documentation. Welcome links to Contacts
-and Self documentation. Conversation text comes from SQLite user inputs and final answers. The mirror alone does not feed saved history into model context. The optional
-[read-only connection](obsidian-connection.md) lets Marionette retrieve notes on demand. No plugin, hosted service, embedding model, or Python dependency
+and Self documentation. Conversation text comes from SQLite user inputs and final answers. The mirror alone does not feed saved history into model context. Model access is currently [disconnected](obsidian-connection.md). No plugin, hosted service, embedding model, or Python dependency
 is required. Obsidian is an optional proprietary viewer; the files also work in
 other Markdown editors.
 

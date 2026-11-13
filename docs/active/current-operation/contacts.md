@@ -43,7 +43,7 @@ Selecting another terminal profile never transfers your Discord account to it. D
 
 The main diagnostic logs record **Sender identity** with these fields; the normal transcript records profile selection, messages and replies. Metadata is counted before generation and retained with each user message. `/clear` resets only the originating conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
 
-Each terminal profile and each Discord sender has a separate history, using the same per-conversation budget and rollover policy. The current sender’s contact notes are supplied alongside this metadata on each ordinary message; optional read_vault access can search all contact collections in the shared mirror, without per-contact boundaries. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
+Each terminal profile and each Discord sender has a separate history, using the same per-conversation budget and rollover policy. The current sender’s contact notes are supplied alongside this metadata on each ordinary message; the shared Obsidian mirror remains available to the operator, but model vault access is disconnected. Sender labels help the model interpret messages; they do not enforce permissions or guarantee that it interprets identity correctly. Access restrictions remain in code.
 
 ## Command permissions
 

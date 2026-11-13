@@ -6,7 +6,7 @@
 - [Setup and maintenance](active/setup-and-maintenance/setup-and-maintenance.md): install, configure, run and maintain it.
 
 Only `docs/active/` is mirrored under Self documentation in the private vault.
-The optional [read-only connection](active/setup-and-maintenance/obsidian-connection.md) enables model browsing. Direct vault editing remains disabled.
+The [vault connection status](active/setup-and-maintenance/obsidian-connection.md) records that model browsing is disconnected. The mirror remains available to the operator.
 
 ## Development — outside Obsidian
 

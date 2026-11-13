@@ -18,7 +18,7 @@ The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-
 
 Log-tool execution works, but answers can still misinterpret units or add unsupported details; see [current reliability limits](docs/active/current-operation/log-queries.md#current-reliability-limits).
 
-An optional [read-only Obsidian connection](docs/active/setup-and-maintenance/obsidian-connection.md) lets her search and browse the local mirror through Cyanheads. It includes all contact collections and Active documentation; direct vault writes are disabled.
+The [Obsidian mirror](docs/active/setup-and-maintenance/conversation-vault.md) remains available for human browsing. Model access is disconnected; the planned custom Obsidian plugin is not implemented.
 
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
@@ -64,8 +64,6 @@ Start with these files, in order:
 | [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/active/current-operation/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
-| [vault_tool.py](src/marionette/vault_tool.py) | Read-only browsing, search, tags, sections and UI navigation over local Cyanheads MCP |
-| [setup-obsidian.py](scripts/native-linux/setup-obsidian.py) | Install the locked connector and checksum-verified Obsidian API plugin |
 | [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |
 | [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |
@@ -103,9 +101,6 @@ Start with these files, in order:
 - `data/soul/`: private self identity and soul revision history; ignored by Git.
 - `data/session/`: private socket and current logging-session descriptor; ignored by Git.
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
-- `runtime/obsidian-mcp/`: pinned optional Cyanheads Node environment; ignored by Git.
-- `data/obsidian/`: private local vault connection settings and credential; ignored by Git.
-- `scripts/native-linux/obsidian/`: connector npm lockfile and plugin download checksums.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/discord/`: optional Discord transport tests—human one-to-one DM filtering, delivery, attachment to main chat, and reasoning isolation.

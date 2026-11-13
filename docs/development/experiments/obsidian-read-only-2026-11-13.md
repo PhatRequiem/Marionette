@@ -1,5 +1,7 @@
 # Read-only Obsidian connection verification — November 13, 2026
 
+> Historical: the Cyanheads integration was removed on 2026-11-13. Model vault access is disconnected; the custom plugin is not implemented.
+
 Configuration: Cyanheads obsidian-mcp-server 3.9.0 with the locked Node dependency tree, Local REST API with MCP 5.5.2, Qwen-Agent 0.0.34, and the existing Qwen3.5-4B Q4_K_M / llama.cpp b12211 Vulkan configuration. The model, precision, 65,536 context, 5,120 MiB cache, thinking mode and sampling settings were unchanged.
 
 - Real Cyanheads against a synthetic loopback API: read succeeded; write, delete and command tools were absent from discovery. Direct calls to these disabled tools were rejected without HTTP mutation requests reaching the fixture.

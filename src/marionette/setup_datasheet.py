@@ -186,8 +186,7 @@ def application(api, conversation, store, bridge_bound):
     }
     purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',
-                'query_logs': 'Read setup, status and current-conversation diagnostics',
-                'read_vault': 'Read-only Obsidian vault search and browsing'}
+                'query_logs': 'Read setup, status and current-conversation diagnostics'}
     for tool in tools:
         result['Tool: ' + tool.name] = ('Available', purposes.get(tool.name, 'Registered tool'))
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:

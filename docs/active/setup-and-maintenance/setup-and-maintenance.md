@@ -10,4 +10,4 @@ For implemented behavior and feature limits, see [Current operation](../current-
 - [Setup datasheet](setup-datasheet.md): the last startup attempt, not live status
 - [Native Linux terminal chat](setup.md)
 
-- [Read-only Obsidian connection](obsidian-connection.md)
+- [Obsidian connection status](obsidian-connection.md)

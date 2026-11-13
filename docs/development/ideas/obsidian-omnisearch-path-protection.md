@@ -1,5 +1,7 @@
 # Revisit Obsidian Omnisearch without exposing configuration
 
+> Historical: the Cyanheads integration was removed on 2026-11-13. Model vault access is disconnected; the custom plugin is not implemented.
+
 Date: 2026-11-13
 
 **Status: idea only — not approved or implemented**
