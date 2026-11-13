@@ -1,7 +1,8 @@
-# Browse saved conversations in Obsidian
+# Browse contacts and Self documentation in Obsidian
 
-The operator-only exporter builds a local Markdown vault from SQLite user inputs
-and final answers. It does not give Marionette a new tool or feed saved history
+The operator-only exporter builds a local Markdown vault containing saved conversations,
+contact profiles and notes, and Active project documentation. Welcome links to Contacts
+and Self documentation. Conversation text comes from SQLite user inputs and final answers. It does not give Marionette a new tool or feed saved history
 into her context. No plugin, hosted service, embedding model, or Python dependency
 is required. Obsidian is an optional proprietary viewer; the files also work in
 other Markdown editors.
