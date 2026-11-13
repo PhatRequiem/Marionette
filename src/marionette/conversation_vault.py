@@ -41,7 +41,7 @@ def atomic_write(path, content):
         temporary.unlink(missing_ok=True)
 
 
-def sync(database, profiles=None):
+def sync(database, profiles=None, contact_notes=None):
     database = Path(database).absolute()
     vault = database.parent / 'obsidian-vault'
     # Destination is deliberately fixed under the reset-managed conversations folder.
@@ -50,6 +50,9 @@ def sync(database, profiles=None):
             raise ValueError('Vault refuses symbolic links.')
     if vault.is_symlink() or (vault.exists() and any(p.is_symlink() for p in vault.rglob('*'))):
         raise ValueError('Vault refuses symbolic links.')
+    notes_directory = Path(contact_notes).absolute() if contact_notes else None
+    if notes_directory and any(p.is_symlink() for p in (notes_directory, *notes_directory.parents)):
+        raise ValueError('Contact notes source refuses symbolic links.')
     names = {}
     if profiles and Path(profiles).exists():
         names = {p['uuid']: p['name'] for p in json.loads(Path(profiles).read_text())['profiles']}
@@ -101,7 +104,19 @@ def sync(database, profiles=None):
             pages[slug + '.md'] = text
         for contact, conversations in contacts.items():
             base = folder(contact)
-            pages[base + '/Profile.md'] = '# ' + label(names.get(contact, 'Unknown contact')) + '\n\n' + literal(contact) + '\n' + link(base + '/Dates', 'Dates') + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations))
+            notes = None
+            if notes_directory and contact:
+                if not re.fullmatch(r'[A-Za-z0-9_-]+', contact):
+                    raise ValueError('Invalid contact ID for notes filename.')
+                source = notes_directory / (contact + '.md')
+                if source.is_symlink():
+                    raise ValueError('Contact notes source refuses symbolic links.')
+                if source.exists():
+                    # Preserve the saved Markdown exactly; never initialize or edit the source.
+                    with source.open(encoding='utf-8', newline='') as handle:
+                        notes = handle.read()
+            pages[base + '/contact_notes.md'] = notes if notes is not None else '# Contact notes\n\nNo saved contact-notes file was available at sync time.\n'
+            pages[base + '/Profile.md'] = '# ' + label(names.get(contact, 'Unknown contact')) + '\n\n' + literal(contact) + '\n' + link(base + '/Dates', 'Dates') + ' · ' + link(base + '/contact_notes', 'Contact notes') + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations))
             text = '# Dates\n\n' + link(base + '/Profile', 'Profile') + '\n\n'
             for day, conversations in sorted(days[contact].items(), reverse=True):
                 text += '## ' + day + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations)) + '\n'
@@ -138,9 +153,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('database', type=Path)
     parser.add_argument('--profiles', type=Path)
+    parser.add_argument('--contact-notes', type=Path)
     args = parser.parse_args()
     os.umask(0o077)
-    print(json.dumps(sync(args.database, args.profiles), indent=2))
+    print(json.dumps(sync(args.database, args.profiles, args.contact_notes), indent=2))
 
 
 if __name__ == '__main__':

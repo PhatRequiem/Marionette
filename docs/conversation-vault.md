@@ -30,6 +30,11 @@ Alternate log locations require operator review for memory reset, as before.
 
 - `Generated/Contacts/<name>-<ID hash>/Profile.md`: contact name/ID and links to
   that contact's conversations. These are browsing pages, not full saved profiles.
+- Each profile links to `contact_notes.md`, a verbatim Markdown mirror of
+  `data/contact_notes/<contact-uuid>.md` at sync time. Missing source files get an
+  explicit placeholder; sync never creates or edits the original notes. Editing
+  the mirror does not write back and is overwritten on refresh. No conversation
+  links are inferred from notes. Direct model editing of vault notes is not enabled.
 - Each contact folder has its own `Dates.md` and `Conversations/` directory.
   Conversations are grouped by session + conversation ID + contact UUID. Names
   are readable labels; the ID suffix distinguishes contacts with identical names.
@@ -50,6 +55,7 @@ not historical evidence of names at message time. Assistant labels use Marionett
 Dates use recorded UTC timestamps. A saved answer does not establish Discord delivery.
 Reasoning, command notices, tool results and raw diagnostics are excluded.
 
+Contact notes preserve their original Markdown formatting and any existing links.
 Message text is fenced as literal text: quoted Markdown, embedded images and
 wikilinks do not become active graph links or remote image fetches. The generated
 links supply the graph. No semantic relationships or tags are inferred.

@@ -53,6 +53,13 @@ Restart Marionette after this update so the running process uses the entry tool 
 - With a tool registered, reasoning still streams locally, but answer text is held until the final response to avoid displaying tool-call preambles as answers. Discord receives only final answers and existing status/error notices. Tool calls/results remain with the exchange in active conversation context until trimming or clear/restart. The durable Markdown is still supplied afresh on the next turn.
 - This adds bounded contact notes only: no log reader, broader memory search, automatic skill creation, or general file access.
 
+## Obsidian mirror
+
+The manual [conversation-vault sync](conversation-vault.md) mirrors existing notes
+for contacts with exported conversations into their `contact_notes.md` page, linked
+from the profile. The original file remains authoritative. No vault write-back or
+model vault access is enabled.
+
 ## Inspection, backup, and restoration
 
 Read or edit the Markdown locally while chat is stopped. Keep edits within the limit; invalid UTF-8, control characters other than tabs/newlines, or oversized text will fail validation on the next message. Keep the readable `# Name` heading and use the separator format above; malformed entry layout is rejected when edited. Identity timestamps describe identity changes, not contact-note edits. Character supply/update/rejection events record the UUID and size in existing diagnostics; runtime/tool diagnostics may contain the notes themselves. Keep logs private too.

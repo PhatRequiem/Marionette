@@ -149,3 +149,26 @@ class ConversationVaultTests(unittest.TestCase):
         self.assertIn('[[Generated/Contacts|Contacts]]', (vault / 'Welcome.md').read_text())
         self.assertEqual((vault / 'Annotations/mine.md').read_text(), 'Keep this')
         self.assertTrue((generated / 'Groups').is_dir())
+
+    def test_contact_notes_mirror_refresh_and_missing_source(self):
+        self.message('Hello')
+        notes = self.root / 'contact_notes'
+        notes.mkdir()
+        source = notes / 'one.md'
+        content = '# Sample User\n§\nLikes dogs.\n'
+        source.write_text(content)
+        vault = Path(sync(self.database, self.profiles, notes)['vault'])
+        mirror = next((vault / 'Generated/Contacts').rglob('contact_notes.md'))
+        self.assertEqual(mirror.read_bytes(), source.read_bytes())
+        self.assertIn('/contact_notes|Contact notes]]', (mirror.parent / 'Profile.md').read_text())
+        mirror.write_text('Local edit')
+        source.write_text('# Sample User\n§\nUpdated note.\n')
+        sync(self.database, self.profiles, notes)
+        self.assertEqual(mirror.read_bytes(), source.read_bytes())
+        source.unlink()
+        sync(self.database, self.profiles, notes)
+        self.assertIn('No saved contact-notes file', mirror.read_text())
+        self.assertFalse(source.exists())
+        source.symlink_to(self.profiles)
+        with self.assertRaises(ValueError):
+            sync(self.database, self.profiles, notes)
