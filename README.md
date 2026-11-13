@@ -24,9 +24,15 @@ The selected 4B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen
 
 The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/development/history/baseline.md).
 
-See [context policy and verified behavior](docs/active/current-operation/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/development/history/baseline.md) and [log guide](docs/active/current-operation/logs.md), with a [short log glossary](docs/active/current-operation/log-glossary.md) and the [request form](docs/active/current-operation/log-request-form.md) and [operator query handler](docs/active/current-operation/log-queries.md). See [SQLite storage, export, and recovery](docs/active/current-operation/storage.md) and the [local Obsidian conversation mirror](docs/active/setup-and-maintenance/conversation-vault.md). Historical experiments live under `docs/development/experiments/`.
+See [context policy and limitations](docs/active/current-operation/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/development/history/baseline.md) and [log guide](docs/active/current-operation/logs.md), with a [short log glossary](docs/active/current-operation/log-glossary.md) and the [request form](docs/active/current-operation/log-request-form.md) and [operator query handler](docs/active/current-operation/log-queries.md). See [SQLite storage, export, and recovery](docs/active/current-operation/storage.md) and the [local Obsidian conversation mirror](docs/active/setup-and-maintenance/conversation-vault.md). Historical experiments live under `docs/development/experiments/`.
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/active/current-operation/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/development/history/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
+
+## Documentation
+
+Start with the [documentation map](docs/README.md). [Current operation](docs/active/current-operation/README.md) explains implemented behavior; [Setup and maintenance](docs/active/setup-and-maintenance/README.md) covers installation and upkeep. These Active guides are mirrored into Obsidian.
+
+[Development](docs/development/README.md) contains test reports, historical checkpoints and discussion-only ideas. It stays outside the vault. Keep dated results there; keep current limitations and supported procedures in Active.
 
 ## Reviewing the code
 
@@ -69,7 +75,7 @@ Start with these files, in order:
 | [tests/core](tests/core) | Core regression checks using synthetic data; no personal conversations or model downloads |
 | [tests/discord](tests/discord) | Optional Discord transport checks using mocked delivery |
 
-`session.py` connects the components. `terminal.py` renders streamed text through a per-reply callback; inference and conversation code do not import terminal UI code. Future interfaces can supply their own callback while reusing identity, permissions, and conversation handling. The current Discord connection still queues work for the main terminal thread, preserving sequential generation across separate conversations. For diagnostic flow and test commands, see [operation and verification](docs/active/setup-and-maintenance/setup.md).
+`session.py` connects the components. `terminal.py` renders streamed text through a per-reply callback; inference and conversation code do not import terminal UI code. Future interfaces can supply their own callback while reusing identity, permissions, and conversation handling. The current Discord connection still queues work for the main terminal thread, preserving sequential generation across separate conversations. For diagnostic flow and test commands, see [operation and maintenance checks](docs/active/setup-and-maintenance/setup.md).
 
 ## Folder map
 
@@ -80,7 +86,9 @@ Start with these files, in order:
 - `docs/`: [documentation map](docs/README.md).
 - `docs/active/current-operation/`: current behavior and feature guides; mirrored into Obsidian.
 - `docs/active/setup-and-maintenance/`: installation, configuration, maintenance and licenses; mirrored into Obsidian.
-- `docs/development/`: experiments, historical baselines and ideas; excluded from Obsidian.
+- `docs/development/`: [development index](docs/development/README.md); excluded from Obsidian.
+- `docs/development/experiments/`: [test reports and investigations](docs/development/experiments/README.md), including reports extracted from Active guides.
+- `docs/development/history/`: [saved baselines and retired documentation](docs/development/history/README.md).
 - `docs/development/ideas/`: [discussion-only ideas](docs/development/ideas/README.md), separate from approved work and current behavior.
 - `docs/active/setup-and-maintenance/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/active/setup-and-maintenance/setup.md#shared-inference-runtime).
@@ -99,7 +107,7 @@ Start with these files, in order:
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
-See [native Linux setup and operation](docs/active/setup-and-maintenance/setup.md), the [audited setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md), and [licenses](docs/active/setup-and-maintenance/licenses.md).
+See [native Linux setup and operation](docs/active/setup-and-maintenance/setup.md), the [latest-startup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md), and [licenses](docs/active/setup-and-maintenance/licenses.md).
 
 ## Archives
 

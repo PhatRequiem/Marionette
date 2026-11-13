@@ -7,3 +7,5 @@ This folder holds brainstorming notes and possibilities we discuss. Nothing here
 Keep one topic per `.md` or `.txt` file with a descriptive name. Include a title, the date, and **Status: idea only — not approved or implemented**. Keep notes short: the idea, why it might be useful, and open questions. Avoid copying private conversations or credentials into these tracked documents.
 
 Ideas may be incomplete, contradictory, or abandoned. They do not override `AGENTS.md`, the current baseline, or operating guides. If an idea is later explicitly approved, record that decision separately; update its note to point to the approved work and document actual behavior in the normal guides when implemented.
+
+This folder stays outside the Obsidian mirror. Use [Active documentation](../../README.md#active--mirrored-into-obsidian) for implemented behavior and [Experiments](../experiments/README.md) for recorded tests. Return to the [Development index](../README.md).

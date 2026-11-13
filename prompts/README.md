@@ -25,13 +25,10 @@ The wording and brevity here are project choices, not a prescribed Qwen prompt.
 Guidance participates in exact counting, generation and cache preparation. Files
 are cached per API instance: restart chat after editing. Missing/empty files fail
 visibly. Adding a file does not enable it; new bindings must be explicit in code.
-The previous detailed log prompt remains in Git history; private evaluation
-metadata may have been cleared by memory reset. Earlier evaluation scores do not establish this shorter prompt's quality.
-
-Log-query guidance uses explicit field names and JSON argument examples. This wording
-change does not alter the request schema or permissions; a small live check exercised
-these examples, but does not establish a measured accuracy improvement. See
-[current reliability limits](../docs/active/current-operation/log-queries.md#current-reliability-limits).
+Log-query guidance uses explicit field names and JSON argument examples. See
+[current reliability limits](../docs/active/current-operation/log-queries.md#current-reliability-limits)
+for interpretation limits and [archived evaluations](../docs/development/experiments/active-guide-reports-2026-11-12/log-queries.md)
+for earlier checks; those reports do not measure every later prompt revision.
 
 The log-result reminder is appended to a copy of the initial system message for
 follow-up requests only, before exact token counting. It is not tool data and is
@@ -41,3 +38,5 @@ Contact-note guidance allows optional inline citations using the exact stable
 `conversation_reference` supplied in Sender metadata. The vault exporter resolves
 these internal destinations on sync; the model does not construct filenames or
 gain file access. See [contact-note citations](../docs/active/current-operation/contact-notes.md#optional-conversation-links).
+
+These files are application inputs, not part of the `docs/active/` mirror. Current tool behavior is documented in [Qwen-Agent coordination](../docs/active/current-operation/qwen-agent.md); test reports and retired guidance belong in [Development](../docs/development/README.md) or Git history. Only Active documentation is mirrored into Obsidian.
