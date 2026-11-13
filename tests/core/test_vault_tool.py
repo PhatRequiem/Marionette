@@ -173,3 +173,16 @@ class VaultTests(unittest.TestCase):
             {'action':'search','path':'Contacts','options':{'mode':'jsonlogic','logic':{}}},
         ):
             with self.subTest(form=form), self.assertRaises(ValueError): plan(form)
+
+    def test_large_forms_and_results_have_no_adapter_byte_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); (root/'Generated').mkdir(); (root/'Generated/.marionette-managed').touch()
+            config=root/'connection.json'; config.write_text(json.dumps({'enabled':True,'vault':tmp}))
+            body='Synthetic text ' * 100000
+            query='word ' * 2000
+            with patch('vault_tool.MCP') as connector:
+                connector.return_value.call.return_value={'structuredContent':{'content':body}}
+                result=json.loads(ReadVault(config).call(json.dumps({'action':'search','query':query})))
+                self.assertEqual(result['status'],'ok')
+                self.assertEqual(result['data']['content'],body)
+                self.assertEqual(connector.return_value.call.call_args.args[1]['query'],query)

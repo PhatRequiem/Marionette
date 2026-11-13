@@ -50,7 +50,9 @@ Text search matches all space-separated terms as case-insensitive substrings, no
 
 Omnisearch is not installed or exposed: Cyanheads also withholds it whenever denied/read paths are configured. Indexed link/backlink fields are similarly unavailable under path restrictions; search note bodies for incoming links and use full reads for outgoing links. No dedicated backlinks tool exists. No additional plugins or dependencies were installed for this expansion.
 
-Results are limited to 32 KiB, wire messages to 1 MiB, forms to 4 KiB, and each connector interaction to a 20-second deadline. Oversized results are unavailable rather than silently truncated. Use document maps and section reads for large conversations. Wide searches can still exceed the deadline.
+Each MCP request has a 60-second deadline, with separate deadlines for initialization and the tool call. This aligns with the client timeout described by Cyanheads; its unchanged defaults allow 30 seconds per API request attempt within a 45-second tool-call budget. Wide searches can still time out.
+
+The adapter imposes no request-form, wire-response or returned-result byte budgets and no text-query length cap. Cyanheads' own validation, pagination and retrieval limits still apply, as does Marionette's existing model context management. This does not make the model context unlimited. Document maps, section reads and narrower searches remain available when useful.
 
 Cyanheads remains independently forced to `OBSIDIAN_READ_ONLY=true` and `OBSIDIAN_ENABLE_COMMANDS=false`. The adapter allowlists the five tools above and forces `failIfMissing=true` for UI opens. Absolute paths, traversal and `.obsidian` access are rejected. All contact collections are readable; there are no per-contact vault boundaries. Other existing tools can still update the original contact notes and soul through their established permissions.
 

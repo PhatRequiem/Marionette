@@ -1,4 +1,4 @@
-"""Read-only Qwen tool over pinned Cyanheads MCP, with bounded stdio requests."""
+"""Read-only Qwen tool over pinned Cyanheads MCP, with request timeouts."""
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -13,7 +13,7 @@ from qwen_agent.tools import BaseTool
 ROOT = Path(__file__).resolve().parents[2]
 READ_TOOLS = {'obsidian_get_note', 'obsidian_list_notes', 'obsidian_search_notes',
               'obsidian_list_tags', 'obsidian_open_in_ui'}
-WIRE_LIMIT = 1024 * 1024
+REQUEST_TIMEOUT_SECONDS = 60
 
 
 class MCP:
@@ -38,7 +38,6 @@ class MCP:
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
         self.buffer = b''
         self.sequence = 0
-        self.deadline = time.monotonic() + 20
         try:
             result = self.request('initialize', {'protocolVersion': '2024-11-05',
                 'capabilities': {}, 'clientInfo': {'name': 'marionette-read-only', 'version': '1.0'}})
@@ -51,26 +50,23 @@ class MCP:
 
     def send(self, value):
         payload = (json.dumps(value, allow_nan=False) + '\n').encode()
-        if len(payload) > 8192:
-            raise ValueError('MCP request too large.')
         self.process.stdin.write(payload)
 
     def request(self, method, params):
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
         self.sequence += 1
         identifier = self.sequence
         self.send({'jsonrpc': '2.0', 'id': identifier, 'method': method, 'params': params})
         while True:
-            if time.monotonic() >= self.deadline:
+            if time.monotonic() >= deadline:
                 raise TimeoutError('MCP lookup timed out.')
             if b'\n' not in self.buffer:
-                if not self.selector.select(max(0, self.deadline - time.monotonic())):
+                if not self.selector.select(max(0, deadline - time.monotonic())):
                     raise TimeoutError('MCP lookup timed out.')
                 chunk = os.read(self.process.stdout.fileno(), 65536)
                 if not chunk:
                     raise OSError('MCP process ended.')
                 self.buffer += chunk
-                if len(self.buffer) > WIRE_LIMIT:
-                    raise ValueError('MCP response exceeds limit.')
                 continue
             line, self.buffer = self.buffer.split(b'\n', 1)
             value = json.loads(line)
@@ -153,7 +149,7 @@ def plan(form):
         mode = args.setdefault('mode', 'text')
         if mode == 'text':
             query = form.get('query')
-            if not isinstance(query, str) or not 0 < len(query.strip()) <= 1024 or 'logic' in args:
+            if not isinstance(query, str) or not query.strip() or 'logic' in args:
                 raise ValueError('Text search needs query.')
             args.update(query=query, pathPrefix=path)
             args.setdefault('contextLength', 100)
@@ -200,8 +196,6 @@ class ReadVault(BaseTool):
     def call(self, params, **kwargs):
         client = None
         try:
-            if len((params if isinstance(params, str) else json.dumps(params, allow_nan=False)).encode()) > 4096:
-                raise ValueError('Request too large.')
             form = json.loads(params) if isinstance(params, str) else params
             name, args = plan(form)
             config = json.loads(self.config_path.read_text())
@@ -215,8 +209,6 @@ class ReadVault(BaseTool):
                 return json.dumps({'status': 'unavailable', 'message': 'Obsidian could not complete this request. Check that the vault and API plugin are open, or try a valid path/query.'})
             payload = result.get('structuredContent') or result.get('content')
             response = json.dumps({'status': 'ok', 'source': 'Obsidian mirror', 'data': payload}, ensure_ascii=False)
-            if len(response.encode()) > 32768:
-                return json.dumps({'status': 'unavailable', 'message': 'Result exceeds 32 KiB; use a narrower search, document-map, or section read. No partial answer returned.'})
             return response
         except (OSError, ValueError, TypeError, KeyError):
             return json.dumps({'status': 'unavailable', 'message': 'Vault lookup unavailable or invalid. Use list, search, read, tags, or open with valid action options. Do not infer missing facts.'})
