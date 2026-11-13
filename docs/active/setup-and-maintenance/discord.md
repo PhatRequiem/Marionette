@@ -28,9 +28,26 @@ nvim data/discord/.env
 
 ## Start and stop
 
-Follow [STARTUP.md](../../../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fifth terminal. Wait for **Discord ready**, then DM the bot. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
+Follow [STARTUP.md](../../../STARTUP.md): launch main chat first and use
+`/startdiscord` from the owner's terminal profile. Wait for **Discord ready** in
+Connections and requests before sending a DM. `/stopdiscord` disconnects without
+stopping the model; `/startdiscord` reconnects. These are application commands,
+not model tools, and are available only in terminal chat to the saved owner.
 
-**Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
+Background mode starts the existing bot and durable Discord recorder without a
+fifth terminal. It shares the connection lock with `discord.sh`, preventing
+simultaneous background/foreground connections. Startup acknowledgement means
+starting, not confirmed online. A failed connection is visible in connection logs;
+no automatic restart is added. Stop waits for owned processes and recorder draining.
+On main-chat exit, the bot gets time to deliver a shutdown acknowledgement before
+cleanup; a stuck owned bot is stopped. Your computer must remain awake and online.
+
+The original `./scripts/native-linux/discord.sh` foreground command remains
+supported. Ctrl+C in that terminal disconnects Discord only. `/stopdiscord` can
+also request that foreground bot to close through its existing same-OS-user local
+status/control socket; this reports a disconnect request, not confirmed completion.
+The model's status probe remains read-only. Stopping can interrupt an active delivery;
+check connection logs before retrying a message.
 
 - Each Discord sender and the terminal have separate histories, with the same per-conversation context budget and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and contact UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](../current-operation/contacts.md). New Discord senders receive their own saved UUID, a name initialized from their Discord display name, and contact notes; identities are never merged by name. Only that conversation’s messages and the current contact’s contact notes are supplied to the model. Linked terminal/Discord accounts share contact notes but not history.
 - `/resetmemory` is owner-only and resets all local memory and histories while staying connected. See [reset behavior and limits](../current-operation/reset-memory.md).
@@ -46,7 +63,7 @@ The main chat owns the model and conversation histories. A Unix socket at `data/
 
 Main chat and Discord now share the main launch's SQLite session. Terminal output and Discord connection events are stored streams; server/model diagnostics use the existing recorder’s RAM and are saved at shutdown; structured conversation messages are recorded by main chat. The operator chat terminal displays labeled Discord messages and replies; the separate Reasoning terminal streams their reasoning. Remote requests are queued for the main terminal thread and the input prompt returns afterward.
 
-The Discord launcher reads `data/session/log-session.json` to use the same database even with a custom main-chat log directory. Disconnecting/reconnecting adds events to that session without creating text files. Its terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
+The Discord launcher reads `data/session/log-session.json` to use the same database even with a custom main-chat log directory. Disconnecting/reconnecting adds events to that session without creating text files. The optional foreground terminal displays readable message blocks: lavender IDs, green incoming text, light-pink answer headings with hot-pink answer text, light-blue timestamps, turquoise success events, peach timings, orange warnings, and bright-red errors. Diagnostic labels are white with colored values, and spacing separates identity, delivery, timing, and other fields. Pending sends are orange, confirmed parts turquoise, and failed parts red. It contains no model reasoning. An answer record confirms generation; the following delivery entry confirms sending. Credentials are never passed to the model or logged.
 
 The Discord log adds these diagnostics without additional Discord permissions:
 
@@ -103,3 +120,10 @@ soul, notes and the vault are preserved. Discord attempts to deliver the shutdow
 acknowledgement before disconnecting; network failures can prevent delivery.
 This stops Marionette, not the computer. `/exit` remains a local terminal exit.
 Restart main chat and Discord after code updates so both use the installed command implementation.
+
+Connections and requests merges Discord connection/delivery events with the model
+server view using separate stream cursors. Reserved diagnostic event-ID blocks
+are not global arrival order, so the combined view does not promise strict global
+chronology. Discord transcript rows remain in their original stream and main chat;
+they are not duplicated into this connection view. Existing Discord disk durability
+and diagnostic RAM retention are unchanged.

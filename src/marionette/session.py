@@ -74,6 +74,9 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
         connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status)
     else:
         connection = nullcontext()
+    from discord_control import DiscordControl
+    database = store.db.execute('PRAGMA database_list').fetchone()[2] if store is not None else None
+    conversation.discord_control = DiscordControl(data, address, database, session_id)
     try:
         with connection:
             if on_startup is not None:
@@ -82,6 +85,7 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
             terminal.run(conversation, external=bool(address))
     finally:
         api.closing.set()
+        conversation.discord_control.close()
 
 
 def run(command):

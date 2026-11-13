@@ -66,6 +66,25 @@ class RamLogTests(unittest.TestCase):
         self.assertIn('first second\n'+'x'*300,rendered.getvalue())
         self.assertIn('completed',rendered.getvalue())
 
+    def test_connections_view_merges_discord_without_skipping_reserved_ram_ids(self):
+        buffer=self.buffer()
+        with closing(LiveView(buffer,self.path)):
+            first=buffer.append(b'first diagnostic\n','server')
+            discord=self.disk.event(self.session,'discord',b'2026-11-13T00:00:00 Discord ready. {}\n')
+            second=buffer.append(b'second diagnostic\n','server')
+            self.assertLess(second,discord)
+            self.disk.event(self.session,'discord',b'{"role":"user","content":"transcript only"}\n')
+            output=io.BytesIO()
+            view_log(self.path,self.session,'server',output)
+            live=output.getvalue()
+            for text in (b'first diagnostic',b'second diagnostic',b'Discord ready.'):
+                self.assertEqual(live.count(text),1)
+            self.assertNotIn(b'transcript only',live)
+        buffer.save()
+        output=io.BytesIO()
+        view_log(self.path,self.session,'server',output)
+        self.assertEqual(live,output.getvalue())
+
     def test_default_policy_is_500mb_ram_in_20mb_batches(self):
         buffer=self.buffer()
         policy=buffer.memory.db.execute('SELECT * FROM retention_state').fetchone()

@@ -161,3 +161,26 @@ class DiscordStatusTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 server.close();await server.wait_closed()
             self.assertIsNone(await asyncio.to_thread(probe,path))
+
+
+class DiscordStopControlTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stop_endpoint_and_status_share_existing_process(self):
+        import asyncio
+        from unittest.mock import AsyncMock, Mock
+        from operator_status import start, probe, request_stop
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'chat.sock'
+            bot=Mock()
+            bot.is_closed.return_value=False
+            bot.is_ready.return_value=True
+            bot.close=AsyncMock()
+            server=await start(bot,path)
+            try:
+                self.assertEqual((await asyncio.to_thread(probe,path))['discord'],'online')
+                bot.close.assert_not_called()
+                self.assertTrue(await asyncio.to_thread(request_stop,path))
+                await asyncio.sleep(0)
+                bot.close.assert_awaited_once()
+            finally:
+                server.close()
+                await server.wait_closed()

@@ -19,18 +19,20 @@ The log-query tool is connected.
 
 ## 2. Connect Discord — optional
 
-Skip this step if you only want terminal chat. After she is ready, open another terminal and run:
+After she is ready, type **`/startdiscord`** in main chat as Phat. Discord runs
+in the background; its connection and delivery events appear in **Connections
+and requests**, labeled Discord. No extra terminal is needed. Type
+**`/stopdiscord`** to disconnect, then `/startdiscord` to reconnect. Both commands
+are owner-only and terminal-only; they do not call the model.
 
-```bash
-cd /home/phatkitty/Projects/Marionette
-./scripts/native-linux/discord.sh
-```
+The existing `./scripts/native-linux/discord.sh` foreground launch remains
+available if you want a dedicated Discord terminal instead.
 
-Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal displays messages and answers; the Reasoning terminal shows reasoning for both chat sources.
+Wait for **Discord ready**, then DM her. Connections and requests shows the Discord connection logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal displays messages and answers; the Reasoning terminal shows reasoning for both chat sources.
 
 ## Stop or start fresh
 
-- **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
+- **Disconnect Discord only:** type `/stopdiscord` in main chat as the owner, or press Ctrl+C in the optional foreground Discord terminal. Main chat stays running.
 - **Admin shutdown:** send `/shutdown` as the saved owner in terminal or Discord. Stops the local model and main chat, disconnects Discord, and follows normal recorder shutdown saving. Saved memory is kept. Other contacts receive `Access Denied`.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each log/reasoning window afterward to close it.
 - **Reset all memory (owner only):** type `/resetmemory` in terminal or Discord. Clears all chat histories, soul, contact notes, and local logs while preserving both IDs and your owner/account mapping. The model stays loaded. See [reset details](docs/active/current-operation/reset-memory.md).

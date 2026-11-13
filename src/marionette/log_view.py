@@ -110,7 +110,9 @@ class DiagnosticView:
         if text.startswith(('Client: ========== MESSAGE', 'Client: ---------- MODEL REQUEST', 'Client: ---------- TOOL CALL')):
             self.kind = 'meta'
             return self.kind
-        if re.match(r'\d[\d.]*\s+E\s', text) or text.startswith(('Client: Request failed:',
+        if text.startswith('Discord: '):
+            self.kind = severity(text)
+        elif re.match(r'\d[\d.]*\s+E\s', text) or text.startswith(('Client: Request failed:',
                 'Client: Discord local request failed:', 'Client: Client error:', 'Client: Message failed:', 'Client: Model Request failed:', 'Client: Tool Call failed:')):
             self.kind = 'error'
         elif re.match(r'\d[\d.]*\s+W\s', text):

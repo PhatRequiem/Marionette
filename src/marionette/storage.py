@@ -194,7 +194,8 @@ def render_event(row, view):
                             'kind': row['event_type'], 'raw': row['raw'].decode('utf-8', errors='replace')}) + '\n').encode()
     if view in ('server', 'model'):
         from log_router import format_event
-        return format_event(row['id'], row['recorded_at'], row['raw'])
+        return format_event(row['id'], row['recorded_at'],
+                            b'Discord: ' + row['raw'] if row['stream'] == 'discord' else row['raw'])
     return row['raw']
 
 
@@ -217,8 +218,20 @@ def view_log(path, session, view, output, follow=False, owner_pid=None):
         if not db.execute('SELECT 1 FROM sessions WHERE id=?', (session,)).fetchone():
             raise ValueError('Unknown session ID.')
         last = 0
+        discord_last = 0
         draining = not follow
         while True:
+            # Discord allocates IDs on disk while diagnostics reserve ID blocks
+            # in RAM. A separate cursor prevents either stream skipping the other.
+            discord_rows = []
+            if view == 'server':
+                discord_rows = db.execute("SELECT * FROM events WHERE session_id=? AND stream='discord' AND id>? ORDER BY id LIMIT 256",
+                                          (session, discord_last)).fetchall()
+                for row in discord_rows:
+                    discord_last = row['id']
+                    if not row['raw'].lstrip().startswith(b'{'):  # Chat transcripts already appear in main chat.
+                        output.write(render_event(row, view))
+                output.flush()
             live = None
             if view in ('server', 'model', 'reasoning'):
                 from ram_logs import read_live
@@ -228,7 +241,7 @@ def view_log(path, session, view, output, follow=False, owner_pid=None):
                 output.write(payload)
                 output.flush()
                 if not follow:
-                    if payload:
+                    if payload or discord_rows:
                         continue
                     return
                 if payload:
@@ -240,7 +253,7 @@ def view_log(path, session, view, output, follow=False, owner_pid=None):
                 output.write(render_event(row, view))
                 last = row['id']
             output.flush()
-            if rows:
+            if rows or discord_rows:
                 continue
             if draining:
                 return

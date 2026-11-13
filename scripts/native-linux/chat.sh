@@ -28,7 +28,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in vault_tool.py conversation_vault.py conversation_refs.py log_tool.py log_query.py operator_status.py setup_datasheet.py log_metadata.py memory_reset.py reset_boundary.py data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
+for source in discord_control.py vault_tool.py conversation_vault.py conversation_refs.py log_tool.py log_query.py operator_status.py setup_datasheet.py log_metadata.py memory_reset.py reset_boundary.py data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1

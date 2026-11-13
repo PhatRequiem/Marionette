@@ -139,7 +139,7 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command in ('clear', 'resetmemory', 'shutdown'):
+        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord'):
             try:
                 answer, finish = conversation.turn(message)
             except (ValueError, RuntimeError, OSError) as error:

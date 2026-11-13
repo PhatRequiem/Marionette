@@ -252,6 +252,7 @@ def main():
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
     asyncio.run(serve())
+    log('Discord session stopped.')
     return 0
 
 

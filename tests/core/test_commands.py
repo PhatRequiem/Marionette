@@ -21,6 +21,33 @@ class CommandTests(unittest.TestCase):
         self.assertIsNone(recognize('/unknown', 'discord'))
         self.assertIsNone(recognize(' /unknown', 'terminal'))
 
+    def test_discord_controls_terminal_owner_only_without_model(self):
+        import tempfile
+        import threading
+        from contacts import ContactProfiles
+        from conversation import Conversation
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
+            profiles=ContactProfiles(Path(directory)/'profiles.json')
+            owner=profiles.profiles[0];guest=profiles.add('Guest')
+            for command in ('startdiscord','stopdiscord'):
+                self.assertEqual(recognize('/'+command,'terminal'),command)
+                self.assertIsNone(recognize('/'+command,'discord'))
+                for selected in (owner,guest):
+                    api=Mock(closing=threading.Event())
+                    convo=Conversation(api,8192,profiles,selected)
+                    convo.discord_control=Mock()
+                    method=convo.discord_control.start if command=='startdiscord' else convo.discord_control.stop
+                    method.return_value='synthetic result'
+                    answer,finish=convo.turn('/'+command)
+                    if selected is owner:
+                        method.assert_called_once_with()
+                        self.assertEqual(answer,'synthetic result')
+                    else:
+                        method.assert_not_called()
+                        self.assertEqual(answer,'Access Denied')
+                    api.reply.assert_not_called()
+                    self.assertIsNone(convo.pending)
+
     def test_clear_waits_only_after_authorization_and_does_not_run_model(self):
         history = [{'role': 'user', 'content': 'retain until cleared'}]
         finish = Mock()

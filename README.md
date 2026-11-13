@@ -10,7 +10,7 @@ For quick experiments, the owner can send [`/resetmemory`](docs/active/current-o
 
 For a new installation, see [local setup](docs/active/setup-and-maintenance/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
-Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then optionally attach Discord to the same running model in a fifth terminal. It accepts human one-to-one DMs, sends only final answers to Discord, and displays messages and replies in main chat, with reasoning in its separate terminal and local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then type `/startdiscord` as the owner to attach Discord in the background. `/stopdiscord` disconnects it; connection events appear in Connections and requests. It accepts human one-to-one DMs, sends only final answers to Discord, and displays messages and replies in main chat, with reasoning in its separate terminal and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
@@ -58,6 +58,7 @@ Start with these files, in order:
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |
 | [permissions.py](src/marionette/permissions.py) | Restrict clearing to the sender’s own conversation |
 | [connection.py](src/marionette/connection.py) | Private local connection to the conversation manager |
+| [discord_control.py](src/marionette/discord_control.py) | Owner-terminal background start/stop, process lifetime and recorder draining |
 | [discord.sh](scripts/native-linux/discord.sh) | Attach Discord to the running chat and display its connection log |
 | [discord_bot.py](src/marionette/discord_bot.py) | Optional human one-to-one DM transport, sequential delivery, and local transcript |
 | [style.py](src/marionette/style.py) and [log_view.py](src/marionette/log_view.py) | Shared colors and human-readable log views |
@@ -67,7 +68,7 @@ Start with these files, in order:
 | [vault_tool.py](src/marionette/vault_tool.py) | Read-only HTTP adapter for Scarecrow |
 | [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |
-| [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |
+| [operator_status.py](src/marionette/operator_status.py) | Discord status probe and operator stop control in the existing bot process |
 | [ram_logs.py](src/marionette/ram_logs.py) | Existing-recorder RAM buffer, live views, and shutdown saving |
 | [retention.py](src/marionette/retention.py) | [Rolling diagnostic batches and protected error windows](docs/active/current-operation/log-retention.md) |
 | [log_router.py](src/marionette/log_router.py) | Diagnostic classification and reversible human-readable formatting |
