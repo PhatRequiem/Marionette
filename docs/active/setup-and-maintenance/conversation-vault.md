@@ -20,8 +20,17 @@ In Obsidian, choose **Open folder as vault**, then select
 contact pages and contact-specific date indexes. No Obsidian Sync, Publish, account or community plugin is
 needed. Keep this private vault separate from the source-code vault.
 
-Sync is **on demand**, not automatic. Run the same command again to refresh saved
-messages. It works while chat is running and does not restart the model or Discord.
+Sync runs **automatically on orderly main-chat shutdown**, after the terminal and
+diagnostic recorders drain and the session-end update is attempted. This covers
+`/shutdown`, `/exit`, EOF and handled interrupts that reach launcher cleanup.
+It refreshes conversations, contact notes and Active documentation. There is no
+periodic refresh or background helper process, and no change to RAM diagnostic retention.
+Discord may finish delivery/event logging separately; this mirror does not export
+those diagnostic events. SIGKILL, power loss and OS crashes cannot guarantee a refresh.
+
+A refresh failure is reported and makes the launcher exit unsuccessfully; it does
+not delete the saved SQLite records. Retry with the manual command above. Run it
+any time while chat remains open; it does not restart the model or Discord.
 For a completed session export, stop chat and Discord cleanly first. `MARIONETTE_LOG_DIR`
 selects an alternate database directory; the vault stays beside that database.
 Alternate log locations require operator review for memory reset, as before.
@@ -92,13 +101,17 @@ cached edits. Copies outside the project remain outside automatic reset scope.
 Sync reserves SQLite's writer lock while reading and publishing without changing
 any database rows. This prevents an old export from being published after a
 concurrent reset deletes old records. Chat writes can briefly wait; very large
-histories may make manual sync disruptive. No helper process or routine diagnostic
+histories may make manual sync disruptive. No background helper process or routine diagnostic
 payload writes are added. The existing RAM diagnostic policy is unchanged.
 
 Individual files are replaced atomically; a failed sync can leave a mixture of
 old and new pages. Rerun sync to repair. Symlinked export paths are refused, and
 an existing unrecognized Generated directory is not overwritten. Standard local
 permissions protect newly generated private files (600) and directories (700).
+
+Synthetic launcher tests also verify shutdown exports the last saved messages and
+Active documentation, and a failed export leaves the closed session and database
+intact with a visible error.
 
 Synthetic tests cover literal message preservation, IDs, contact separation,
 repeat sync, annotations, stale-page deletion, symlink refusal, missing databases,

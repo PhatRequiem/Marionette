@@ -85,7 +85,7 @@ Start with these files, in order:
 - `docs/active/setup-and-maintenance/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/active/setup-and-maintenance/setup.md#shared-inference-runtime).
 - `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.
-- `data/conversations/obsidian-vault/`: private, on-demand Markdown conversation mirror for Obsidian; cleared by memory reset.
+- `data/conversations/obsidian-vault/`: private Markdown conversation mirror, refreshed on orderly shutdown or manually for Obsidian; cleared by memory reset.
 - `data/contacts/`: private, portable JSON profile registry; ignored by Git.
 - `data/contact_notes/`: private Markdown contact notes, one file per contact UUID; ignored by Git.
 - `data/soul/`: private self identity and soul revision history; ignored by Git.

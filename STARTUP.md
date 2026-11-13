@@ -43,3 +43,8 @@ If the model or runtime is missing, follow [local setup](docs/active/setup-and-m
 Future launchable features should be added below the required main-chat step, in dependency order, with their command and a clear required/optional label. Keep technical configuration in the component guides.
 
 Conversations and diagnostics are saved in `data/conversations/marionette.sqlite3`. See [viewing and backups](docs/active/current-operation/storage.md); no extra startup step is required.
+
+Orderly main-chat shutdown also refreshes the local Obsidian mirror after saving
+its recorders. Export failures are reported; use
+`./scripts/native-linux/sync-conversation-vault.sh` to retry. Forced termination
+or power loss can skip this refresh. Model vault access remains disconnected.

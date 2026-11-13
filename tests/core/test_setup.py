@@ -100,7 +100,7 @@ class LauncherTests(unittest.TestCase):
         shutil.copytree(ROOT / 'prompts', self.root / 'prompts')
         source = self.root / 'src/marionette'
         source.mkdir(parents=True)
-        for name in ['conversation_refs.py', 'memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'operator_status.py', 'log_tool.py', 'log_query.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
+        for name in ['conversation_vault.py', 'conversation_refs.py', 'memory_reset.py', 'reset_boundary.py', 'data_migration.py', 'storage.py', 'operator_status.py', 'log_tool.py', 'log_query.py', 'setup_datasheet.py', 'log_metadata.py', 'retention.py', 'ram_logs.py', 'soul.py', 'contact_notes.py', 'coordination.py', 'commands.py', 'inference.py', 'context.py', 'conversation.py', 'terminal.py', 'diagnostics.py', 'permissions.py', 'contacts.py', 'session.py', 'log_router.py', 'connection.py', 'style.py', 'log_view.py']:
             shutil.copy2(ROOT / 'src/marionette' / name, source / name)
         manifest = {'runtime': {'directory': 'Inference Engines/Language Models/llama.cpp', 'version': 'test', 'executable': 'bin/completion'}, 'model': {'directory': 'Language/test', 'filename': 'test.gguf'}}
         (scripts / 'downloads.json').write_text(json.dumps(manifest))
@@ -137,10 +137,26 @@ class LauncherTests(unittest.TestCase):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=25)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Shutting down Marionette', result.stdout)
+        self.assertIn('Conversation vault refreshed.', result.stdout)
+        vault = self.logs / 'obsidian-vault'
+        pages = list((vault / 'Generated/Contacts').rglob('*conversation-*.md'))
+        self.assertTrue(pages)
+        self.assertTrue(any('hello before shutdown' in p.read_text() for p in pages))
+        self.assertTrue((vault / 'Generated/Self documentation/active/setup-and-maintenance/setup-datasheet.md').exists())
         with closing(open_read(self.logs / 'marionette.sqlite3')) as db:
             self.assertIsNotNone(db.execute('SELECT ended_at FROM sessions').fetchone()[0])
             self.assertIn('hello before shutdown', [r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")])
             self.assertGreater(db.execute("SELECT count(*) FROM events WHERE stream='diagnostic'").fetchone()[0], 0)
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+
+    def test_shutdown_export_failure_reports_error_and_preserves_saved_data(self):
+        (self.root / 'src/marionette/conversation_vault.py').write_text("raise RuntimeError('synthetic export failure')\n")
+        result = self.run_chat()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Conversation vault refresh failed', result.stderr)
+        with closing(open_read(self.logs / 'marionette.sqlite3')) as db:
+            self.assertIsNotNone(db.execute('SELECT ended_at FROM sessions').fetchone()[0])
+            self.assertIn('hello', [r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")])
             self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
 
     def test_live_reset_through_launcher_keeps_server_and_clears_previous_turn(self):

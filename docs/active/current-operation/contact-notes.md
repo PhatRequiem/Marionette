@@ -71,7 +71,7 @@ is introduced. Reference correctness and relevance are model responsibilities;
 existence of a link is not proof of a claim. Historical notes are not auto-linked.
 
 Source note files retain these stable internal references. They are not browser URLs
-or directly usable Obsidian paths. On manual vault sync, known destinations become
+or directly usable Obsidian paths. On vault sync (orderly shutdown or manual refresh), known destinations become
 relative Markdown links to the current generated conversation pages. Renaming a
 contact and resyncing regenerates the correct destination. Unknown or missing
 references are kept as written, not resolved to guessed pages. A missing export or
@@ -86,7 +86,7 @@ file editing by the model remain disconnected.
 
 ## Obsidian mirror
 
-The manual [conversation-vault sync](../setup-and-maintenance/conversation-vault.md) mirrors existing notes
+The [conversation-vault sync](../setup-and-maintenance/conversation-vault.md) mirrors existing notes
 for contacts with exported conversations into their `<name> - Notes.md` page, linked
 from the profile. The original file remains authoritative. No vault write-back or
 model vault access is enabled.

@@ -27,7 +27,7 @@ fi
 if (( $# == 1 )); then
     case "$1" in --help|--version|--list-devices) exec "$CLI" "$1" ;; esac
 fi
-for source in log_tool.py log_query.py operator_status.py setup_datasheet.py log_metadata.py memory_reset.py reset_boundary.py data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
+for source in conversation_vault.py conversation_refs.py log_tool.py log_query.py operator_status.py setup_datasheet.py log_metadata.py memory_reset.py reset_boundary.py data_migration.py storage.py retention.py ram_logs.py soul.py contact_notes.py coordination.py commands.py inference.py context.py conversation.py terminal.py diagnostics.py permissions.py contacts.py session.py log_router.py connection.py style.py log_view.py; do
     if [[ ! -f "$ROOT/src/marionette/$source" ]]; then
         echo "Application source missing: src/marionette/$source. Restore the complete checkout." >&2
         exit 1
@@ -76,6 +76,16 @@ finish() {
         printf 'Chat exited with status %s. Details: %s\n' "$status" "$MARIONETTE_LOG_DB" >&2
     fi
     python "$ROOT/src/marionette/storage.py" "$MARIONETTE_LOG_DB" end "$MARIONETTE_LOG_SESSION" || status=1
+    # Both main recorders have drained; publish the final saved conversation state.
+    local data_root="${MARIONETTE_DATA_DIR:-$ROOT/data}"
+    if python "$ROOT/src/marionette/conversation_vault.py" "$MARIONETTE_LOG_DB" \
+        --profiles "$data_root/contacts/profiles.json" \
+        --contact-notes "$data_root/contact_notes" --docs "$ROOT/docs" >/dev/null; then
+        printf 'Conversation vault refreshed.\n'
+    else
+        echo 'Conversation vault refresh failed; saved SQLite records remain. Run sync-conversation-vault.sh to retry.' >&2
+        status=1
+    fi
     rm -f "$ROOT/data/session/log-session.json"
     trap - EXIT
     if [[ -t 1 && "${TERM:-}" != dumb ]]; then printf '\033[0m'; fi

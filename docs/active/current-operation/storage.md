@@ -32,7 +32,7 @@ Schema 2 also adds diagnostic batches, policy/sequence state, retained failures,
 
 ## View and export
 
-For browsable Markdown conversation pages, see the [Obsidian conversation vault](../setup-and-maintenance/conversation-vault.md). It exports user inputs and final answers on demand, separately from diagnostic views.
+For browsable Markdown conversation pages, see the [Obsidian conversation vault](../setup-and-maintenance/conversation-vault.md). It exports user inputs and final answers on orderly main-chat shutdown or on demand, separately from diagnostic views.
 
 From the checkout, list sessions and substitute the desired UUID below:
 
