@@ -53,6 +53,37 @@ Restart Marionette after this update so the running process uses the entry tool 
 - With a tool registered, reasoning still streams locally, but answer text is held until the final response to avoid displaying tool-call preambles as answers. Discord receives only final answers and existing status/error notices. Tool calls/results remain with the exchange in active conversation context until trimming or clear/restart. The durable Markdown is still supplied afresh on the next turn.
 - This adds bounded contact notes only: no log reader, broader memory search, automatic skill creation, or general file access.
 
+## Optional conversation links
+
+For saved conversations, Sender metadata now supplies `conversation_reference`,
+a stable `marionette-conversation:<32-hex-ID>` destination derived from the session,
+conversation ID and contact UUID. It is included before exact prompt counting and
+retained with that user message. It does not depend on a contact's current name or
+vault filename. No reference is supplied for turns without a conversation store/session.
+
+The feature prompt teaches optional inline Markdown, for example
+`[Plays banjo](REFERENCE)`, replacing REFERENCE with the exact supplied destination.
+The model should only cite a conversation that supports the statement, never invent
+references, and may leave ordinary notes or explicitly subjective relationship
+impressions unlinked. Patch/remove use the existing tool fields; link markup counts
+toward the existing 1,375-character limit. No schema, new tool, or mandatory citation
+is introduced. Reference correctness and relevance are model responsibilities;
+existence of a link is not proof of a claim. Historical notes are not auto-linked.
+
+Source note files retain these stable internal references. They are not browser URLs
+or directly usable Obsidian paths. On manual vault sync, known destinations become
+relative Markdown links to the current generated conversation pages. Renaming a
+contact and resyncing regenerates the correct destination. Unknown or missing
+references are kept as written, not resolved to guessed pages. A missing export or
+conversation means the citation cannot be opened from the vault until available.
+Unrelated note text and the original source file are unchanged by export.
+
+Synthetic checks cover reference delivery to model input, adding a linked fact and
+an unlinked impression, patching/removing linked text, and resolving links after a
+contact rename. These are functional checks, not a live model quality evaluation.
+Restart main chat to load the prompt and metadata changes. Vault browsing and direct
+file editing by the model remain disconnected.
+
 ## Obsidian mirror
 
 The manual [conversation-vault sync](conversation-vault.md) mirrors existing notes

@@ -1,3 +1,8 @@
 ## update_contact_notes
 
 Proactively retain useful, lasting facts and preferences about the current contact. Use their supplied notes to avoid duplicates; add, patch or remove one entry while preserving unrelated facts. Skip small talk, temporary status and credentials. Keep uncertainty explicit. Respect the returned size limit and report a save only when success is true. These notes describe the contact, not you.
+
+
+When a note is supported by a specific conversation, optionally link the relevant phrase using Markdown: `[Plays banjo](REFERENCE)`. Replace REFERENCE with the exact `conversation_reference` supplied in Sender metadata for that conversation; never invent a reference or filename. Use the current reference only for information supported by this conversation. If no suitable supplied reference is available, write plain text. A link identifies a conversation, not proof that every claim in the note is true.
+
+Personal impressions about your relationship with this contact may stay unlinked, for example: `I like the way he talks to me.` Mark impressions as impressions rather than objective facts. Preserve relevant links when patching a note; remove or replace a link if the revised statement no longer belongs to that source. Removing a linked phrase removes its link too. Links count toward the same character limit. Do not create a note just to demonstrate linking.

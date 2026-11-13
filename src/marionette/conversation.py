@@ -8,6 +8,7 @@ import time
 import diagnostics
 from context import Preparation, fit_history
 from contacts import message_with_identity
+from conversation_refs import conversation_reference
 from commands import execute_clear, recognize
 
 
@@ -110,6 +111,8 @@ class Conversation:
         diagnostics.log('Message input: ' + json.dumps(message, ensure_ascii=False))
         if identity is not None:
             identity['conversation_id'] = self.key
+            if self.store is not None and self.session_id:
+                identity['conversation_reference'] = conversation_reference(self.session_id, self.key, identity['contact_uuid'])
         def save(role, kind, content, status):
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,

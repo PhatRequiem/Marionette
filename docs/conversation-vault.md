@@ -30,7 +30,7 @@ Alternate log locations require operator review for memory reset, as before.
 
 - `Generated/Contacts/<name>-<ID hash>/<name>.md`: contact name/ID and links to
   that contact's conversations. These are browsing pages, not full saved profiles.
-- Each profile links to `<name> - Notes.md`, a verbatim Markdown mirror of
+- Each profile links to `<name> - Notes.md`, a Markdown mirror of
   `data/contact_notes/<contact-uuid>.md` at sync time. Missing source files get an
   explicit placeholder; sync never creates or edits the original notes. Editing
   the mirror does not write back and is overwritten on refresh. No conversation
@@ -57,7 +57,10 @@ not historical evidence of names at message time. Assistant labels use Marionett
 Dates use recorded UTC timestamps. A saved answer does not establish Discord delivery.
 Reasoning, command notices, tool results and raw diagnostics are excluded.
 
-Contact notes preserve their original Markdown formatting and any existing links.
+Contact notes preserve their wording and Markdown formatting. Supplied stable
+`marionette-conversation:` citation destinations are translated into relative links
+to exported conversations; other links remain as written. The source notes are
+never rewritten. Missing destinations remain unresolved. See [note citations](contact-notes.md#optional-conversation-links).
 Message text is fenced as literal text: quoted Markdown, embedded images and
 wikilinks do not become active graph links or remote image fetches. The generated
 links supply the graph. No semantic relationships or tags are inferred.

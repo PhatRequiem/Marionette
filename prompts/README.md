@@ -36,3 +36,8 @@ these examples, but does not establish a measured accuracy improvement. See
 The log-result reminder is appended to a copy of the initial system message for
 follow-up requests only, before exact token counting. It is not tool data and is
 not retained as conversation history or applied to the next ordinary turn.
+
+Contact-note guidance allows optional inline citations using the exact stable
+`conversation_reference` supplied in Sender metadata. The vault exporter resolves
+these internal destinations on sync; the model does not construct filenames or
+gain file access. See [contact-note citations](../docs/contact-notes.md#optional-conversation-links).

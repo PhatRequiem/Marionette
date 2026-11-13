@@ -11,6 +11,7 @@ import sqlite3
 import tempfile
 
 from storage import now
+from conversation_refs import conversation_reference, render_note_links
 
 
 def key(*parts):
@@ -85,9 +86,11 @@ def sync(database, profiles=None, contact_notes=None):
             return f'[[Generated/{path}|{label(title)}]]'
 
         titles = {}
+        destinations = {}
         for (session, conversation, contact), rows in groups.items():
             base = folder(contact)
             slug = base + '/Conversations/' + title(contact) + ' - ' + rows[0]['recorded_at'][:10] + ' - conversation-' + key(session, conversation, contact)[:12]
+            destinations[conversation_reference(session, conversation, contact)] = slug + '.md'
             titles[slug] = rows[0]['recorded_at'][:10] + ' ' + rows[0]['source'] + ' ' + key(session, conversation)[:8]
             contacts[contact].add(slug)
             front = {'session_id': session, 'conversation_id': conversation,
@@ -117,10 +120,10 @@ def sync(database, profiles=None, contact_notes=None):
                 if source.is_symlink():
                     raise ValueError('Contact notes source refuses symbolic links.')
                 if source.exists():
-                    # Preserve the saved Markdown exactly; never initialize or edit the source.
+                    # Read the saved Markdown without initializing or editing the source.
                     with source.open(encoding='utf-8', newline='') as handle:
                         notes = handle.read()
-            pages[note(contact, 'Notes') + '.md'] = notes if notes is not None else '# Contact notes\n\nNo saved contact-notes file was available at sync time.\n'
+            pages[note(contact, 'Notes') + '.md'] = render_note_links(notes, destinations, note(contact, 'Notes') + '.md') if notes is not None else '# Contact notes\n\nNo saved contact-notes file was available at sync time.\n'
             pages[note(contact) + '.md'] = '# ' + label(names.get(contact, 'Unknown contact')) + '\n\n' + literal(contact) + '\n' + link(note(contact, 'Dates'), 'Dates') + ' · ' + link(note(contact, 'Notes'), 'Contact notes') + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations))
             text = '# Dates\n\n' + link(note(contact), 'Profile') + '\n\n'
             for day, conversations in sorted(days[contact].items(), reverse=True):

@@ -138,6 +138,8 @@ class UpdateContactNotes(BaseTool):
         'If full, shorten or remove stale entries before adding. On failure use the returned current_entries '
         'to correct and retry; only report a save after success. '
         'Distinguish uncertainty from confirmed facts; do not invent traits or save credentials. '
+        'Optional Markdown source links may use the exact conversation_reference supplied in Sender metadata; never invent references. '
+        'Unlinked notes and clearly labeled relationship impressions are allowed. Preserve relevant links when editing. '
         'Skip small talk and temporary session status. Identity/account mappings cannot be edited here.')
     parameters = {'type': 'object', 'properties': {
         'action': {'type': 'string', 'enum': ['add', 'patch', 'remove'],
