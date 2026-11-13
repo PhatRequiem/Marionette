@@ -198,6 +198,19 @@ def reasoning_record(line, colored):
     kind = record['kind']
     if kind == 'reasoning_delta':
         return paint(safe(json.loads(body.removeprefix('Reasoning delta: '))), 'data', colored)
+    if kind in ('tool_summary', 'tool_result_summary'):
+        prefix = 'Tool summary: ' if kind == 'tool_summary' else 'Tool result summary: '
+        item = json.loads(body.removeprefix(prefix))
+        label = 'Tool' if kind == 'tool_summary' else 'Result'
+        details = item['name']
+        if kind == 'tool_summary' and item.get('action'):
+            details += ' · ' + item['action']
+        outcome = item.get('outcome')
+        if outcome:
+            details += ' · ' + outcome
+        ids = f"request {item['request']} · tool {item['tool']} · call {item['protocol_tool_call_id']}"
+        color = {'Success': 'success', 'Failed': 'error'}.get(outcome, 'warning' if outcome else 'meta')
+        return paint(safe(f"\n[{label}] {details} · {ids}\n"), color, colored)
     if kind == 'sender_identity':
         identity = json.loads(body.removeprefix('Sender identity: '))
         return paint(safe(f"{identity['source']} · {identity['display_name']} · {identity['sender_id']}\n"), 'ids', colored)

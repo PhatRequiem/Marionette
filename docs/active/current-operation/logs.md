@@ -176,3 +176,5 @@ The 500 MB rolling budget applies, so a slow viewer or later replay may miss exp
 chunks. This streaming view applies to new runs; old records have no delta events.
 
 Reopen it with `./scripts/native-linux/view-log.sh DATABASE SESSION_ID reasoning`.
+
+The Reasoning terminal also shows concise `[Tool]` and `[Result]` lines between reasoning segments. They include the tool name, known action, request/tool numbers and protocol call ID. Results distinguish Success, Partial, No matches, Unavailable and Failed; unrecognized results say Returned (unverified). These labels summarize explicit tool responses, not independently verified answer quality. Arguments, note contents and full result payloads are not included in these lines. The same summary events use the existing RAM recorder and shutdown replay; detailed diagnostics remain in their existing views.

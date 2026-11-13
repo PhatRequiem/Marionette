@@ -49,8 +49,10 @@ class RamLogTests(unittest.TestCase):
             self.assertIn(b'first ',first[1])  # Visible before the turn finishes.
             emit('Reasoning delta: "second\\n"')
             for _ in range(300): emit('Reasoning delta: "x"')
+            emit('Tool summary: {"name":"read_vault","action":"search","request":1,"tool":1,"protocol_tool_call_id":"call_test"}')
+            emit('Tool result summary: {"name":"read_vault","outcome":"Unavailable","request":1,"tool":1,"protocol_tool_call_id":"call_test"}')
             emit('========== MESSAGE END | processing | completed ==========')
-            self.assertEqual(len(query_records(buffer.memory.db,self.session,'discord:123')),3)
+            self.assertEqual(len(query_records(buffer.memory.db,self.session,'discord:123')),5)
             server = read_live(self.path,self.session,'server',0)[1]
             self.assertNotIn(b'Reasoning delta:',server)
             self.assertEqual(self.disk.db.execute('SELECT count(*) FROM events').fetchone()[0],0)
@@ -64,6 +66,9 @@ class RamLogTests(unittest.TestCase):
         render(io.StringIO(saved.getvalue().decode()),rendered,'reasoning',False)
         self.assertIn('discord · Synthetic · 7',rendered.getvalue())
         self.assertIn('first second\n'+'x'*300,rendered.getvalue())
+        self.assertIn('[Tool] read_vault · search',rendered.getvalue())
+        self.assertIn('[Result] read_vault · Unavailable',rendered.getvalue())
+        self.assertIn('call_test',rendered.getvalue())
         self.assertIn('completed',rendered.getvalue())
 
     def test_connections_view_merges_discord_without_skipping_reserved_ram_ids(self):

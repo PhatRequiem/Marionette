@@ -16,6 +16,7 @@ PREFIXES = {
     'Rollover preparation failed;': 'cache_preparation_failed',
     'Model Request interrupted: ': 'model_request_interrupted',
     'Tool Call interrupted: ': 'tool_call_interrupted',
+    'Tool summary: ': 'tool_summary', 'Tool result summary: ': 'tool_result_summary',
     'Tool call identity: ': 'tool_identity', 'Message input: ': 'message_input',
     'Reasoning delta: ': 'reasoning_delta', 'Reasoning: ': 'reasoning', 'Message failed: ': 'message_failed',
     'Message interrupted: ': 'message_interrupted',

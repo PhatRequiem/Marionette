@@ -206,7 +206,7 @@ def records(db, session, view, after=0):
     if view == 'reasoning':
         if db.execute('PRAGMA user_version').fetchone()[0] < 5:
             return []
-        query += " AND event_type IN ('reasoning_delta','processing_start','processing_end','sender_identity')"
+        query += " AND event_type IN ('tool_summary','tool_result_summary','reasoning_delta','processing_start','processing_end','sender_identity')"
     elif stream == 'diagnostic':
         query += ' AND category IN (?,?)'
         args += [view, 'both']
