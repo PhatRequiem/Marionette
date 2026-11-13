@@ -20,7 +20,8 @@ class ReadVault(BaseTool):
     parameters = {'type': 'object', 'properties': {
         'action': {'type': 'string', 'enum': ['list', 'search', 'read', 'inspect', 'tags', 'links', 'open']},
         'path': {'type': 'string', 'description': 'Exact returned vault-relative path. Required for read, inspect, links, open; optional folder for list.'},
-        'query': {'type': 'string', 'description': 'Search words; all must occur in the note path or text.'},
+        'query': {'type': 'string', 'description': 'Search words; partial matches are ranked. Check matched/missing terms and source lines.'},
+        'mode': {'type': 'string', 'enum': ['exact', 'prefix', 'fuzzy'], 'description': 'Search only. Default exact whole tokens; prefix expands tokens of 3+ characters, fuzzy allows one edit for tokens of 4+ characters. Inspect term_matches.'},
         'folder': {'type': 'string', 'description': 'Search only within this vault folder.'},
         'tag': {'type': 'string', 'description': 'Search filter: exact tag.'},
         'section': {'type': 'string', 'description': 'Read only: exact unique heading from inspect; otherwise read the whole note.'}},

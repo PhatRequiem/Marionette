@@ -109,7 +109,6 @@ test('rank partial matches with rarity, bounded proximity and ordered phrases',a
  assert.deepEqual(result.matches[2].nearby_pairs,[]);
  assert.deepEqual(result.matches[0].matching_lines,[{line:1,text:'Marionette inference server'}]);
  const score=result.matches[0].score;
- add('A.md','Marionette inference server\nMarionette inference server');
  result=await ops.run({action:'search',query:'MARIONETTE inference server server!!!'});
  assert.equal(result.matches[0].score,score);
  assert.deepEqual((await ops.run({action:'search',query:'absentword server'})).matches.map(m=>m.path).sort(),['A.md','B.md','C.md','D.md']);
@@ -128,4 +127,23 @@ test('rank partial matches with rarity, bounded proximity and ordered phrases',a
  assert.equal((await ops.run({action:'search',folder:'People'})).matches[0].score,0);
  for(const query of ['', '   ', '!!!']) await assert.rejects(ops.run({action:'search',query}),/at least one|Search needs/);
  assert.equal((await ops.run({action:'search',query:'notpresent'})).total,0);
+});
+
+test('search modes preserve filters and refresh after edits, renames and deletes',async t=>{
+ const root=temp(t),data=fixture(root),ops=new Operations(data.app);
+ assert.equal((await ops.run({action:'search',query:'banj'})).total,0);
+ assert.equal((await ops.run({action:'search',query:'banj',mode:'prefix',tag:'music',folder:'People'})).total,1);
+ assert.equal((await ops.run({action:'search',query:'banjp',mode:'fuzzy',folder:'People'})).total,1);
+ assert.equal((await ops.run({action:'search',query:'banj',mode:'prefix',tag:'other'})).total,0);
+ await assert.rejects(ops.run({action:'search',query:'banjo',mode:'unknown'}),/mode/);
+ await assert.rejects(ops.run({action:'read',path:'Welcome.md',mode:'fuzzy'}),/Unexpected/);
+ fs.writeFileSync(path.join(root,'People/Alice.md'),'New mandolin');
+ assert.equal((await ops.run({action:'search',query:'banjo'})).total,0);
+ assert.equal((await ops.run({action:'search',query:'mandolin'})).total,1);
+ fs.renameSync(path.join(root,'People/Alice.md'),path.join(root,'People/Renamed.md'));
+ const file=data.files.get('People/Alice.md');data.files.delete(file.path);
+ file.path='People/Renamed.md';data.files.set(file.path,file);data.cache[file.path]=data.cache['People/Alice.md'];
+ assert.equal((await ops.run({action:'search',query:'mandolin'})).matches[0].path,'People/Renamed.md');
+ fs.unlinkSync(path.join(root,file.path));data.files.delete(file.path);
+ assert.equal((await ops.run({action:'search',query:'mandolin'})).total,0);
 });
