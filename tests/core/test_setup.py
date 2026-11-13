@@ -131,6 +131,18 @@ class LauncherTests(unittest.TestCase):
     def run_chat(self, *args):
         return subprocess.run(['bash', str(self.launcher), *args], input='1\nhello\n/exit\n', text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=20)
 
+    def test_owner_shutdown_uses_orderly_launcher_cleanup(self):
+        result = subprocess.run(['bash', str(self.launcher)],
+            input='1\nhello before shutdown\n/shutdown\n', text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=25)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Shutting down Marionette', result.stdout)
+        with closing(open_read(self.logs / 'marionette.sqlite3')) as db:
+            self.assertIsNotNone(db.execute('SELECT ended_at FROM sessions').fetchone()[0])
+            self.assertIn('hello before shutdown', [r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")])
+            self.assertGreater(db.execute("SELECT count(*) FROM events WHERE stream='diagnostic'").fetchone()[0], 0)
+            self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+
     def test_live_reset_through_launcher_keeps_server_and_clears_previous_turn(self):
         self.logs = self.root / 'data/conversations'
         self.env['MARIONETTE_LOG_DIR'] = str(self.logs)

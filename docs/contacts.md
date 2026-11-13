@@ -51,6 +51,10 @@ Each terminal profile and each Discord sender has a separate history, using the 
 
 `/resetmemory` separately requires the resolved contact UUID and source/account to match the saved owner. It resets all local memory; see [live reset](reset-memory.md). `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
 
+`/shutdown` uses the same saved-owner authorization as `/resetmemory`, on both
+terminal and Discord, but performs an orderly stop without deleting memory.
+Discord server admin roles are not mapped to Marionette ownership.
+
 ## Backup and maintenance
 
 Stop main chat before editing or restoring this file. Back it up privately and restore it to the same location to retain UUIDs and account links. Do not delete it to clear a conversation: recreating it generates different identities. Invalid data fails visibly rather than resetting profiles. Names may be changed while preserving UUIDs; keep names unique. Preferred name and timezone can be edited here while chat is stopped. Direct manual edits must also set `updated_at` to an accurate offset-bearing timestamp; no file watcher or edit menu is added. Profile data is not committed to Git or included in any baseline tag. `baseline-v4` restores the current contact code; preserve the private JSON file separately to retain your UUIDs.

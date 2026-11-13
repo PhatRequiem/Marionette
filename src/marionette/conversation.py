@@ -30,6 +30,7 @@ class Conversation:
         self.incoming = queue.Queue()
         self.epoch = store.generation if store else ''
         self.resetting = False
+        self.shutdown_requested = False
 
     def bind_log_query(self, identifier=None):
         if self.store is None or not self.session_id:
@@ -86,13 +87,15 @@ class Conversation:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
-            if recognize(message, source) not in ('clear', 'resetmemory'):
+            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             return result
 
     def _turn(self, message, *, on_delta, source, sender_id, identifier, display_name=None):
+        if self.shutdown_requested:
+            raise RuntimeError('Session is shutting down.')
         if self.resetting:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
@@ -117,6 +120,18 @@ class Conversation:
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,
                                    sender_id, role, kind, content, status)
+        if recognize(message, source) == 'shutdown':
+            from permissions import require_reset
+            try:
+                require_reset(identity, self.profiles)  # Same saved-owner authorization, no reset.
+            except PermissionError as error:
+                return str(error), 'stop'
+            save('user', 'input', message, 'received')
+            answer = 'Shutting down Marionette. Saved memory will be kept.'
+            save('assistant', 'notice', answer, 'shutdown')
+            self.shutdown_requested = True
+            diagnostics.log('Owner requested orderly shutdown.')
+            return answer, 'shutdown'
         if recognize(message, source) == 'resetmemory':
             from permissions import require_reset
             from memory_reset import reset_memory

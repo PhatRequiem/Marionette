@@ -68,6 +68,19 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
 
+    async def test_shutdown_owner_only_and_acknowledged_without_model(self):
+        denied = message(owner=456, content='/shutdown')
+        await self.client.on_message(denied)
+        denied.channel.send.assert_awaited_once()
+        self.assertEqual(denied.channel.send.await_args.args, ('Access Denied',))
+        self.assertFalse(self.conversation.shutdown_requested)
+        allowed = message(number=2, owner=123, content='/shutdown')
+        await self.client.on_message(allowed)
+        allowed.channel.send.assert_awaited_once()
+        self.assertEqual(allowed.channel.send.await_args.args, ('Shutting down Marionette. Saved memory will be kept.',))
+        self.assertTrue(self.conversation.shutdown_requested)
+        self.assertEqual(self.api.requests, [])
+
     async def test_new_sender_display_name_is_saved_without_changing_identity(self):
         incoming = message(owner=456)
         await self.client.on_message(incoming)
@@ -235,6 +248,7 @@ class ConfigAndStreamingTests(unittest.TestCase):
         class Client:
             def __init__(self, *args):
                 self.done = asyncio.Event()
+                self.turn_lock = asyncio.Lock()
             async def __aenter__(self):
                 return self
             async def __aexit__(self, *args):

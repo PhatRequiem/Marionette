@@ -94,3 +94,16 @@ Restart the adapter after updating code to enable this endpoint. It neither
 updates the startup datasheet nor exposes a model tool.
 
 Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Restart both main chat and Discord after this update; no live name backfill occurs until a message arrives. See [name preservation and fallback rules](contacts.md).
+
+## Admin shutdown
+
+The saved owner can send `/shutdown` in a DM or main terminal. Code resolves the
+sender account to the saved owner UUID, using the same authorization as memory
+reset; Discord server roles, display names and message claims do not grant access.
+Non-owners receive `Access Denied`. No inference is performed for either outcome.
+The command waits for current work through the existing sequential turn handling,
+then main chat returns through normal model/recorder cleanup. Saved conversations,
+soul, notes and the vault are preserved. Discord attempts to deliver the shutdown
+acknowledgement before disconnecting; network failures can prevent delivery.
+This stops Marionette, not the computer. `/exit` remains a local terminal exit.
+Restart main chat and Discord after this code update to activate the command.

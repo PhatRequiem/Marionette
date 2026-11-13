@@ -31,6 +31,7 @@ Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. O
 ## Stop or start fresh
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
+- **Admin shutdown:** send `/shutdown` as the saved owner in terminal or Discord. Stops the local model and main chat, disconnects Discord, and follows normal recorder shutdown saving. Saved memory is kept. Other contacts receive `Access Denied`.
 - **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
 - **Reset all memory (owner only):** type `/resetmemory` in terminal or Discord. Clears all chat histories, soul, contact notes, and local logs while preserving both IDs and your owner/account mapping. The model stays loaded. See [reset details](docs/reset-memory.md).
 - **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved SQLite records remain. Every new main-chat launch also starts fresh model history; contact notes persist.

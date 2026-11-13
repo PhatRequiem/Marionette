@@ -63,7 +63,7 @@ def select_profile(profiles):
 def show_ready(capacity, reserve):
     print(paint('Ready.', 'meta', enabled()) + paint(' Context limit: ', 'data', enabled()) + paint(str(capacity), 'tokens', enabled())
           + paint('; reasoning + answer allowance: ', 'data', enabled()) + paint(str(reserve), 'tokens', enabled())
-          + ' tokens. /clear starts fresh; /resetmemory wipes memory (owner); /exit quits.')
+          + ' tokens. /clear starts fresh; /resetmemory wipes memory (owner); /shutdown stops her (owner); /exit quits.')
 
 
 def display_discord(conversation):
@@ -89,7 +89,7 @@ def display_discord(conversation):
     color('data')
     try:
         answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
-        if recognize(message, 'discord') in ('clear', 'resetmemory'):
+        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown'):
             color('meta')
             print(answer)
         if finish == 'length':
@@ -127,6 +127,8 @@ def run(conversation, *, external=False):
                 if external:
                     while True:
                         if display_discord(conversation):
+                            if conversation.shutdown_requested:
+                                return
                             show_terminal_source(conversation)
                             color('input')
                             print('> ', end='', flush=True)
@@ -143,14 +145,16 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command in ('clear', 'resetmemory'):
+        if command in ('clear', 'resetmemory', 'shutdown'):
             try:
-                answer, _ = conversation.turn(message)
+                answer, finish = conversation.turn(message)
             except (ValueError, RuntimeError, OSError) as error:
                 answer = str(error)
             color('meta')
             print(answer)
             color('data')
+            if conversation.shutdown_requested:
+                return
             continue
         if command == 'help':
             print(HELP_TEXT)

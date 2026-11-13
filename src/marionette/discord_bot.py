@@ -186,7 +186,7 @@ class DMChat(discord.Client):
                         sys.stdout.buffer.write(marker(memory_epoch)+b'\n')
                         sys.stdout.buffer.flush()
                         # Keep transport watermarks so Gateway replay cannot restore erased DMs.
-                    elif memory_epoch != current_generation(self.address):
+                    elif finish != 'shutdown' and memory_epoch != current_generation(self.address):
                         return  # Terminal reset superseded this in-flight response.
                     timings = result.get('timings', {})
                     log('Local response completed.', **context, local_response_ms=elapsed(local_start),
@@ -235,7 +235,9 @@ def main():
                         alive = False
                     if not alive:
                         log('Main chat ended. Disconnecting Discord.')
-                        await bot.close()
+                        # Let the active reply (including shutdown acknowledgement) finish.
+                        async with bot.turn_lock:
+                            await bot.close()
                         return
             from operator_status import start as start_status
             status_server = await start_status(bot, ADDRESS)

@@ -13,6 +13,7 @@ class CommandTests(unittest.TestCase):
     def test_interface_specific_recognition(self):
         for source in ('terminal', 'discord'):
             self.assertEqual(recognize(' /clear \n', source), 'clear')
+            self.assertEqual(recognize(' /shutdown \n', source), 'shutdown')
             self.assertIsNone(recognize('hello', source))
         self.assertEqual(recognize(' /exit ', 'terminal'), 'exit')
         self.assertEqual(recognize('/unknown', 'terminal'), 'help')
@@ -34,3 +35,27 @@ class CommandTests(unittest.TestCase):
                 {'contact_uuid': 'owner', 'source': 'discord', 'sender_id': '123'}), 'Chat history cleared.')
         finish.assert_called_once_with()
         self.assertEqual(conversation.history, [])
+
+    def test_shutdown_requires_saved_owner_and_never_calls_model(self):
+        import tempfile
+        import threading
+        from contacts import ContactProfiles
+        from conversation import Conversation
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
+            profiles = ContactProfiles(Path(directory) / 'profiles.json')
+            owner = profiles.profiles[0]
+            owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
+            profiles.save()
+            guest = profiles.add('Guest')
+            for source, sender, selected, allowed in (
+                ('terminal', None, guest, False), ('discord', '456', owner, False),
+                ('terminal', None, owner, True), ('discord', '123', guest, True)):
+                api = Mock(closing=threading.Event())
+                conversation = Conversation(api, 8192, profiles, selected)
+                answer, finish = conversation.turn('/shutdown', source=source, sender_id=sender)
+                self.assertEqual(conversation.shutdown_requested, allowed)
+                self.assertEqual(finish, 'shutdown' if allowed else 'stop')
+                if not allowed: self.assertEqual(answer, 'Access Denied')
+                api.reply.assert_not_called()
+                self.assertIsNone(conversation.pending)
+                self.assertFalse(api.closing.is_set())  # UI returns through normal cleanup.
