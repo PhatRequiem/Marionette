@@ -6,4 +6,5 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 exec python "$ROOT/src/marionette/conversation_vault.py" \
   "${MARIONETTE_LOG_DIR:-$ROOT/data/conversations}/marionette.sqlite3" \
   --profiles "$ROOT/data/contacts/profiles.json" \
-  --contact-notes "$ROOT/data/contact_notes" "$@"
+  --contact-notes "$ROOT/data/contact_notes" \
+  --docs "$ROOT/docs" "$@"

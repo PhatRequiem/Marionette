@@ -48,6 +48,15 @@ Alternate log locations require operator review for memory reset, as before.
   Contacts hub in graph view, but there are no shared date pages. Conversation,
   profile and date links within each collection stay local to that contact.
   These are organizational compartments, not access restrictions.
+- `Generated/Self documentation.md`: index linked from Welcome.
+- `Generated/Self documentation/docs/`: one-way mirror of the project `docs/`
+  folder, preserving subfolders and file bytes, including Markdown, JSON and text.
+  Hidden/editor files are excluded and symlinks refused. Ordinary sync refreshes
+  these copies and removes copies of deleted source files. Original docs are never
+  edited by sync. Internal docs links keep their relative layout; links outside
+  `docs/` are not mirrored and may not resolve in the vault. Experiments/archives
+  remain historical evidence and ideas remain discussion-only. No model access
+  or new source of model instructions is enabled.
 - `Annotations/`: your own optional notes; ordinary sync leaves them alone.
 - `Welcome.md`: generated starting instructions, refreshed on every sync. Obsidian manages its own `.obsidian/` settings.
 
@@ -76,7 +85,8 @@ The vault is a replaceable mirror, **not a backup or a new memory database**.
 
 The whole vault lives under the existing reset-managed `data/conversations/`
 folder and is ignored by Git. Memory reset deletes it, including annotations and
-Obsidian settings. Close the vault during resets so Obsidian does not recreate
+Obsidian settings and documentation copies. The original project `docs/` remains
+untouched and can be mirrored again. Close the vault during resets so Obsidian does not recreate
 cached edits. Copies outside the project remain outside automatic reset scope.
 
 Sync reserves SQLite's writer lock while reading and publishing without changing

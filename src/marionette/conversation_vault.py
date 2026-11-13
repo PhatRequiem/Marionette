@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import sqlite3
 import tempfile
+from urllib.parse import quote
 
 from storage import now
 from conversation_refs import conversation_reference, render_note_links
@@ -33,16 +34,16 @@ def literal(value):
 def atomic_write(path, content):
     if path.is_symlink():
         raise ValueError('Vault refuses symbolic links.')
-    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as handle:
+    with tempfile.NamedTemporaryFile(mode='wb', dir=path.parent, delete=False) as handle:
         temporary = Path(handle.name)
-        handle.write(content)
+        handle.write(content if isinstance(content, bytes) else content.encode('utf-8'))
     try:
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)
 
 
-def sync(database, profiles=None, contact_notes=None):
+def sync(database, profiles=None, contact_notes=None, docs=None):
     database = Path(database).absolute()
     vault = database.parent / 'obsidian-vault'
     # Destination is deliberately fixed under the reset-managed conversations folder.
@@ -131,6 +132,27 @@ def sync(database, profiles=None, contact_notes=None):
             pages[note(contact, 'Dates') + '.md'] = text
         # The contact index is the explicit shared navigation hub; dates stay local.
         pages['Contacts.md'] = '# Contacts\n\nChoose a contact to browse their profile, dates and conversations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join('- ' + link(note(c), names.get(c, 'Unknown contact')) + '\n' for c in sorted(contacts, key=lambda c: (names.get(c, '').casefold(), c or '')))
+        documentation_count = 0
+        if docs is not None:
+            source_docs = Path(docs).absolute()
+            if any(p.is_symlink() for p in (source_docs, *source_docs.parents)):
+                raise ValueError('Documentation source refuses symbolic links.')
+            if not source_docs.is_dir():
+                raise ValueError('Documentation source directory is missing.')
+            index = '# Self documentation\n\nOne-way mirror of the project docs folder. Refresh with the vault sync command.\n\nCurrent guides are at the top level. Experiments and archives are historical; ideas are discussion-only, not active configuration.\n\nLinks between files inside docs are preserved. Links to source code or other files outside docs are not mirrored.\n\n'
+            for source in sorted(source_docs.rglob('*')):
+                relative = source.relative_to(source_docs)
+                if any(part.startswith('.') for part in relative.parts):
+                    continue  # Vault/editor settings are not project documentation.
+                if source.is_symlink():
+                    raise ValueError('Documentation source refuses symbolic links.')
+                if not source.is_file():
+                    continue
+                destination = 'Self documentation/docs/' + relative.as_posix()
+                pages[destination] = source.read_bytes()
+                index += '- [' + label(relative.as_posix()) + '](' + quote(destination, safe='/') + ')\n'
+                documentation_count += 1
+            pages['Self documentation.md'] = index
         generated = vault / 'Generated'
         if generated.exists() and not (generated / '.marionette-managed').is_file():
             raise ValueError('Refusing to overwrite an unrecognized Generated directory.')
@@ -146,15 +168,19 @@ def sync(database, profiles=None, contact_notes=None):
                     break
                 parent.chmod(0o700)
             atomic_write(destination, content)
-        for old in generated.rglob('*.md'):
-            if old.relative_to(generated).as_posix() not in pages:
+        for old in generated.rglob('*'):
+            managed_document = old.is_relative_to(generated / 'Self documentation')
+            if old.is_file() and (old.suffix == '.md' or managed_document) and old.relative_to(generated).as_posix() not in pages:
                 old.unlink()
         for old in sorted(generated.rglob('*'), key=lambda p: len(p.parts), reverse=True):
             if old.is_dir() and old not in (generated / 'Contacts', generated / 'Groups') and not any(old.iterdir()):
                 old.rmdir()
-        atomic_write(vault / 'Welcome.md', '# Welcome to Marionette’s conversation vault\n\nStart at [[Generated/Contacts|Contacts]], then choose a contact to browse their profile, dates and conversations.\n\nThe Contacts index connects the contact collections. Dates stay within each contact’s folder. Groups is reserved for future group conversations.\n\nThis is a local mirror of saved SQLite conversations. Refresh it manually with `./scripts/native-linux/sync-conversation-vault.sh`. Marionette has no access to this vault yet.\n\nWelcome and Generated pages are replaced on sync. Keep your own notes in Annotations.\nAll vault contents, including annotations, are private memory and are cleared by a memory reset.\n')
+        welcome = '# Welcome to Marionette’s conversation vault\n\nStart at [[Generated/Contacts|Contacts]], then choose a contact to browse their profile, dates and conversations.\n\nThe Contacts index connects the contact collections. Dates stay within each contact’s folder. Groups is reserved for future group conversations.\n\nThis is a local mirror of saved SQLite conversations. Refresh it manually with `./scripts/native-linux/sync-conversation-vault.sh`. Marionette has no access to this vault yet.\n\nWelcome and Generated pages are replaced on sync. Keep your own notes in Annotations.\nAll vault contents, including annotations, are private memory and are cleared by a memory reset.\n'
+        if docs is not None:
+            welcome = welcome.replace('The Contacts index', 'Browse [[Generated/Self documentation|Self documentation]] for a mirror of the project docs.\n\nThe Contacts index')
+        atomic_write(vault / 'Welcome.md', welcome)
         db.rollback()
-    return {'vault': str(vault), 'conversations': len(groups), 'messages': sum(map(len, groups.values())), 'contacts': len(contacts)}
+    return {'vault': str(vault), 'conversations': len(groups), 'messages': sum(map(len, groups.values())), 'contacts': len(contacts), 'documentation_files': documentation_count}
 
 
 def main():
@@ -162,9 +188,10 @@ def main():
     parser.add_argument('database', type=Path)
     parser.add_argument('--profiles', type=Path)
     parser.add_argument('--contact-notes', type=Path)
+    parser.add_argument('--docs', type=Path)
     args = parser.parse_args()
     os.umask(0o077)
-    print(json.dumps(sync(args.database, args.profiles, args.contact_notes), indent=2))
+    print(json.dumps(sync(args.database, args.profiles, args.contact_notes, args.docs), indent=2))
 
 
 if __name__ == '__main__':
