@@ -98,15 +98,27 @@ class DiagnosticView:
     def __init__(self):
         self.kind = 'data'
         self.role = None
+        self.connection_event = False
 
     def row(self, line):
         if line.startswith('[event '):
             self.kind, self.role = 'data', None
+            self.connection_event = False
             if re.search(r'\[(?:MESSAGE|MODEL REQUEST|TOOL CALL) (?:START|END)\]', line):
                 return 'meta'
             return 'muted'
         text = line.removeprefix('    | ').lstrip()
         text = re.sub(r'^Client: (?:\[(?:message|request|tool) [^\]]+\] )+', 'Client: ', text)
+        if text.startswith('Client: Connection event:'):
+            self.connection_event = True
+            self.kind = 'meta'
+            return self.kind
+        if self.connection_event and re.match(r'"event"\s*:', text):
+            value = text.split(':',1)[1].strip().strip(',').strip('"')
+            self.kind = ('error' if value in ('request_failed','request_aborted','listener_failed') else
+                         'warning' if value in ('unavailable','mirror_unavailable','indexing') else
+                         'success' if value in ('ready','connected','reconnected','request_completed') else 'meta')
+            return self.kind
         if text.startswith(('Client: ========== MESSAGE', 'Client: ---------- MODEL REQUEST', 'Client: ---------- TOOL CALL')):
             self.kind = 'meta'
             return self.kind
@@ -167,9 +179,13 @@ def numeric_fields(text, colored):
     return ''.join(pieces)
 
 
-def diagnostic_row(line, kind, colored):
-    # Split headings from content without changing any saved character.
+def diagnostic_row(line, kind, colored, *, connection=False):
+    # View labels do not alter stored evidence.
     text = line.rstrip('\n')
+    if connection and re.match(r'    \|\s*"request_id"\s*:', text):
+        text = text.replace('"request_id"', '"HTTP request ID"', 1)
+    if connection and re.match(r'    \|\s*"event"\s*:', text):
+        text = re.sub(r'(:\s*")([a-z_]+)(")', lambda m: m[1]+m[2].replace('_',' ').capitalize()+m[3], text)
     match = re.match(r'(    \| Client: (?:\[(?:message|request|tool) [^\]]+\] )*Discord input \[)([0-9]+)(\]: )(.*)', text)
     if match:
         return (paint(match[1], 'meta', colored) + paint(match[2], 'ids', colored)
@@ -208,7 +224,7 @@ def reasoning_record(line, colored):
         outcome = item.get('outcome')
         if outcome:
             details += ' · ' + outcome
-        ids = f"request {item['request']} · tool {item['tool']} · call {item['protocol_tool_call_id']}"
+        ids = f"Model request {item['request']} · Tool call {item['tool']} · Protocol call ID {item['protocol_tool_call_id']}"
         color = {'Success': 'success', 'Failed': 'error'}.get(outcome, 'warning' if outcome else 'meta')
         return paint(safe(f"\n[{label}] {details} · {ids}\n"), color, colored)
     if kind == 'sender_identity':
@@ -237,7 +253,7 @@ def render(source, output, mode, colored):
             if line.startswith(('    | Session started:', '    | Session ended:',
                                 '    | Client: Chat history cleared.', '    | Client: Rollover preparation')):
                 output.write('\n')
-            output.write(diagnostic_row(line, kind, colored) + '\n')
+            output.write(diagnostic_row(line, kind, colored, connection=view.connection_event) + '\n')
         output.flush()
 
 

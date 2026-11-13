@@ -9,7 +9,7 @@ import threading
 import diagnostics
 
 EVENTS = {'listener_observed', 'listener_started', 'listener_failed', 'plugin_stopping',
-          'ready', 'indexing', 'mirror_unavailable', 'request_received', 'request_completed', 'request_failed', 'request_aborted'}
+          'ready', 'indexing', 'mirror_unavailable', 'request_started', 'request_received', 'request_completed', 'request_failed', 'request_aborted'}
 
 
 def record(source, event, **fields):
@@ -105,3 +105,40 @@ class VaultDiagnostics:
                 pass
         if self.thread:
             self.thread.join(timeout=5)
+
+
+def current_status(data):
+    """A fresh authenticated probe; never infer readiness from tool registration."""
+    from datetime import datetime, timezone
+    result = {'status': 'unknown', 'observed_at': None}
+    connection = None
+    try:
+        path = Path(data) / 'scarecrow/connection.json'
+        if not path.exists():
+            result['status'] = 'not_configured'
+            return result
+        config = json.loads(path.read_text())
+        if config.get('enabled') is not True:
+            result['status'] = 'disabled'
+            return result
+        port = config['port']
+        if type(port) is not int or not 1024 <= port <= 65535:
+            raise ValueError('Invalid port')
+        connection = http.client.HTTPConnection('127.0.0.1', port, timeout=1)
+        connection.request('GET', '/v1/status', headers={'Authorization': 'Bearer ' + config['token']})
+        response = connection.getresponse()
+        raw = response.read(4097)
+        if len(raw) > 4096:
+            raise ValueError('Invalid status response')
+        fields = json.loads(raw)
+        if response.status == 200 and fields.get('vault_id') == config['vault_id'] and fields.get('status') == 'ok':
+            result['status'] = 'ready'
+        else:
+            result['status'] = 'unavailable'
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, http.client.HTTPException):
+        result['status'] = 'unavailable'
+    finally:
+        if connection:
+            connection.close()
+        result['observed_at'] = datetime.now(timezone.utc).isoformat()
+    return result

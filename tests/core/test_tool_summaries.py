@@ -58,5 +58,5 @@ class ToolSummaryTests(unittest.TestCase):
         raw = 'Client: [message test:1] [request 02] [tool 01] Tool result summary: ' + json.dumps(item)
         line = json.dumps({'kind': 'tool_result_summary', 'raw': raw}) + '\n'
         render(io.StringIO(line), output, 'reasoning', False)
-        for text in ('[Result]', 'read_vault', 'Unavailable', 'request 2', 'tool 1', 'call_123'):
+        for text in ('[Result]', 'read_vault', 'Unavailable', 'Model request 2', 'Tool call 1', 'call_123'):
             self.assertIn(text, output.getvalue())

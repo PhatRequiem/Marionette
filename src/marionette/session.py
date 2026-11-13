@@ -66,7 +66,8 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
                     health = 'online' if json.loads(response.read(4096)).get('status') == 'ok' else 'unhealthy'
             except (OSError, ValueError):
                 pass
-            return {'model_server': health, 'discord': 'unknown',
+            from vault_diagnostics import current_status
+            return {'model_server': health, 'discord': 'unknown', 'obsidian': current_status(data),
                     'tools': sorted(tool.name for tool in api.tools),
                     'processing': 'busy' if conversation.lock.locked() else 'idle',
                     'cache_preparation': bool(api.worker and api.worker.is_alive()),

@@ -18,7 +18,7 @@ and evidence definitions are in the [log glossary](log-glossary.md).
 | `lookup` | Allowed `target` | Intended result |
 |---|---|---|
 | `setup` | `startup` | Latest recorded startup information from the setup datasheet. |
-| `status` | `current` | Current server health, Discord connection, available tools and processing state. |
+| `status` | `current` | Current server health, Discord and Obsidian connections, available tools and processing state. |
 | `processing` | `previous_message` or `message_id` | Message outcome, token usage, model requests, tool calls and available timings. |
 | `delivery` | `previous_message` or `message_id` | Reply delivery outcome, including partial delivery. |
 | `errors` | `previous_message` or `message_id` | Recognized failures associated with the message. |

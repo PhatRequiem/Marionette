@@ -13,7 +13,7 @@ class QueryLogs(BaseTool):
     description = (
         'Read verified setup, current status, or diagnostic facts for answers or self-directed reflection. You may review logs whenever you want; no user request or problem is required. '
         'For recorded model, device, runtime and configuration, set lookup to "setup" and target to "startup". '
-        'For current server, Discord, tools and processing status, set lookup to "status" and target to "current". '
+        'For current server, Discord, Obsidian, tools and processing status, set lookup to "status" and target to "current". '
         'For message diagnostics, set lookup to "processing" for processing facts, "delivery" for reply delivery, '
         'or "errors" for recognized failures. Set target to "previous_message" to inspect the user input BEFORE '
         'the current input in this conversation, not the message you are answering now. '

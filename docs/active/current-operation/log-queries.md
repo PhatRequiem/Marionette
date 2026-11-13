@@ -101,3 +101,11 @@ Enabled [log-query instructions](../../../prompts/log-queries.md) are composed s
 Successful retrieval and delivery do not guarantee accurate model interpretation. Unit conversion, unsupported claims, and response length require review. The short follow-up instruction in `prompts/log-results.md` applies only after a fresh log result in the current turn, not when answering solely from retained context.
 
 Answer quality and long-session reliability are not established by functional tool checks. Before relying on interpretations for automated actions, evaluate tool selection, arguments, factual interpretation, and error recovery separately, including messages that need no tool.
+
+### Tool and connection evidence
+
+Processing reports include one tool entry per request/tool ordinal, with protocol call ID, action, explicit outcome and evidence references. Missing outcomes remain unknown; completed processing does not imply every tool succeeded. Failed tool-result summaries are recognized by error lookups and retention.
+
+Message-owned Obsidian HTTP UUIDs anchor joins to otherwise untagged Scarecrow server events in the same session, including protected evidence. Reports use `http_request_id` to distinguish these UUIDs from model-request ordinals. Joins use exact IDs, never timestamp proximity; unrelated messages and global lifecycle events are excluded. If the client anchor or server events have expired, the corresponding evidence cannot be reconstructed. Existing query byte/event limits still apply.
+
+Current status includes a separate `obsidian` result from an authenticated Scarecrow `/v1/status` probe, with its own observation timestamp. It reports ready, unavailable, disabled, not_configured or unknown. This is independent of the tools list. Unavailable is not proof that the Obsidian application is closed.

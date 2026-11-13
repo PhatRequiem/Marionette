@@ -28,6 +28,47 @@ class QueryTests(unittest.TestCase):
     def query(self,lookup,**kwargs):
         return handle({'lookup':lookup,'target':'message_id','message_id':self.identifier},**(self.args|kwargs))
 
+    def test_tool_outcome_and_correlated_server_evidence(self):
+        request_id='00000000-0000-0000-0000-000000000001'
+        self.event('[request 01] [tool 01] Tool call identity: {"name":"read_vault","protocol_tool_call_id":"call_1"}')
+        self.event('[request 01] [tool 01] Tool result summary: {"name":"read_vault","protocol_tool_call_id":"call_1","outcome":"Failed"}')
+        self.event('[request 01] [tool 01] Connection event: '+json.dumps({'source':'Obsidian','event':'request_started','request_id':request_id}))
+        for rid in (request_id, '00000000-0000-0000-0000-000000000002'):
+            self.store.event(self.session,'diagnostic', ('Client: Connection event: '+json.dumps({
+                'source':'Scarecrow','event':'request_failed','request_id':rid,'http_status':503,'duration_ms':12})+'\n').encode())
+        processing=self.query('processing')['data']
+        self.assertEqual(processing['tools'][0]['outcome'],'Failed')
+        self.assertEqual(processing['tools'][0]['protocol_tool_call_id'],'call_1')
+        self.assertEqual(len(processing['tools']),1)
+        self.assertEqual(len(processing['connections']),2)
+        self.assertEqual(processing['connections'][-1]['component'],'Scarecrow')
+        self.assertEqual(processing['connections'][-1]['http_request_id'],request_id)
+        failures=self.query('errors')['data']['failures']
+        self.assertEqual({f['component'] for f in failures},{'tool','vault'})
+        self.assertEqual(self.store.db.execute("SELECT count(*) FROM failures WHERE component='tool'").fetchone()[0],1)
+
+    def test_connection_join_live_and_after_shutdown(self):
+        from contextlib import closing
+        rid='00000000-0000-0000-0000-000000000001'
+        with closing(RamLogs(self.store,self.session)) as buffer:
+            buffer.append(('Client: [message discord:123] Connection event: '+json.dumps({
+                'source':'Obsidian','event':'request_started','request_id':rid})+'\n').encode(),'server')
+            buffer.append(('Client: Connection event: '+json.dumps({
+                'source':'Scarecrow','event':'request_completed','request_id':rid,'http_status':200})+'\n').encode(),'server')
+            with closing(LiveView(buffer,self.path)):
+                before=self.query('processing',live=True)['data']['connections']
+                self.assertEqual(len(before),2)
+                self.assertEqual(self.store.db.execute('SELECT count(*) FROM events').fetchone()[0],0)
+            buffer.save()
+        after=self.query('processing')['data']['connections']
+        self.assertEqual(before,after)
+
+    def test_failed_tool_summary_alone_is_an_error(self):
+        self.event('[request 01] [tool 01] Tool result summary: {"name":"update_soul","outcome":"Failed"}')
+        self.assertEqual(self.query('errors')['data']['failures'][0]['component'],'tool')
+        self.event('[request 01] [tool 01] Tool Call failed: synthetic failure')
+        self.assertEqual(self.store.db.execute("SELECT count(*) FROM failures WHERE component='tool'").fetchone()[0],1)
+
     def test_processing_scoped_and_no_conversation_prose(self):
         self.event('========== MESSAGE START | processing ==========')
         self.event('Prompt budget: 100 tokens + 200 reply allowance < 1000; removed_exchanges=0.')

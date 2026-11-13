@@ -24,6 +24,8 @@ FIELD_MEANINGS = {
         'total_tokens': 'Prompt plus completion tokens for that request; not generated tokens.',
         'recorded_token_totals': 'Sums over available usage records only. Repeated history is counted again across requests; not unique context size or proof all requests were retained.',
         'processing_boundary_elapsed_ms': 'Elapsed between recorded application processing boundaries; includes tool work and overhead, not pure model generation time.',
+        'tools': 'Explicit tool outcomes; completed message processing does not imply every tool succeeded. Unknown means no retained outcome.',
+        'connections': 'Client and server HTTP observations joined by request UUID; durations overlap and must not be added. Component identifies the emitter, source identifies evidence storage.',
         'budgets': 'Configured allowances and prompt sizes, not actual generated usage.',
     },
     'delivery': {
@@ -40,7 +42,7 @@ FIELD_MEANINGS = {
         'fields': 'Dated startup observations, not current status. Runtime version belongs to llama.cpp, not Vulkan. GPU layers describes offload count, not GPU utilization.',
         'Reasoning format': 'Wire format for separating reasoning from the answer; not the model family.',
     },
-    'status': {'tools': 'Tools bound at the instant of this probe; the application may rebind tools for each contact turn.'},
+    'status': {'obsidian': 'Fresh authenticated Scarecrow status probe, separately timestamped. Tool registration alone does not establish connectivity.', 'tools': 'Tools bound at the instant of this probe; the application may rebind tools for each contact turn.'},
     'errors': {'failures': 'Recognized failures in retained evidence only. An empty list does not establish an error-free run.'},
 }
 
@@ -66,7 +68,7 @@ def validate(form):
         raise ValueError('message_id is only allowed with target message_id.')
 
 
-def records(db, session, identifier):
+def message_records(db, session, identifier):
     """Only message-tagged evidence, including retained windows; bounded before decoding."""
     sql = "SELECT id,recorded_at,stream,length(raw) AS bytes,0 AS truncated,raw,'events' AS origin FROM events WHERE session_id=? AND message_id=?"
     args = [session,identifier]
@@ -92,6 +94,50 @@ def records(db, session, identifier):
     return rows
 
 
+def connection_fields(raw):
+    match = re.fullmatch(r'Client: (?:\[(?:message|request|tool) [^\]\r\n]+\] )*Connection event: (.*)\n?', raw, re.S)
+    if not match:
+        return None
+    try:
+        fields = json.loads(match[1])
+    except ValueError:
+        return None
+    if not isinstance(fields, dict):
+        return None
+    request_id = fields.get('request_id')
+    if not isinstance(request_id, str) or not re.fullmatch(r'[a-f0-9-]{36}', request_id):
+        return None
+    return fields
+
+
+def records(db, session, identifier):
+    rows = message_records(db, session, identifier)
+    ids = {f['request_id'] for row in rows if not row['truncated']
+           and (f := connection_fields(row['raw'])) and f.get('source') == 'Obsidian'}
+    if not ids or db.execute('PRAGMA user_version').fetchone()[0] < 5:
+        return rows
+    # The message-owned client record is the authority for correlation. Never
+    # attach global events by time, or another message's tagged records.
+    for table, key, truncated in [('events', 'id', '0'), ('error_evidence', 'event_id', 'truncated')]:
+        clauses = ' OR '.join('instr(CAST(raw AS TEXT),?)>0' for _ in ids)
+        sql = f"""SELECT {key} AS id,recorded_at,stream,length(raw) AS bytes,
+            {truncated} AS truncated,CASE WHEN length(raw)<=? THEN raw ELSE NULL END AS raw
+            FROM {table} WHERE session_id=? AND message_id IS NULL
+            AND event_type='connection_event' AND ({clauses}) ORDER BY {key} LIMIT ?"""
+        for row in db.execute(sql, [MAX_BYTES, session, *sorted(ids), MAX_EVENTS+1]):
+            if row['raw'] is None:
+                raise ValueError('Connection evidence exceeds query limits.')
+            item = dict(row)
+            item['raw'] = row['raw'].decode('utf-8', errors='replace')
+            item['origin'] = table
+            fields = connection_fields(item['raw'])
+            if fields and fields.get('source') == 'Scarecrow' and fields['request_id'] in ids:
+                rows.append(item)
+            if len(rows) > 2*MAX_EVENTS:
+                raise ValueError('Connection evidence exceeds query limits.')
+    return merge(rows)
+
+
 def merge(rows):
     result = {}
     for row in rows:
@@ -109,11 +155,14 @@ def merge(rows):
 
 
 def extract(lookup, rows, identifier, conversation):
-    output = {'processing': {'outcome': 'unknown', 'finish_reason': None, 'requests': [], 'tools': [], 'budgets': [], 'started_at': None,'ended_at':None},
+    output = {'processing': {'outcome': 'unknown', 'finish_reason': None, 'requests': [], 'tools': [], 'connections': [], 'budgets': [], 'started_at': None,'ended_at':None},
               'delivery': {'outcome':'unknown','chunks_sent':0,'timings_ms':{}},
               'errors': {'failures':[]}}[lookup]
     evidence, notes = [], []
     starts = ends = 0
+    tools = {}
+    connection_ids = {f['request_id'] for row in rows if row['raw'].startswith('Client: [message '+identifier+'] ')
+                      and not row['truncated'] and (f := connection_fields(row['raw'])) and f.get('source') == 'Obsidian'}
     for row in rows:
         if row['truncated']:
             notes.append('Truncated protected evidence excluded.')
@@ -138,10 +187,16 @@ def extract(lookup, rows, identifier, conversation):
                     counts={k:usage.get(k) for k in ('prompt_tokens','completion_tokens','total_tokens')}
                     if any(v is not None and (type(v) is not int or v<0) for v in counts.values()):raise ValueError('Malformed token usage.')
                     output['requests'].append({'request_number':req,**counts,**ref});used=True
-                elif text.startswith('Tool call identity: '):
-                    identity=json.loads(text[len('Tool call identity: '):])
+                elif text.startswith(('Tool call identity: ', 'Tool summary: ', 'Tool result summary: ')):
+                    identity=json.loads(text.split(': ',1)[1])
                     if not isinstance(identity,dict) or not isinstance(identity.get('name'),str):raise ValueError('Malformed tool identity.')
-                    output['tools'].append({'request_number':req,'tool_number':tool,'name':identity.get('name'),**ref});used=True
+                    item=tools.setdefault((req,tool), {'request_number':req,'tool_number':tool,'name':identity['name'],
+                        'protocol_tool_call_id':None,'action':None,'outcome':'unknown','evidence':[],**ref})
+                    if item['name'] != identity['name']:raise ValueError('Conflicting tool identity.')
+                    for key in ('protocol_tool_call_id','action','outcome'):
+                        value=identity.get(key)
+                        if isinstance(value,str):item[key]=value
+                    item['evidence'].append(ref);used=True
                 elif match:=re.fullmatch(r'(?:Prompt budget|Tool-loop prompt budget): (\d+) tokens \+ (\d+) reply allowance < (\d+)(?:; removed_exchanges=(\d+))?\.',text):
                     prompt,allowance,capacity=map(int,match.groups()[:3])
                     output['budgets'].append({'request_number':req,'prompt_tokens':prompt,'reply_allowance':allowance,'capacity':capacity,'removed_exchanges':int(match[4]) if match[4] else None,**ref});used=True
@@ -153,6 +208,20 @@ def extract(lookup, rows, identifier, conversation):
                     output['failures'].append({'component':failure_identity('diagnostic',raw.encode())[3], 'request_number':req,'tool_number':tool,'detail':text[:300],**ref});used=True
                 elif text.startswith(('Message interrupted:', 'Model Request interrupted:', 'Tool Call interrupted:')):
                     output['failures'].append({'component':'interruption','detail':text[:300],**ref});used=True
+        fields = connection_fields(raw) if row['stream']=='diagnostic' else None
+        if fields and fields['request_id'] in connection_ids and (tag or fields.get('source')=='Scarecrow'):
+            from vault_diagnostics import clean_event
+            safe_fields = clean_event(fields)
+            if safe_fields['event'] not in ('request_started','request_received','request_completed','request_failed','request_aborted'):
+                continue
+            if lookup=='processing':
+                output['connections'].append({**safe_fields, **ref});used=True
+                # Preserve the integration source separately from evidence origin.
+                output['connections'][-1]['component']=safe_fields['source']
+                output['connections'][-1]['http_request_id']=output['connections'][-1].pop('request_id')
+            elif lookup=='errors' and not tag and fields.get('event') in ('request_failed','request_aborted'):
+                output['failures'].append({'component':'vault','http_request_id':fields['request_id'],
+                    'http_status':fields.get('http_status'),'detail':fields['event'],**ref});used=True
         if row['stream']=='discord' and lookup in ('delivery','errors'):
             match=re.fullmatch(r'\S+ (.*?) (\{.*\})',raw,re.S)
             if not match:continue
@@ -182,6 +251,7 @@ def extract(lookup, rows, identifier, conversation):
         if used:evidence.append(ref)
     if starts>1 or ends>1:raise ValueError('Repeated message boundaries are ambiguous.')
     if lookup=='processing':
+        output['tools']=list(tools.values())
         if starts!=1 or ends!=1:
             output['outcome']='incomplete' if evidence else 'unknown'
             notes.append('Processing boundaries are incomplete; retained evidence may be missing.')
@@ -223,11 +293,11 @@ def setup(path):
 
 
 def current(socket_path):
-    result={'model_server':'unknown','discord':'unknown','tools':None,'processing':'unknown'}
+    result={'model_server':'unknown','discord':'unknown','tools':None,'processing':'unknown','obsidian':{'status':'unknown','observed_at':None}}
     if not socket_path:return result
     try:
         with socket.socket(socket.AF_UNIX) as client:
-            client.settimeout(3);client.connect(str(socket_path))
+            client.settimeout(5);client.connect(str(socket_path))
             client.sendall(b'{"query":"status"}\n')
             with client.makefile('rb') as stream:raw=stream.readline(16385)
             if len(raw)>16384:raise ValueError('Status result exceeds limit.')
@@ -257,7 +327,12 @@ def handle(form, *, database=None, session=None, conversation=None, before_messa
         result['status']='partial' if any(result['data'].get(k) in (None,'unknown') for k in ('model_server','discord','tools','processing')) else 'ok'
         if result['data'].get('observed_at'):
             result['evidence'].append({'source':'local status probe','observed_at':result['data']['observed_at']})
-        result['limitations']=['Unavailable live probes return unknown, not offline; each observation has its own time.','Startup records are never substituted for current status.']
+        obsidian=result['data'].get('obsidian')
+        if not isinstance(obsidian,dict) or obsidian.get('status') in ('unknown','unavailable'):
+            result['status']='partial'
+        if isinstance(obsidian,dict):
+            result['evidence'].append({'source':'Scarecrow status probe','observed_at':obsidian.get('observed_at')})
+        result['limitations']=['Missing observations are unknown; unavailable vault probes do not prove Obsidian is closed. Each observation has its own time.','Startup records are never substituted for current status.']
     else:
         if not database or not session or not conversation:raise ValueError('Operator must bind database, session and conversation.')
         with closing(open_read(database)) as db:

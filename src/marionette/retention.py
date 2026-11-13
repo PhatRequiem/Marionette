@@ -73,6 +73,13 @@ def failure_identity(stream, raw):
         match = re.match(rb'Client: (?:\[message ([^\]\r\n]+)\] )?(?:\[request (\d+)\] )?(?:\[tool (\d+)\] )?(.*)', raw)
         if match:
             msg, request, tool, text = match.groups()
+            if text.startswith(b'Tool result summary: '):
+                try:
+                    summary = json.loads(text.removeprefix(b'Tool result summary: '))
+                except ValueError:
+                    summary = {}
+                if isinstance(summary, dict) and summary.get('outcome') == 'Failed':
+                    return tuple(x.decode() if x else None for x in (msg, request, tool)) + ('tool',)
             if text.startswith(b'Connection event: '):
                 try:
                     event = json.loads(text.removeprefix(b'Connection event: '))
@@ -135,6 +142,7 @@ def retain(db, row, policy):
                     continue
                 # Propagated parent/bridge errors join the latest child failure.
                 related = (component in ('message', 'bridge') and candidate['component'] not in ('delivery', 'preparation'))
+                related |= component == 'tool' and candidate['component'] == 'tool' and candidate['request_id'] == request and candidate['tool_id'] == tool
                 related |= component == 'delivery' and candidate['component'] == 'delivery'
                 related |= (component == 'model' and candidate['request_id'] == request and candidate['component'] == 'tool')
                 if related:

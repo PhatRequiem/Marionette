@@ -17,6 +17,16 @@ class ViewTests(unittest.TestCase):
         log_view.render(io.StringIO(text), output, mode, colored)
         return output.getvalue()
 
+    def test_connection_failure_has_readable_label_and_error_color(self):
+        from log_router import format_event
+        raw=b'Client: Connection event: {"source":"Scarecrow","event":"request_failed","request_id":"abc"}\n'
+        formatted=format_event(1,'now',raw).decode()
+        result=self.render(formatted,'diagnostic')
+        self.assertIn('Request failed',result)
+        self.assertIn('HTTP request ID',result)
+        self.assertIn(COLORS['error'],result)
+        self.assertIn(b'request_failed',raw)
+
     def test_discord_message_colors_metadata_newlines_and_controls(self):
         for role, kind in [('user', 'input'), ('assistant', 'reply')]:
             record = {'time': '2026-11-09T01:00:00-05:00', 'role': role,

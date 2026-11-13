@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from vault_diagnostics import VaultDiagnostics, clean_event
+from vault_diagnostics import VaultDiagnostics, clean_event, current_status
 from log_router import category
 from retention import failure_identity
 import test_vault_tool
@@ -18,6 +18,18 @@ class VaultDiagnosticsTests(unittest.TestCase):
     setUp = test_vault_tool.ScarecrowTests.setUp
     stop = test_vault_tool.ScarecrowTests.stop
     # Reuse only the isolated Node fixture lifecycle, not its test methods.
+    def test_current_status_is_authenticated_and_timestamped(self):
+        status=current_status(self.root)
+        self.assertEqual(status['status'],'ready')
+        self.assertIsNotNone(status['observed_at'])
+        settings=json.loads(self.config.read_text());settings['vault_id']='wrong'
+        self.config.write_text(json.dumps(settings))
+        self.assertEqual(current_status(self.root)['status'],'unavailable')
+        settings['enabled']=False;self.config.write_text(json.dumps(settings))
+        self.assertEqual(current_status(self.root)['status'],'disabled')
+        self.config.unlink()
+        self.assertEqual(current_status(self.root)['status'],'not_configured')
+
     def test_live_events_and_shutdown(self):
         rows=[]
         def wait_for(event):

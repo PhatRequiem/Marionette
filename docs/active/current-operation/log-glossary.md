@@ -40,13 +40,15 @@ not supplied to the model and does not enable log access.
 | `request_number` | Model-request ordinal within a message, stored as text such as `01`. |
 | `tool_number` | Tool-call ordinal within a message, stored as text such as `01`. |
 | `tool_name` | Name recorded by an explicit tool-identity event. |
+| `http_request_id` | Query-report UUID joining a vault HTTP request and its server events; stored as `request_id` inside connection events. Distinct from a model-request ordinal. |
+| Connection `component` | `Obsidian` client adapter or `Scarecrow` server in query reports. |
 | `protocol_tool_call_id` | Original tool-call ID supplied by the tool protocol. |
 | Failure `id` / `failure_id` | Identifier linking a retained failure to its evidence. |
 | `event_type` | Recognized event label extracted from an explicit log envelope. |
 | `recorded_at` | Recorder receipt timestamp; not necessarily the event's original occurrence time. |
 | `stream` | Output source: diagnostic, terminal or Discord. |
-| `category` | Diagnostic-view routing: server, model or both. |
-| `source` | Message interface, not a file path. |
+| `category` | Diagnostic-view routing: server, model, reasoning or both. |
+| `source` | Depends on envelope: message interface, connection component, or query evidence storage. |
 | `role` | Message participant role, such as user or assistant. |
 | `kind` | Message content kind, such as input, reasoning or answer. |
 | `status` | Outcome or evidence state; meaning depends on its record/section. |
@@ -69,6 +71,9 @@ These are the current searchable labels, not a list of every possible raw log li
 | `conversation_selected` | Conversation chosen for processing. |
 | `sender_identity` | Sender's resolved identity recorded. |
 | `message_input` | Incoming message text recorded. |
+| `reasoning_delta` | Streamed reasoning fragment for the Reasoning terminal. |
+| `connection_event` | Integration metadata: component, lifecycle/request event, HTTP UUID, status and duration when recorded. |
+| `tool_summary` / `tool_result_summary` | Tool action and explicit outcome, correlated to its message and call IDs. |
 | `reasoning` | Model reasoning recorded. |
 | `processing_start` / `processing_end` | Message processing boundary. |
 | `message_failed` | Message processing raised an error. |
@@ -127,3 +132,5 @@ see [retention](log-retention.md). The former snapshot utilities have been remov
 this glossary describes the logs. The [request form](log-request-form.md) defines lookup inputs for the [operator query handler](log-queries.md); `query_logs` exposes these lookups through Qwen-Agent within the current conversation and session.
 
 For application/setup facts and their verification status, see the [setup datasheet](../setup-and-maintenance/setup-datasheet.md).
+
+Tool outcomes describe the tool response, separately from overall message completion. `Failed` summaries qualify as recognized errors; `Unavailable`, `Partial`, and `Returned (unverified)` remain distinct. Current Obsidian status uses a separately timestamped authenticated probe: ready, unavailable, disabled, not_configured, or unknown. Unavailable does not prove Obsidian itself is closed.

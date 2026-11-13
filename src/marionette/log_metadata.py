@@ -64,11 +64,11 @@ def extract(stream, raw):
             result['event_type'] = phase[2].replace(' ', '_') + '_' + phase[1].lower()
         if result['event_type'] == 'conversation_selected':
             result['conversation_id'] = body[len('Conversation selected: '):].removesuffix('.')
-        elif result['event_type'] in ('tool_identity', 'sender_identity'):
+        elif result['event_type'] in ('tool_identity', 'tool_summary', 'tool_result_summary', 'sender_identity'):
             try:
                 fields = json.loads(body.split(': ', 1)[1])
                 if isinstance(fields, dict):
-                    keys = ('name', 'protocol_tool_call_id') if result['event_type'] == 'tool_identity' else ('sender_id', 'contact_uuid', 'display_name', 'preferred_name')
+                    keys = ('name', 'protocol_tool_call_id') if result['event_type'] != 'sender_identity' else ('sender_id', 'contact_uuid', 'display_name', 'preferred_name')
                     for key in keys:
                         value = fields.get(key)
                         if isinstance(value, str):
