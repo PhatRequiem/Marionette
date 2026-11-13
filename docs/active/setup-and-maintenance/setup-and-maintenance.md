@@ -9,3 +9,5 @@ For implemented behavior and feature limits, see [Current operation](../current-
 - [Active software and model licenses](licenses.md)
 - [Setup datasheet](setup-datasheet.md): the last startup attempt, not live status
 - [Native Linux terminal chat](setup.md)
+
+- [Read-only Obsidian connection](obsidian-connection.md)

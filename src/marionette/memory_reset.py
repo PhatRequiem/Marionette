@@ -74,7 +74,8 @@ def reset_memory(conversation):
             if path.name not in ('chat.sock','log-session.json'):
                 if path.is_dir(): shutil.rmtree(path)
                 else: path.unlink()
-        conversation.api.tools = (conversation.soul.bind(conversation.api),)
+        from vault_tool import configured_tools
+        conversation.api.tools = (conversation.soul.bind(conversation.api),) + configured_tools(root)
         descriptor = root/'session/log-session.json'
         info = json.loads(descriptor.read_text())
         info['generation'] = generation

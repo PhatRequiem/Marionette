@@ -1,6 +1,6 @@
 # Qwen-Agent tool coordination
 
-Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). Read-only `query_logs` is also registered, scoped to the current session and conversation. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
+Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). Read-only `query_logs` is also registered, scoped to the current session and conversation. The optional `read_vault` tool reads the local Obsidian mirror through a fixed Cyanheads adapter. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
 
 ## Responsibilities
 
@@ -27,7 +27,7 @@ Model-request and tool-call start/end markers, each tool-loop prompt budget, mod
 
 For an existing checkout run `./scripts/native-linux/setup-agent.sh`. Complete installation through `python scripts/native-linux/setup.py` also invokes it after verifying the existing shared model and inference engine. The launcher runs main chat with `runtime/agent/bin/python`; viewers keep system Python and Discord keeps its own environment.
 
-The hash-locked `scripts/native-linux/agent-requirements.txt` pins the core framework and dependencies. No optional GUI, RAG, code-interpreter, or MCP extras are installed. Upstream's 0.0.34 minimal metadata omits NumPy, SoundFile, tqdm, and python-dateutil despite startup imports, so they are explicit requirements. Their installation does not enable those capabilities. See [licenses](../setup-and-maintenance/licenses.md).
+The hash-locked `scripts/native-linux/agent-requirements.txt` pins the core framework and dependencies. No optional Qwen-Agent GUI, RAG, code-interpreter, or MCP extras are installed. The optional [vault connector](../setup-and-maintenance/obsidian-connection.md) uses a separate pinned Node environment and a bounded stdio adapter. Upstream's 0.0.34 minimal metadata omits NumPy, SoundFile, tqdm, and python-dateutil despite startup imports, so they are explicit requirements. Their installation does not enable those capabilities. See [licenses](../setup-and-maintenance/licenses.md).
 
 To deliberately upgrade, edit `agent-requirements.in`, regenerate with `uv pip compile --python python --generate-hashes scripts/native-linux/agent-requirements.in -o scripts/native-linux/agent-requirements.txt`, rerun setup, and retest the adapter, tool-result schema, inherited loop, native budgets, and background preparation. The installed environment uses Python 3.14.8 on x86_64 Linux.
 

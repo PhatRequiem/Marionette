@@ -49,7 +49,7 @@ Existing Markdown paragraphs are interpreted as separate legacy entries; their w
 - Profiles and tool schemas count toward the existing context budget. The latest snapshot is supplied again after rollover or a clear; earlier snapshots in retained messages are historical. There is no separate reserved memory window.
 - Histories are separate for each Discord sender and the terminal. Only the current contact’s notes are supplied. Linked accounts intentionally share those notes, so a fact saved from your terminal chat may be available in your Discord DM. The local operator terminal and logs still display every conversation; they are not private from the operator.
 - With a tool registered, reasoning still streams locally, but answer text is held until the final response to avoid displaying tool-call preambles as answers. Discord receives only final answers and existing status/error notices. Tool calls/results remain with the exchange in active conversation context until trimming or clear/restart. The durable Markdown is still supplied afresh on the next turn.
-- This adds bounded contact notes only: no log reader, broader memory search, automatic skill creation, or general file access.
+- This tool edits bounded contact notes only. Log queries and optional read-only vault browsing are separate tools; no automatic skill creation or general filesystem access is provided.
 
 ## Optional conversation links
 
@@ -76,14 +76,13 @@ references are kept as written, not resolved to guessed pages. A missing export 
 conversation means the citation cannot be opened from the vault until available.
 Unrelated note text and the original source file are unchanged by export.
 
-Vault browsing and direct file editing by the model remain disconnected.
+Optional [read-only vault browsing](../setup-and-maintenance/obsidian-connection.md) can retrieve mirrored notes; direct vault editing remains disabled.
 
 ## Obsidian mirror
 
 The [conversation-vault sync](../setup-and-maintenance/conversation-vault.md) mirrors existing notes
 for contacts with exported conversations into their `<name> - Notes.md` page, linked
-from the profile. The original file remains authoritative. No vault write-back or
-model vault access is enabled.
+from the profile. The original file remains authoritative. No vault write-back is enabled. Optional read-only access is configured separately.
 
 ## Inspection, backup, and restoration
 

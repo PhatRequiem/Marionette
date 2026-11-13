@@ -2,8 +2,8 @@
 
 The operator-only exporter builds a local Markdown vault containing saved conversations,
 contact profiles and notes, and Active project documentation. Welcome links to Contacts
-and Self documentation. Conversation text comes from SQLite user inputs and final answers. It does not give Marionette a new tool or feed saved history
-into her context. No plugin, hosted service, embedding model, or Python dependency
+and Self documentation. Conversation text comes from SQLite user inputs and final answers. The mirror alone does not feed saved history into model context. The optional
+[read-only connection](obsidian-connection.md) lets Marionette retrieve notes on demand. No plugin, hosted service, embedding model, or Python dependency
 is required. Obsidian is an optional proprietary viewer; the files also work in
 other Markdown editors.
 
@@ -65,8 +65,7 @@ Alternate log locations require operator review for memory reset, as before.
   these copies and removes copies of deleted source files. Original docs are never
   edited by sync. Internal active-docs links keep their relative layout; links outside
   `docs/active/` are not mirrored and may not resolve in the vault. Everything under `docs/development/` (experiments, history, ideas) is excluded.
-  Sync removes the earlier full-docs mirror, including historical and idea copies. No model access
-  or new source of model instructions is enabled.
+  Sync removes the earlier full-docs mirror, including historical and idea copies. Mirroring alone does not enable model access; the optional read-only connection is configured separately.
 - `Annotations/`: your own optional notes; ordinary sync leaves them alone.
 - `Welcome.md`: generated starting instructions, refreshed on every sync. Obsidian manages its own `.obsidian/` settings.
 

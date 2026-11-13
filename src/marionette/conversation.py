@@ -151,7 +151,7 @@ class Conversation:
             from contact_notes import LIMIT, UpdateContactNotes
             content = self.contact_notes.current(identity)
             # turn() joins the previous worker before rebinding the current-contact tool.
-            self.api.tools = (UpdateContactNotes(self.contact_notes, identity, content),)
+            self.api.tools = tuple(t for t in getattr(self.api, "tools", ()) if t.name != "update_contact_notes") + (UpdateContactNotes(self.contact_notes, identity, content),)
             identity['contact_notes'] = {'content': content, 'characters': len(content),
                                              'character_limit': LIMIT}
             diagnostics.log(f"Contact notes supplied: contact_uuid={identity['contact_uuid']}; characters={len(content)}; limit={LIMIT}.")

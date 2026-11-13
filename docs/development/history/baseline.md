@@ -12,7 +12,7 @@ chat, Discord, soul, contact-note and diagnostic-retention foundation, with thes
 - Connected scoped `query_logs`, searchable metadata (SQLite schema 5), a request form and automatic startup datasheet updates.
 - Tool calls/results retained with each conversation exchange and trimmed together.
 - Separate feature guidance and a brief system reminder after log-tool results.
-- Added an operator-only, on-demand [Markdown conversation mirror](../../active/setup-and-maintenance/conversation-vault.md) for browsing in Obsidian; no model vault access.
+- Added an operator-only, on-demand [Markdown conversation mirror](../../active/setup-and-maintenance/conversation-vault.md) for browsing in Obsidian, with a later optional read-only Cyanheads connection for model access.
 - Removed the old snapshot utilities. The experimental idle cycle, scratchpads and earlier model-facing Obsidian integration are also removed.
 
 See [log-query reliability limits](../../active/current-operation/log-queries.md#current-reliability-limits) for

@@ -8,6 +8,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 | `log-queries.md` | `query_logs` is registered (enabled in production) |
 | `log-results.md` | Follow-up model requests after `query_logs` returns in the current turn |
 | `contact-notes.md` | `update_contact_notes` is registered |
+| `vault.md` | `read_vault` is registered |
 | `soul.md` | `update_soul` is registered |
 
 `API.with_system()` composes only enabled sections, then appends the current saved
@@ -37,6 +38,6 @@ not retained as conversation history or applied to the next ordinary turn.
 Contact-note guidance allows optional inline citations using the exact stable
 `conversation_reference` supplied in Sender metadata. The vault exporter resolves
 these internal destinations on sync; the model does not construct filenames or
-gain file access. See [contact-note citations](../docs/active/current-operation/contact-notes.md#optional-conversation-links).
+gain write access. See [contact-note citations](../docs/active/current-operation/contact-notes.md#optional-conversation-links).
 
 These files are application inputs, not part of the `docs/active/` mirror. Current tool behavior is documented in [Qwen-Agent coordination](../docs/active/current-operation/qwen-agent.md); test reports and retired guidance belong in [Development](../docs/development/development-index.md) or Git history. Only Active documentation is mirrored into Obsidian.

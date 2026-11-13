@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "obsidian-mcp-server": "3.9.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
