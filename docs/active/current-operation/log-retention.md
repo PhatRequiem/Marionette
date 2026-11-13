@@ -59,7 +59,10 @@ RAM diagnostics only after shutdown saving.
 The RAM buffer retains the latest **20 recognized diagnostic failures**, with
 up to **20 diagnostic events before and 20 after** each, independently of batch
 rollover. Related parent/request/tool failures are grouped when their explicit
-IDs establish the relationship. Separate executions and untagged runtime errors
+IDs establish the relationship. Each newly grouped error restarts the 20-event
+following window, including an error arriving on the previous window’s final
+event. Earlier evidence stays protected, so a grouped window can contain more
+than 41 events. Separate executions and untagged runtime errors
 remain separate; words such as “failed” inside conversation prose do not trigger
 an error record. See `retention.failure_identity` for recognized event types.
 
@@ -67,7 +70,8 @@ Overlapping windows share evidence. Each protected event retains up to 1 MB, wit
 `original_bytes` and `truncated` metadata when limited; the ordinary rolling event
 is not truncated. A failure near startup may have fewer than 20 preceding events.
 `collecting` means more following events are needed; `complete` means 20 following
-events arrived. Shutdown marks unfinished windows `incomplete`.
+events arrived after the latest error in the group. Shutdown marks unfinished
+windows `incomplete`.
 
 These **new diagnostic error windows are also in RAM until shutdown**. The
 existing saved failures remain on disk while the session runs; Discord transport

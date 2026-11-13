@@ -74,6 +74,30 @@ class RamLogTests(unittest.TestCase):
             self.assertEqual(restored.execute('SELECT count(*) FROM failures').fetchone()[0],20)
             self.assertEqual(restored.execute('PRAGMA integrity_check').fetchone()[0],'ok')
 
+    def test_grouped_error_renews_context_in_ram_and_shutdown_save(self):
+        for following in (0, 19, 20):
+            with self.subTest(following=following):
+                self.session = self.disk.start()
+                buffer = self.buffer(part_bytes=100,budget_bytes=300)
+                before = [buffer.append(b'before error\n','both') for _ in range(20)]
+                prefix = b'Client: [message discord:1234] '
+                first = buffer.append(prefix+b'[request 01] [tool 01] Tool Call failed: RuntimeError: synthetic\n','both')
+                for _ in range(19): buffer.append(b'between errors\n','both')
+                last = buffer.append(prefix+b'Message failed: RuntimeError: synthetic\n','both')
+                failure = buffer.memory.db.execute('SELECT * FROM failures').fetchone()
+                self.assertEqual((failure['state'],failure['remaining']),('collecting',20))
+                self.assertEqual(buffer.memory.db.execute('SELECT count(*) FROM failures').fetchone()[0],1)
+                after = [buffer.append(b'after final error\n','both') for _ in range(following)]
+                for table in ('events','error_evidence','failures'):
+                    self.assertEqual(self.disk.db.execute(f'SELECT count(*) FROM {table} WHERE session_id=?',(self.session,)).fetchone()[0],0)
+                expected = [tuple(r) for r in buffer.memory.db.execute('SELECT event_id,raw FROM error_evidence ORDER BY event_id')]
+                self.assertTrue(set(before+[first,last]+after).issubset({r[0] for r in expected}))
+                buffer.save()
+                saved = self.disk.db.execute('SELECT * FROM failures WHERE session_id=?',(self.session,)).fetchone()
+                self.assertEqual(saved['remaining'],20-following)
+                self.assertEqual(saved['state'],'complete' if following==20 else 'incomplete')
+                self.assertEqual([tuple(r) for r in self.disk.db.execute('SELECT event_id,raw FROM error_evidence WHERE session_id=? ORDER BY event_id',(self.session,))],expected)
+
     def test_shutdown_merges_latest_twenty_with_previously_saved_errors(self):
         first=self.buffer()
         for i in range(20): first.append(f'0.1 E runtime: old {i}\n'.encode(),'both')
