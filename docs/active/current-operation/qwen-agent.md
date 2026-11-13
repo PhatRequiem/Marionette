@@ -1,6 +1,6 @@
 # Qwen-Agent tool coordination
 
-Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). Read-only `query_logs` is also registered, scoped to the current session and conversation. The Obsidian mirror is available to the operator; no vault tool is registered. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
+Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). Read-only `query_logs` is also registered, scoped to the current session and conversation. The optional `read_vault` tool accesses the local mirror through [Scarecrow](../setup-and-maintenance/obsidian-connection.md), using an explicit read-only HTTP adapter. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
 
 ## Responsibilities
 

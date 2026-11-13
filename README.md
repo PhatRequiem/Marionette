@@ -18,7 +18,7 @@ The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-
 
 Log-tool execution works, but answers can still misinterpret units or add unsupported details; see [current reliability limits](docs/active/current-operation/log-queries.md#current-reliability-limits).
 
-The [Obsidian mirror](docs/active/setup-and-maintenance/conversation-vault.md) remains available for human browsing. Model access is disconnected; the planned custom Obsidian plugin is not implemented.
+The [Scarecrow Obsidian plugin](docs/active/setup-and-maintenance/obsidian-connection.md) provides optional read-only local access to the conversation and documentation mirror. It runs inside Obsidian and exposes browsing, search, metadata, links and UI opening through `read_vault`.
 
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
@@ -64,6 +64,7 @@ Start with these files, in order:
 | [log_metadata.py](src/marionette/log_metadata.py) | Extract explicit searchable event metadata; [fields and indexes](docs/active/current-operation/storage.md#searchable-diagnostic-metadata-schema-5) |
 | [storage.py](src/marionette/storage.py) and [storage.sh](scripts/native-linux/storage.sh) | SQLite messages/events, live views, portable export, and verified backups |
 | [diagnostics.py](src/marionette/diagnostics.py) | Shared synchronized writer for client and runtime diagnostics |
+| [vault_tool.py](src/marionette/vault_tool.py) | Read-only HTTP adapter for Scarecrow |
 | [log_tool.py](src/marionette/log_tool.py) | Qwen-Agent log adapter scoped to the current session and conversation |
 | [log_query.py](src/marionette/log_query.py) | Validate request forms and return bounded, scoped log facts |
 | [operator_status.py](src/marionette/operator_status.py) | Read-only Discord status probe in the existing bot process |
@@ -81,6 +82,8 @@ Start with these files, in order:
 
 ## Folder map
 
+- `plugins/scarecrow/`: source for the local read-only Obsidian plugin; installed by `scripts/native-linux/setup-scarecrow.py`.
+- `data/scarecrow/`: private local connection configuration and credentials; ignored by Git.
 - `prompts/`: versioned feature instructions, explicitly bound to the system prompt separately from the soul.
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
@@ -103,6 +106,7 @@ Start with these files, in order:
 - `data/discord/`: private bot credentials and connection/setup locks; ignored by Git.
 - `runtime/agent/`: project-specific, hash-locked Qwen-Agent environment; ignored by Git.
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
+- `tests/scarecrow/`: synthetic Obsidian API fixtures and HTTP/plugin lifecycle tests.
 - `tests/discord/`: optional Discord transport tests—human one-to-one DM filtering, delivery, attachment to main chat, and reasoning isolation.
 - `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/active/setup-and-maintenance/setup.md#shared-model-storage) use `Qwen/Qwen3.5/4B/Instruct/`.
 - `data/downloads/`: verified runtime archive; ignored by Git.

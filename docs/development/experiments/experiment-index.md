@@ -6,6 +6,8 @@ Keep the date, model/runtime configuration, method, results and limitations with
 
 ## Reports
 
+- [Scarecrow plugin verification](scarecrow-2026-11-13.md)
+
 - [Read-only Obsidian connection verification](obsidian-read-only-2026-11-13.md)
 
 - [Return to 4B — 2026-11-12](4b-return-2026-11-12.md)

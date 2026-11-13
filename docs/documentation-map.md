@@ -6,7 +6,7 @@
 - [Setup and maintenance](active/setup-and-maintenance/setup-and-maintenance.md): install, configure, run and maintain it.
 
 Only `docs/active/` is mirrored under Self documentation in the private vault.
-The [vault connection status](active/setup-and-maintenance/obsidian-connection.md) records that model browsing is disconnected. The mirror remains available to the operator.
+The [Scarecrow connection guide](active/setup-and-maintenance/obsidian-connection.md) covers optional read-only model access to the mirror through a local Obsidian plugin.
 
 ## Development — outside Obsidian
 

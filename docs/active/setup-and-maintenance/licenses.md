@@ -167,4 +167,8 @@ The following inventory was checked against installed distribution metadata and 
 
 ## Optional conversation viewer
 
-Obsidian 1.14.4 (installed package 1.14.4-2) is proprietary, not open source. Its [license overview](https://obsidian.md/license) permits free personal and commercial local use without an account. Optional Sync and Publish services are not used or required. It is a replaceable viewer for the [Markdown conversation mirror](conversation-vault.md); core chat does not require it. The exporter uses only the existing Python standard library; any Markdown editor can read its output.
+Obsidian 1.15.1 (installer 1.14.4; installed package 1.14.4-2) is proprietary, not open source. Its [license overview](https://obsidian.md/license) permits free personal and commercial local use without an account. Optional Sync and Publish services are not used or required. It is a replaceable viewer for the [Markdown conversation mirror](conversation-vault.md); core chat does not require it. The exporter uses only the existing Python standard library; any Markdown editor can read its output.
+
+## Scarecrow local vault plugin
+
+Scarecrow 0.1.0 is project-owned JavaScript under `plugins/scarecrow/`, licensed MIT (see that directory's LICENSE). It uses Obsidian's public plugin APIs and the Node.js HTTP, filesystem, path and crypto modules bundled with the Obsidian desktop runtime. No external npm packages, standalone Node server, hosted service or paid plugin features are required. Obsidian remains proprietary as described above; its bundled runtime notices apply. The Python HTTP adapter uses the existing Python standard library and Qwen-Agent installation. Setup assembles the fixed versioned JavaScript modules using Python; there are no downloaded plugin assets or new third-party lockfiles.

@@ -47,4 +47,4 @@ Conversations and diagnostics are saved in `data/conversations/marionette.sqlite
 Orderly main-chat shutdown also refreshes the local Obsidian mirror after saving
 its recorders. Export failures are reported; use
 `./scripts/native-linux/sync-conversation-vault.sh` to retry. Forced termination
-or power loss can skip this refresh. Model access to the vault is disconnected; no vault tool is registered.
+or power loss can skip this refresh. For optional model access, follow [Scarecrow setup](docs/active/setup-and-maintenance/obsidian-connection.md) and keep the vault open in Obsidian. Restart chat after setup to register `read_vault`.

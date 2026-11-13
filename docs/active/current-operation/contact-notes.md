@@ -76,7 +76,7 @@ references are kept as written, not resolved to guessed pages. A missing export 
 conversation means the citation cannot be opened from the vault until available.
 Unrelated note text and the original source file are unchanged by export.
 
-Model [vault access](../setup-and-maintenance/obsidian-connection.md) is disconnected. Contact-note editing through its existing tool remains available.
+Optional [Scarecrow vault access](../setup-and-maintenance/obsidian-connection.md) can read mirrored notes without editing them. Contact-note editing through its existing tool remains available.
 
 ## Obsidian mirror
 

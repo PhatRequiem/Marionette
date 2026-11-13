@@ -1,0 +1,9 @@
+{
+  "id": "scarecrow",
+  "name": "Scarecrow",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Read-only local vault access for Marionette.",
+  "author": "PhatRequiem",
+  "isDesktopOnly": true
+}

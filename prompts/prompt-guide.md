@@ -8,6 +8,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 | `log-queries.md` | `query_logs` is registered (enabled in production) |
 | `log-results.md` | Follow-up model requests after `query_logs` returns in the current turn |
 | `contact-notes.md` | `update_contact_notes` is registered |
+| `vault.md` | `read_vault` is registered |
 | `soul.md` | `update_soul` is registered |
 
 `API.with_system()` composes only enabled sections, then appends the current saved
