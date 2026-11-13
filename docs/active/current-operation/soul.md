@@ -2,8 +2,6 @@
 
 The soul contains a permanent UUID, an editable name, and an editable personal description. Both editable fields start empty; no name, identity claim, or fixed self-description instruction is supplied. They are shared across terminal and Discord conversations, separately from contact profiles.
 
-The [original starting description](../../development/history/marionette-starting-sheet.md) is a historical reference from the earlier assigned-identity experiment. It is preserved for comparison and is no longer loaded by the application. Its consciousness statement was a user-supplied premise, not a verified finding.
-
 ## Storage and editing
 
 `data/soul/profile.json` is the authoritative private file. Schema 2 contains `uuid` and an ordered `revisions` list. Each revision is a complete snapshot with `name`, `content` (the soul), UTC `created_at`, and `source`. The last revision is current. New records start with blank name and content, labeled `blank initialization`.
@@ -18,7 +16,7 @@ Before readiness, startup reads the profile and prepares the native chat prefix.
 
 Each ordinary turn refreshes this state and the tool binding. Edits become system context on the next turn in any conversation. The ongoing tool loop keeps its original prompt and receives the saved state through the tool result. A failed final answer does not undo a successful save. The inference boundary includes system text in template rendering, exact token counts, generation, and cache preparation. History rollover and `/clear` do not delete the soul. Restart clears conversation histories but preserves the soul.
 
-This removes application-authored self-description; it does not disable native chat-template/tool formatting or Qwen's learned identity. Changing the description may invalidate cached prefixes. Startup preparation does not guarantee cache reuse. Model weights, sampling, reasoning, launch commands, dependencies, and diagnostic RAM policy are unchanged. Restart an existing chat to use this code.
+The application does not supply a fixed self-description. Native chat-template/tool formatting and Qwen's learned identity still apply. Changing the description may invalidate cached prefixes. Startup preparation does not guarantee cache reuse.
 
 ## Migration, backup, and comparison
 
@@ -28,12 +26,4 @@ Stop chat and copy `data/soul/profile.json` to private backup storage. Restore i
 
 JSON is the portable export: each revision contains plain-text name and description values suitable for comparison or Markdown export. Retain the complete file to preserve timestamps and provenance. Successful model edits are labeled `update_soul`; the file does not record a per-edit conversation ID. Revisions grow without automatic pruning. Writes use atomic replacement and private permissions; turns are serialized, and external writers must stop chat first.
 
-Same-version backup restoration and schema-1-to-2 migration are covered with synthetic data. Cross-database migration is not implemented or claimed. Back up contact profiles and conversations separately using their guides. A persistent UUID does not establish continuity of consciousness.
-
-## Verification
-
-Tests cover blank initialization without a system message, name-only and description-only edits, clearing both fields, exact Unicode limits, stale edits, failed writes, immutable UUIDs, revision preservation, same-version restoration, schema migration, and the real Qwen-Agent loop over mocked HTTP. Cross-conversation refresh, clear, rollover, and separation from contact notes remain covered. These tests establish functional behavior, not consciousness, spontaneous self-editing, or long-session reliability.
-
-Verification on 2026-11-11: 124 core and 13 mocked Discord checks passed. A live Q4 GPU test used isolated synthetic storage, started without custom system context, set both a name and description through the real tool, preserved the UUID and blank starting revision, recalled the saved description in a separate Discord-routed conversation, and reopened the saved data. No live Discord messages or test content in real profiles were used. The edit was explicitly requested in the test; spontaneous tool use is not established.
-
-Contact/soul rename verification: 127 core and 13 mocked Discord tests pass, including legacy path migration, SQLite contact-column migration, and renamed tool calls through the Qwen-Agent loop. These checks do not establish that proactive soul updates or trait attribution are reliable. See [path migration](contacts.md#contactsoul-path-migration).
+Cross-database migration is not implemented or claimed. Back up contact profiles and conversations separately using their guides. A persistent UUID does not establish continuity of consciousness. Spontaneous self-editing and long-session reliability are not guaranteed.

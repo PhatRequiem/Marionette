@@ -1,0 +1,5 @@
+# contacts: archived guide reports
+
+Extracted from [the active guide](../../../active/current-operation/contacts.md) on November 12, 2026. These are prior test reports and development notes, not current configuration or newly executed checks. Undated passages retain their original wording; the extraction date is not a test date. Some passages include operational context necessary to interpret the report.
+
+The same-version JSON backup/restore, version-1-to-2 migration, retry after a failed write, and source mapping are covered by synthetic tests in `tests/core/test_contacts.py`. No cross-database migration or memory restoration is implemented or claimed. Baseline V3 only understands version 1: before returning to it, stop chat and preserve the current registry separately, then restore the version-1 backup. That backup will not include later profile edits. The format remains portable JSON with explicit account provenance. `MARIONETTE_DATA_DIR` overrides the identity/config lookup root for isolated tests; it does not relocate other launcher files. Normal launches use the checkout's `data/` folder.

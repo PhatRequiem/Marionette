@@ -42,7 +42,7 @@ Follow [STARTUP.md](../../../STARTUP.md): launch main chat first, then optionall
 
 The main chat owns the model and conversation histories. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text and sender identity; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no history storage or model-launch code. See [context policy](../current-operation/context.md).
 
-## Local logs and verification
+## Local logs and maintenance checks
 
 Main chat and Discord now share the main launch's SQLite session. Terminal output and Discord connection events are stored streams; server/model diagnostics use the existing recorder’s RAM and are saved at shutdown; structured conversation messages are recorded by main chat. The operator terminal still displays labeled Discord exchanges and reasoning. Remote requests are queued for the main terminal thread and the input prompt returns afterward.
 
@@ -70,8 +70,6 @@ runtime/agent/bin/python -m unittest discover -s tests/core -v
 runtime/discord/bin/python -m unittest discover -s tests/discord -v
 ```
 
-Historical open-DM verification before history separation (2026-11-10): 64 core and 12 mocked Discord checks pass, including first-sender registration and reopening, separate contact-note files, shared conversation history, per-channel duplicate filtering, bot/group/server rejection, and owner-only `/clear`.
-
 Tests use synthetic messages and mock delivery, not Discord accounts. Live Discord login and phone delivery require your bot token and a manual DM check; passing local tests does not establish that Discord configuration is complete.
 
 To update the optional dependency lock deliberately:
@@ -85,15 +83,13 @@ Review changed packages and licenses and rerun both test suites when updating.
 
 Conversation commands are checked by [command permissions](../current-operation/contacts.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
 
-Current separate-history verification and cache measurements are in [the conversation-cache report](../../development/experiments/conversation-cache-2026-11-10.md).
-
 The [operator query handler](../current-operation/log-queries.md) can request fresh Discord status
 from a same-user private socket in the existing bot process. The response is
 `online`, `connecting`, or `offline`; an unreachable probe means `unknown`.
 Restart the adapter after updating code to enable this endpoint. It neither
 updates the startup datasheet nor exposes a model tool.
 
-Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Restart both main chat and Discord after this update; no live name backfill occurs until a message arrives. See [name preservation and fallback rules](../current-operation/contacts.md).
+Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Name capture occurs when a message arrives. See [name preservation and fallback rules](../current-operation/contacts.md).
 
 ## Admin shutdown
 
@@ -106,4 +102,4 @@ then main chat returns through normal model/recorder cleanup. Saved conversation
 soul, notes and the vault are preserved. Discord attempts to deliver the shutdown
 acknowledgement before disconnecting; network failures can prevent delivery.
 This stops Marionette, not the computer. `/exit` remains a local terminal exit.
-Restart main chat and Discord after this code update to activate the command.
+Restart main chat and Discord after code updates so both use the installed command implementation.

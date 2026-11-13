@@ -19,7 +19,7 @@ The upstream prebuilt release avoids requiring a local compiler toolchain. This 
 
 Setup and chat use `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/` for the inference engine. The manifest's runtime `directory`, `version`, and `executable` select `b12211/llama-b12211/llama-server` inside that folder. Keep the whole version directory together: it includes the executables, bundled Vulkan backend libraries, library links, and licenses. System Vulkan and GPU driver packages remain managed by Linux.
 
-Setup creates a missing version from the checksum-verified archive, or verifies an existing installation without overwriting it. The archive cache remains in the checkout's `data/downloads/`. See the [relocation report](../../development/experiments/shared-infrastructure-relocation-2026-11-10.md) for the completed move and its verification.
+Setup creates a missing version from the checksum-verified archive, or verifies an existing installation without overwriting it. The archive cache remains in the checkout's `data/downloads/`.
 
 To use a different app library, set `MARIONETTE_APPS_DIR` to its absolute root for both setup and chat. It replaces the `AI Apps` folder, not the `llama.cpp` folder:
 
@@ -58,7 +58,7 @@ BAAI/bge-en-v1.5/33.4M/Embedding/    BGE small ONNX and supporting files
 
 `Instruct` is the local category for Qwen's post-trained chat/reasoning models, as described in the official [4B](https://huggingface.co/Qwen/Qwen3.5-4B) and [9B](https://huggingface.co/Qwen/Qwen3.5-9B) model cards; the official model names have no Instruct suffix. BGE's provider and size follow its [model card](https://huggingface.co/BAAI/bge-small-en-v1.5). No Base or Heretic variants are installed. Future variants can use those folders under the appropriate size, with modified models further separated by derivative author/model name. Keep distinct revisions and precision formats separate; BF16 and Q4 are different representations of the same post-trained model, not Base versus Instruct.
 
-Historical reports and the fixed `baseline-v3` tag still describe the previous checkout-local model paths. An old checkpoint's setup will use its old location; follow this guide for the current checkout. The retained BF16 file is not automatically downloaded by current setup. Back it up separately if wanted; moving models on the same disk is not a backup.
+The retained BF16 file is not automatically downloaded by current setup. Back it up separately if wanted; moving files on the same disk is not a backup.
 
 ## Source layout
 
@@ -97,13 +97,13 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-The selected 4B Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes), returning to the previous model for further testing. It uses less weight memory than 9B Q4 (5,680,522,464 bytes); speed and answer quality have not been compared systematically. Quantization trades numerical precision for lower memory use. The 9B Q4 and 4B BF16 files remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](../current-operation/contact-notes.md). No image projector is installed, so this setup is text-only.
+The selected 4B Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes). It uses less weight memory than 9B Q4 (5,680,522,464 bytes); speed and answer quality have not been compared systematically. Quantization trades numerical precision for lower memory use. The 9B Q4 and 4B BF16 files remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](../current-operation/contact-notes.md). No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
 ## Runtime decision
 
-Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client uses the pinned Qwen-Agent environment and requires no persistent service. At startup, select a saved terminal profile or add a new one; [identity mapping](../current-operation/contacts.md) explains the private UUID registry and Discord link. The client handles typed messages, streams replies, and retains the history that fits for each separate conversation. `commands.py` recognizes `/clear` and owner-only `/resetmemory` for terminal and Discord, plus `/exit` for terminal only. Unknown terminal slash commands show help; other Discord text continues through normal chat. Authorization remains in `permissions.py`, while terminal printing stays in `terminal.py`. `/clear` affects only the originating conversation; `/resetmemory` follows the documented [personal-data reset scope](../current-operation/reset-memory.md). File attachments and `/regen` are not supported.
+Use `llama-server` from the same pinned b12211 Vulkan archive, managed by the standard-library Python client in `src/marionette/session.py`. The client uses the pinned Qwen-Agent environment and requires no persistent service. At startup, select a saved terminal profile or add a new one; [identity mapping](../current-operation/contacts.md) explains the private UUID registry and Discord link. The client handles typed messages, streams replies, and retains the history that fits for each separate conversation. `commands.py` recognizes `/clear` and owner-only `/resetmemory` and `/shutdown` for terminal and Discord, plus `/exit` for terminal only. Unknown terminal slash commands show help; other Discord text continues through normal chat. Authorization remains in `permissions.py`, while terminal printing stays in `terminal.py`. `/clear` affects only the originating conversation; `/resetmemory` follows the documented [personal-data reset scope](../current-operation/reset-memory.md). File attachments and `/regen` are not supported.
 
 The model's native template is used with thinking enabled. Enabled [tool guidance](../../../prompts/README.md) and the saved [soul](../current-operation/soul.md) compose the system prompt. Startup refreshes the setup datasheet; the model retrieves its recorded facts through `query_logs` when needed. See [context rollover](../current-operation/context.md) for token budgeting and failure behavior. Context shifting is disabled; rollover prepares a shorter structured conversation between turns while keeping the model loaded.
 
@@ -111,12 +111,10 @@ The context is 65,536 tokens with a 32,768-token combined thinking-and-answer al
 
 Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-4B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
 
-## Verification
+## Maintenance checks
 
-Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. See the [current baseline](../../development/history/baseline.md) for both test suites and verification boundaries.
+Run `runtime/agent/bin/python -m unittest discover -s tests/core -v` and `bash -n scripts/native-linux/chat.sh scripts/native-linux/view-log.sh`. The tests use synthetic data and a loopback HTTP server; socket access is required, internet access is not. Also run `runtime/discord/bin/python -m unittest discover -s tests/discord -v` for the mocked Discord suite. Functional checks do not establish model answer quality or long-session reliability.
 
-The client was checked with isolated real GPU sessions, including repeated context rollover, oversized-input recovery, synthetic word recall, fresh history after `/clear`, full debug logging, loopback-only listening, `/exit` with status zero, and disappearance of both the runtime process and listener. Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
+Check the current listener with `ss -lntp` while chatting; only `127.0.0.1:<temporary port>` should belong to this `llama-server` process.
 
-For the current weight format and smoke-test result, see [4B return verification](../../development/experiments/4b-return-2026-11-12.md). [BF16 measurements](../../development/experiments/bf16-switch.md) and earlier Q4 experiments are historical.
-
-Current tool-coordination setup and verification are documented in [Qwen-Agent coordination](../current-operation/qwen-agent.md). The runtime and sampling settings remain unchanged by the return to 4B; the manifest now selects the 4B model path.
+Tool-coordination setup is documented in [Qwen-Agent coordination](../current-operation/qwen-agent.md).

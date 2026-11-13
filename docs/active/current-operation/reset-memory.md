@@ -23,13 +23,3 @@ The live database and its WAL/SHM files stay open. A transaction deletes old pay
 Ordered markers in the diagnostic and terminal streams drain buffered old bytes and acknowledge the boundary. Stale terminal/Discord writers cannot save payloads until crossing the new boundary. The diagnostic recorder discards its old RAM and protected errors; even an interrupted reset cannot save the old generation at shutdown. Discord synchronizes its stream on reset completion or the next fresh message. The ordinary 500 MB / 20 MB RAM retention and latest-20 error-window policy is unchanged.
 
 The command refuses symlinked memory paths and logs outside the active data directory. Such alternate configurations require an operator reset. A failure after reset begins blocks further turns instead of claiming success; inspect the error and restart before continuing. Neither IDs nor current identity files are deliberately deleted before their blank replacements are written atomically. A reset is not an atomic transaction across all JSON/Markdown files and SQLite; a filesystem failure can leave a partial reset.
-
-## Verification
-
-Synthetic checks cover owner commands from terminal and Discord, non-owner rejection, arbitrary stream-marker chunk boundaries, stale disk writers, old RAM suppression on interrupted reset, ID/account preservation, blank soul, local-copy deletion, and normal shutdown after reset. A launcher test runs a conversation, resets, continues chatting using the same server process, and verifies that old conversation text does not return after recorder shutdown. Existing RAM tests still verify no routine diagnostic payload writes and orderly shutdown saving.
-
-These tests establish application behavior, not answer quality or long-session reliability. Mocked Discord tests do not establish live Discord delivery. No private conversation is used as test data.
-
-A real Q4 GPU smoke test in temporary synthetic storage generated before and after `/resetmemory` with one model load, retained only the post-reset conversation, and shut down with SQLite integrity intact. The personal instance was left stopped and no live Discord message was sent. This establishes loading and short functional generation, not broader quality, performance, or long-session reliability.
-
-Verification: 134 core regression checks and 14 mocked Discord checks passed, plus the isolated live GPU reset test.

@@ -26,9 +26,9 @@ SQLite uses WAL mode, foreign keys, a 10-second lock timeout, and `synchronous=F
 
 Normal shutdown drains main-chat recorders and saves retained RAM diagnostics before marking the session ended. Discord may append its final disconnect events afterward. A forced kill can leave no end timestamp; unsaved diagnostics can be lost if the recorder is killed. Stop both main chat and Discord before maintenance or a complete final-session export.
 
-Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Contact notes remain automatically supplied. There is no new model log reader, memory search, or automatic resume. [Rolling diagnostic retention](log-retention.md) preserves conversations while expiring older diagnostics.
+Saved data is **not automatically loaded into model context**. Restart still begins fresh conversation histories; `/clear` clears only the originating active history and preserves stored records. Contact notes remain automatically supplied. The bounded [query_logs tool](log-queries.md) retrieves diagnostic facts on demand; it does not restore conversations as model memory or provide general memory search. [Rolling diagnostic retention](log-retention.md) preserves conversations while expiring older diagnostics.
 
-Schema 2 also adds diagnostic batches, policy/sequence state, retained failures, shared error evidence, and a bounded recent-context ring. The [retention guide](log-retention.md) describes the 20 MB batches, 500 MB diagnostic payload budget, last 20 failures with surrounding events, and shutdown saving. Existing schema-1 databases upgrade through schema 2 to schema 3 transactionally; schema 3 renames the contact UUID column without changing retention.
+Schema 2 also adds diagnostic batches, policy/sequence state, retained failures, shared error evidence, and a bounded recent-context ring. The [retention guide](log-retention.md) describes the 20 MB batches, 500 MB diagnostic payload budget, last 20 failures with surrounding events, and shutdown saving. Older databases migrate transactionally through the supported schema versions to schema 5; see the migration sections below.
 
 ## View and export
 
@@ -78,26 +78,21 @@ This uses SQLite's backup API (including committed WAL data, but not unsaved RAM
 
 Restore while both applications are stopped: move the current database and any matching WAL/SHM files aside together, copy the verified backup to `data/conversations/marionette.sqlite3`, and set permissions to 600. Do not combine sidecars from different database copies. Restoring this database restores the saved records, not automatic model history. Keep matching contact profiles/notes when restoring a complete personal state.
 
-Synthetic tests verify same-version SQLite backup restoration and SQL export/import into a fresh SQLite file, including raw bytes, messages, IDs, and timestamps. **Migration to a different database engine is not implemented or verified.** Unexpected schema versions fail explicitly; there is no silent reset. No old-text import is implemented.
+**Migration to a different database engine is not implemented or verified.** Unexpected schema versions fail explicitly; there is no silent reset. No old-text import is implemented.
 
 ## Fresh personal-data start
 
 Ask the development agent to **reset memory** using the [operator instruction](../../../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, souls, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
 
-This is not a model tool or runtime slash command. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
+This operator procedure is separate from the owner-only [`/resetmemory` command](reset-memory.md), which resets memory while keeping the model loaded. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
 
 SQLite is [public domain](https://sqlite.org/copyright.html). Design references: [WAL](https://sqlite.org/wal.html) and [Python SQLite interface/backup](https://docs.python.org/3/library/sqlite3.html). Installed versions are recorded in [licenses](../setup-and-maintenance/licenses.md).
 
-## Verification of this change
-
-On November 11, 2026, an isolated normal-launcher GPU check used synthetic profiles and a separate database. The unchanged Q4 model answered `2 + 2` with `4`; input, reasoning, and answer were stored separately, 7,806 diagnostic records and the terminal stream were saved, integrity checking passed, and the session/server ended cleanly. All 106 automated checks passed (93 core and 13 mocked Discord), including Ctrl+C shutdown with recorder draining. The then-existing message snapshot utility successfully read exports from the GPU session; that utility has since been removed. Mocked Discord integration verifies attachment, reconnection, metadata/delivery events, local reasoning, and answers-only delivery without a live Discord login. These checks establish recording and basic functionality, not long-session reliability, answer quality, or a performance improvement.
-
 ## Contact UUID schema migration
 
-Writable opens upgrade conversation databases to schema 3 transactionally: `messages.person_uuid` becomes `messages.contact_uuid`, with the corresponding index renamed. Existing messages, IDs, and raw diagnostic payloads are preserved. Read-only inspection still accepts schemas 1 and 2. Retention behavior and RAM budgets are unchanged. Synthetic tests verify the column migration and reopen; this is SQLite schema migration, not cross-database migration.
+Writable opens upgrade conversation databases to schema 3 transactionally: `messages.person_uuid` becomes `messages.contact_uuid`, with the corresponding index renamed. Existing messages, IDs, and raw diagnostic payloads are preserved. Read-only inspection still accepts schemas 1 and 2. Retention behavior and RAM budgets are unchanged. This is SQLite schema migration, not cross-database migration.
 
 Schema 4 adds one private `memory_epoch` metadata row for coordinated live resets. It migrates transactionally from schema 3 without rewriting existing messages. Read-only inspection accepts schemas 1–5. See [live reset](reset-memory.md) for deletion boundaries and retained active session metadata.
-
 
 ## Searchable diagnostic metadata (schema 5)
 
@@ -146,8 +141,3 @@ Historical names are not guaranteed after diagnostic expiry. No full-text index
 or unrestricted log search is provided. The former snapshot utilities have been
 removed. The [query handler](log-queries.md) accepts bounded request forms from
 operators and the explicitly registered Qwen-Agent `query_logs` tool.
-
-Synthetic checks verify schema-4 backfill, indexed lookup, raw-byte/ID preservation,
-protected evidence after rolling eviction, shutdown saving, and reset deletion.
-The storage suite separately checks same-version backup restore and SQL export/import;
-these are SQLite tests, not cross-engine migration verification.

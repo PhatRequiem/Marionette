@@ -109,13 +109,4 @@ old and new pages. Rerun sync to repair. Symlinked export paths are refused, and
 an existing unrecognized Generated directory is not overwritten. Standard local
 permissions protect newly generated private files (600) and directories (700).
 
-Synthetic launcher tests also verify shutdown exports the last saved messages and
-Active documentation, and a failed export leaves the closed session and database
-intact with a visible error.
-
-Synthetic tests cover literal message preservation, IDs, contact separation,
-repeat sync, annotations, stale-page deletion, symlink refusal, missing databases,
-contact-local link resolution, migration from the flat layout,
-and live reset deleting both generated conversations and annotations. Existing
-SQLite backup/restore tests remain separate; this feature adds no restoration or
-cross-database migration capability.
+The vault mirror adds no backup restoration or cross-database migration capability. Use the SQLite backup procedure for durable source records.

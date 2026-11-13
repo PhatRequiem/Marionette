@@ -1,6 +1,6 @@
 # Context rollover and preparation
 
-`src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. The startup datasheet is refreshed from observations; it is queried on demand. The [soul](soul.md) and editable profile name start blank. Once filled, they supply system context, prepared at startup and refreshed before each ordinary turn. Existing reports from older sessions are left untouched. Runtime configuration remains visible in the diagnostic logs.
+`src/marionette/session.py` owns one pinned `llama-server` on a temporary loopback port. Startup still checks the loaded context capacity against `/props`. The startup datasheet is refreshed from observations; it is queried on demand. The [soul](soul.md) and editable profile name start blank. Once filled, they supply system context, prepared at startup and refreshed before each ordinary turn. Runtime configuration remains visible in the diagnostic logs.
 
 Reasoning is enabled in the request template and server, with `deepseek` parsing to separate reasoning from final content. There is no separate reasoning cap; reasoning and the answer share the 32,768-token generation allowance. A long reasoning passage can exhaust that allowance before producing a final answer. The client streams reasoning in white and displays final content in pink (buffered until final when tools are enabled), logs completed reasoning, and retains final content and the tool-call/result exchange in active conversation history, but not reasoning content.
 
@@ -18,7 +18,7 @@ One server slot handles generation, tool follow-ups, and preparation sequentiall
 
 The launcher sets `--cache-ram 5120`: a **5 GiB (5,120 MiB) system-RAM prompt-cache budget**, with one active inference slot. This is a cache budget, not reserved RAM, a total-process memory limit, or three guaranteed conversation slots. Cached states can include checkpoints; llama.cpp chooses reusable entries by token-prefix matching and evicts entries when needed. The active GPU context and model use VRAM separately.
 
-This setting takes effect on the next main-chat launch. The RAM cache is an optimization independent of the separate message histories. The reduced budget can retain fewer processed conversation states; switching may require rebuilding context more often. It does not reduce the context window or delete conversation history. Verify the startup diagnostic reports `prompt cache is enabled, size limit: 5120 MiB` after restarting. Background preparation and the existing token allowances are unchanged.
+The RAM cache is independent of the separate message histories. Cache eviction can require rebuilding processed context when switching conversations; it does not reduce the context window or delete history. Check startup diagnostics for `prompt cache is enabled, size limit: 5120 MiB`.
 
 ## Between-turn preparation
 
@@ -46,11 +46,7 @@ Each launch records a SQLite session with conversation messages, terminal output
 
 Run `runtime/agent/bin/python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
-Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](../../development/experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](../../development/experiments/q4-return.md). This switch does not change rollover policy.
-
-## Separate-conversation verification
-
-See [the November 10 cache-switch experiment](../../development/experiments/conversation-cache-2026-11-10.md): 66 core and 12 mocked Discord checks pass. A real GPU run retained three 60,000-token cached contexts with one active slot under the previous 9 GiB budget; cached returns took 0.80–1.22 seconds versus 25.5–26.3 seconds initially. Those results used the previous budget, not the current 5 GiB setting; they are synthetic cache timings, not promised full-response latency. Separate linked terminal/Discord histories were also checked with real generation.
+## Tool exchanges
 
 Tool exchanges use Qwen-Agent message records internally. Native rendering converts
 them to matching `tool_calls` and `tool_call_id` messages for both counting and

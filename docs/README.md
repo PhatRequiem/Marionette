@@ -11,6 +11,7 @@ The model remains disconnected from vault browsing and direct file editing.
 ## Development — outside Obsidian
 
 - [Experiments](development/experiments/): recorded tests and investigations, not current configuration.
+- [Reports extracted from Active guides](development/experiments/active-guide-reports-2026-11-12/README.md): prior verification runs and rollout notes.
 - [History](development/history/README.md): baselines and retired documents.
 - [Ideas](development/ideas/README.md): discussion-only proposals; saving an idea does not authorize implementation.
 

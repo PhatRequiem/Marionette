@@ -85,75 +85,19 @@ updates are introduced. Existing RAM loss and retention limits still apply.
 Every successful handler response includes lookup-specific `field_meanings`. These definitions travel with the evidence rather than relying on a separate glossary being in context. The request form and raw logs are unchanged.
 
 - Processing retains per-request `prompt_tokens`, `completion_tokens` and `total_tokens`. `recorded_token_totals` computes input and generated totals separately over available usage records. Generated tokens include reasoning and tool-call text. Repeated history counts again as input across requests. Missing counts remain null; these sums do not certify complete retention. Duplicate request usage is rejected.
-- `processing_boundary_elapsed_ms` replaces `elapsed_receipt_ms`: application processing boundary elapsed time, not pure inference time. Budgets are allowances, not usage.
-- Delivery replaces ambiguous `total_ms` with `receipt_to_delivery_ms` only for a recorded successful answer-send event, or `receipt_to_failure_ms` for a recorded failure. Queue, processing and local round-trip intervals overlap. No send-only duration is inferred. Chunk counts describe retained send records.
+- `processing_boundary_elapsed_ms` measures application processing boundary elapsed time, not pure inference time. Budgets are allowances, not usage.
+- Delivery reports `receipt_to_delivery_ms` only for a recorded successful answer-send event, or `receipt_to_failure_ms` for a recorded failure. Queue, processing and local round-trip intervals overlap. No send-only duration is inferred. Chunk counts describe retained send records.
 - Setup explicitly labels `llama.cpp runtime version`, including when reading an older startup sheet. Reasoning format does not identify a model family; GPU offload counts do not measure utilization.
 - Message results identify their ID as the incoming user message anchoring the exchange, not the outgoing reply. Current tool lists describe bindings at the probe instant; empty recognized-error results do not prove an error-free run.
 
-Restart main chat and reconnect Discord to load these handler changes. Historical results already held in active context retain their original format. This change improves the evidence contract; model interpretation still requires evaluation.
+## Model guidance
 
-## Verification
+The tool is rebound after each conversation switch and before prompt counting. Its description includes short definitions and valid request examples; the full glossary and datasheet are not injected into every prompt. Only current-session messages are accessible. A current-status query usually observes processing as busy because it runs during the answering turn.
 
-`tests/core/test_log_query.py` covers valid/invalid forms, conversation scope,
-previous-message anchoring, processing/delivery/error extraction, deduplication,
-bounds, live RAM reads without disk event writes, startup-only parsing, and
-isolated status probes. Discord status uses synthetic bot state, not credentials.
-The handler was also exercised through forms against the saved multi-user archive
-for processing, delivery, errors and previous-message retrieval, and against the
-local startup sheet. A fresh synthetic main-chat instance returned current health,
-registered tools and idle state. The Qwen-Agent adapter is additionally checked by `tests/core/test_log_tool.py`: real
-framework dispatch sends the form to the handler and returns facts to a second model
-request; extra scope fields and another conversation’s message are rejected.
-
-The tool is rebound after each conversation switch and before prompt counting.
-Its description includes short definitions and valid request examples rather than
-injecting the entire glossary or startup sheet into every prompt. Facts are fetched
-on demand. Restart chat to load the new tool; Discord must reconnect to that chat.
-Only current-session messages are accessible. A query about current status will
-usually observe processing as busy because it runs during the answering turn.
-
-Live 4B verification (isolated synthetic records, existing Q4 model and normal
-65,536 context/sampling): five natural-language questions selected the correct
-setup, status, processing, delivery and errors forms. The model used the returned
-startup fact, preserved unknown Discord status, reported the fixture’s 120 tokens,
-reported recorded delivery and recognized no matching failures. All five finished
-with `stop`. These are functional examples, not exhaustive answer-quality or
-long-session reliability evidence; the test did not send Discord messages or write
-to personal profiles.
-
-The application also loads [log-query instructions](../../../prompts/log-queries.md)
-into the system prompt whenever this tool is enabled. They require evidence
-lookup for ordinary self-setup/status questions and remain separate from the
-editable soul. Restart chat to load prompt edits. This guides tool selection;
-it does not force a tool call or guarantee model compliance.
-
-The current concise guidance replaces the longer prompt used in the initial
-35-question evaluation. Guidance for contact notes and soul edits is also loaded
-when those tools are registered; see [prompt composition](../../../prompts/README.md).
-Those earlier behavior scores do not measure this revised prompt.
+Enabled [log-query instructions](../../../prompts/log-queries.md) are composed separately from the editable soul. They guide evidence lookup for setup/status questions without forcing a tool call or guaranteeing compliance. Other registered tools receive their own concise guidance; see [prompt composition](../../../prompts/README.md). Restart chat to load prompt edits.
 
 ## Current reliability limits
 
-A small live Discord check on 2026-11-12 with the 4B Q4 model exercised explicit
-argument examples and the follow-up instruction in `prompts/log-results.md`.
-All four exchanges completed and were delivered. The model queried setup for
-model identification and used two log calls for a previous-message report.
-It also answered an implementation question from retained context without a new lookup.
+Successful retrieval and delivery do not guarantee accurate model interpretation. Unit conversion, unsupported claims, and response length require review. The short follow-up instruction in `prompts/log-results.md` applies only after a fresh log result in the current turn, not when answering solely from retained context.
 
-Retrieval and delivery worked, but answer quality remained inconsistent:
-
-- A delivery duration was reported correctly in seconds, then mislabeled as milliseconds elsewhere in the same answer.
-- The model added unsupported efficiency judgments and a model-size claim.
-- Responses remained longer than the brief-answer instruction requested.
-- The follow-up reminder applies only after a fresh log result in the current turn; it does not apply when answering solely from retained context.
-
-These are observed failure categories, not a controlled comparison or an accuracy
-benchmark. The informal percentage discussed during review is not an evaluation
-score. No transcripts, personal identifiers or raw logs are included here. Private
-runtime evidence follows the normal retention and memory-reset policy.
-
-Development can continue with these limitations recorded. Before relying on model
-interpretations for automated actions, repeat fixed synthetic questions and score
-tool selection, valid arguments, factual interpretation and error recovery
-separately, including ordinary conversation that needs no tool. That evaluation
-is planned, not implemented or passed by the current checks.
+Answer quality and long-session reliability are not established by functional tool checks. Before relying on interpretations for automated actions, evaluate tool selection, arguments, factual interpretation, and error recovery separately, including messages that need no tool.

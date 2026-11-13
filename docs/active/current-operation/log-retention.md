@@ -2,7 +2,7 @@
 
 **Policy:** routine diagnostics live in the **existing recorder process's RAM**,
 with a **500 MB raw-event rolling budget in 20 MB batches**. No new helper or
-watchdog process is added. Conversations remain durable in SQLite. Model log access remains disabled.
+watchdog process is added. Conversations remain durable in SQLite. Scoped model log access is provided through [query_logs](log-queries.md).
 
 MB means decimal bytes: 500,000,000 and 20,000,000. `ram_logs.py` owns the live
 buffer and shutdown save; `retention.py` supplies batch/error-window rules.
@@ -101,13 +101,11 @@ and must stay visible when future versions change shutdown behavior.
 The saved 500 MB payload budget does not cap the entire database file. Conversation
 records, terminal/Discord output, protected evidence, indexes, and WAL need extra
 space. SQLite reuses deleted pages; the file need not shrink. No live `VACUUM`,
-compression, or rotated text files are added. Saved data continues using schema 2;
-there is no new on-disk schema migration for this RAM change.
+compression, or rotated text files are added. Saved data uses schema 5; schema migrations preserve this RAM retention policy.
 
 ## Operator commands
 
-Restart main chat and reconnect Discord to use the new recorder. Existing saved
-records are preserved under their existing rolling retention policy.
+These commands inspect the recorder and already saved evidence:
 
 ```bash
 ./scripts/native-linux/storage.sh retention
@@ -118,35 +116,16 @@ records are preserved under their existing rolling retention policy.
 `retention` reports saved sizes plus `live_ram` policy, size, session, and failure
 count when the recorder is available. `errors` and `error` inspect **saved** failures;
 new RAM failures appear there after shutdown saving. The live diagnostic windows
-show errors as they occur. Log inspection remains operator-only.
+show errors as they occur. These inspection commands are for operators; the model uses the bounded `query_logs` tool.
 
 Use [SQLite backup/export](storage.md) for already saved evidence and conversations.
 A backup while running does not include the unsaved RAM buffer. Stop cleanly first
 for a complete snapshot of retained diagnostics. Restoring a backup restores saved
 rows, not a running RAM buffer or model history.
 
-## Verification and future regression guardrails
-
-`tests/core/test_ram_logs.py` checks the exact default sizes, no routine payload or
-recent-context rows on disk before saving, whole-batch expiry, latest-20 errors,
-shutdown save with original IDs, atomic rollback/retry, backup restoration, live
-views, ID reservation collisions, oversized-event rejection, EOF/SIGTERM saving,
-and the documented loss on recorder SIGKILL. Existing launcher checks exercise
-normal exit, Ctrl+C, failed child processes, recorder draining, and conversation
-persistence. Tests use isolated databases and synthetic profiles only.
-
-This is not a five-year reliability claim or a live-model performance benchmark.
-The no-payload-writes and shutdown tests must remain in place when storage evolves.
-
-Verification of the RAM change: **118 core checks and 13 mocked Discord checks
-passed**. A separate actual-size test retained exactly 25 × 20 MB batches in RAM,
-confirmed zero diagnostic/event-window rows on disk before shutdown, then saved
-the 500 MB buffer and protected error evidence with SQLite integrity intact.
-The synthetic database was removed; the user's running session was not changed.
-
 ## Explicit live memory reset
 
-The owner-authorized [`/resetmemory`](reset-memory.md) command deliberately discards both saved logs and the recorder's RAM/error windows. It uses private generation markers and acknowledgments in existing capture processes; no helper process or periodic payload writes are added. Schema 4 adds reset-generation metadata. Event allocation remains monotonic and the active session ID is preserved for live viewers. Old-epoch writers and shutdown buffers cannot reinsert erased payloads. Ordinary rolling budgets, protected-error limits, and shutdown-save behavior remain unchanged. Tests include interrupted-boundary suppression, stale writer rejection, and a full launcher reset followed by shutdown.
+The owner-authorized [`/resetmemory`](reset-memory.md) command deliberately discards both saved logs and the recorder's RAM/error windows. It uses private generation markers and acknowledgments in existing capture processes; no helper process or periodic payload writes are added. Schema 4 adds reset-generation metadata. Event allocation remains monotonic and the active session ID is preserved for live viewers. Old-epoch writers and shutdown buffers cannot reinsert erased payloads. Ordinary rolling budgets, protected-error limits, and shutdown-save behavior remain unchanged.
 
 Schema 5 adds searchable metadata columns and indexes to both retained events and
 protected evidence. They follow their parent rows through eviction, shutdown saving
@@ -159,5 +138,8 @@ The [operator query handler](log-queries.md) can read message-tagged evidence
 through the existing recorder’s private live socket. This bounded read uses the
 same RAM buffer and protected windows; it adds no routine disk payload writes,
 helper process, or retention change. Saved records remain the fallback when the
-recorder is unavailable. `tests/core/test_log_query.py` checks live querying
-without disk event writes.
+recorder is unavailable.
+
+## Maintenance guardrails
+
+Changes to retention must preserve the no-routine-payload-writes and shutdown-save checks in `tests/core/test_ram_logs.py`, along with the documented loss behavior on abrupt recorder termination. These are required regression checks, not a long-session reliability guarantee.

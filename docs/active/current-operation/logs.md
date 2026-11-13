@@ -140,11 +140,11 @@ raised/returned tool errors, scope cleanup, and lossless log routing. These chec
 
 ## Log storage and recovery
 
-Keep the SQLite database when updating or reinstalling. Follow [backup and restore](storage.md#backup-and-restore) rather than copying a live main file without its WAL. Saved records do not restore model context. Synthetic checks cover same-version database restoration and SQL export/import; migration to another database engine is not verified.
+Keep the SQLite database when updating or reinstalling. Follow [backup and restore](storage.md#backup-and-restore) rather than copying a live main file without its WAL. Saved records do not restore model context. Migration to another database engine is not verified.
 
 Optional exported text views can be archived manually. They are not loaded as memory and do not replace a complete database backup.
 
-Contact notes add `Contact notes supplied`, `Contact notes updated`, and `Contact notes update rejected` client events to the existing diagnostic stream. Successful writes include the contact UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No separate log file is created. See [contact-note storage and verification](contact-notes.md).
+Contact notes add `Contact notes supplied`, `Contact notes updated`, and `Contact notes update rejected` client events to the existing diagnostic stream. Successful writes include the contact UUID, entry action (`add`, `patch`, or `remove`), and character count; tool/runtime diagnostics can include the Markdown itself. No separate log file is created. See [contact-note storage](contact-notes.md).
 
 `Conversation selected: terminal:<uuid>` or `discord:<account-id>` identifies each serialized turn in diagnostics; clear events also include that key. The main terminal labels both input sources and shows all conversations, although their model histories are separate. Cache save/restore, entry sizes, and evictions remain in runtime diagnostics.
 
