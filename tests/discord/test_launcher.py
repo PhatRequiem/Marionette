@@ -48,7 +48,7 @@ async def synthetic_start(self, token):
     channel.id = 789
     channel.send = AsyncMock(return_value=SimpleNamespace(id=987))
     channel.typing = typing
-    await self.on_message(SimpleNamespace(id=1, author=SimpleNamespace(id=123, bot=False),
+    await self.on_message(SimpleNamespace(id=1, author=SimpleNamespace(id=123, bot=False, display_name="Synthetic owner"),
         guild=None, channel=channel, content='Synthetic Discord hello', attachments=[], stickers=[],
         created_at=datetime.datetime.now(datetime.timezone.utc)))
     assert channel.send.call_args.args == ('Synthetic reply.',)

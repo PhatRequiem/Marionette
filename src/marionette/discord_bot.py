@@ -179,7 +179,7 @@ class DMChat(discord.Client):
                 async with message.channel.typing():
                     phase = 'local_response'
                     local_start = time.monotonic()
-                    result = await request(self.address, text, message.author.id, message_id=context['log_message_id'], generation=memory_epoch)
+                    result = await request(self.address, text, message.author.id, message_id=context['log_message_id'], generation=memory_epoch, display_name=message.author.display_name)
                     answer, finish = result['answer'], result['finish']
                     if finish == 'resetmemory':
                         memory_epoch = current_generation(self.address)

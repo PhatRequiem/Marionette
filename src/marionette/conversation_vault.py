@@ -70,11 +70,16 @@ def sync(database, profiles=None, contact_notes=None):
         pages, contacts, days = {}, defaultdict(set), defaultdict(lambda: defaultdict(set))
         captured = now()
 
+        def title(contact):
+            name = label(names.get(contact, 'Unknown contact'))
+            return re.sub(r'[^\w -]', '_', name)[:60].strip() or 'Contact'
+
+        def note(contact, kind=''):
+            return folder(contact) + '/' + title(contact) + (' - ' + kind if kind else '')
+
         def folder(contact):
             # The ID suffix separates people with identical names. Names are only labels.
-            name = label(names.get(contact, 'Unknown contact'))
-            safe = re.sub(r'[^\w -]', '_', name)[:60].strip() or 'Contact'
-            return f'Contacts/{safe}-{key(contact)}'
+            return f'Contacts/{title(contact)}-{key(contact)}'
 
         def link(path, title):
             return f'[[Generated/{path}|{label(title)}]]'
@@ -82,7 +87,7 @@ def sync(database, profiles=None, contact_notes=None):
         titles = {}
         for (session, conversation, contact), rows in groups.items():
             base = folder(contact)
-            slug = base + '/Conversations/conversation-' + key(session, conversation, contact)
+            slug = base + '/Conversations/' + title(contact) + ' - ' + rows[0]['recorded_at'][:10] + ' - conversation-' + key(session, conversation, contact)[:12]
             titles[slug] = rows[0]['recorded_at'][:10] + ' ' + rows[0]['source'] + ' ' + key(session, conversation)[:8]
             contacts[contact].add(slug)
             front = {'session_id': session, 'conversation_id': conversation,
@@ -91,7 +96,7 @@ def sync(database, profiles=None, contact_notes=None):
                      'last_message_at': rows[-1]['recorded_at']}
             text = '---\n' + ''.join(f'{k}: {json.dumps(v)}\n' for k, v in front.items()) + '---\n\n'
             text += '# Conversation\n\nGenerated from SQLite. Saved replies do not prove delivery.\n\n'
-            text += link(base + '/Profile', names.get(contact, 'Unknown contact')) + ' · ' + link(base + '/Dates', 'Dates') + '\n\n'
+            text += link(note(contact), names.get(contact, 'Unknown contact')) + ' · ' + link(note(contact, 'Dates'), 'Dates') + '\n\n'
             for row in rows:
                 day = row['recorded_at'][:10]
                 days[contact][day].add(slug)
@@ -115,14 +120,14 @@ def sync(database, profiles=None, contact_notes=None):
                     # Preserve the saved Markdown exactly; never initialize or edit the source.
                     with source.open(encoding='utf-8', newline='') as handle:
                         notes = handle.read()
-            pages[base + '/contact_notes.md'] = notes if notes is not None else '# Contact notes\n\nNo saved contact-notes file was available at sync time.\n'
-            pages[base + '/Profile.md'] = '# ' + label(names.get(contact, 'Unknown contact')) + '\n\n' + literal(contact) + '\n' + link(base + '/Dates', 'Dates') + ' · ' + link(base + '/contact_notes', 'Contact notes') + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations))
-            text = '# Dates\n\n' + link(base + '/Profile', 'Profile') + '\n\n'
+            pages[note(contact, 'Notes') + '.md'] = notes if notes is not None else '# Contact notes\n\nNo saved contact-notes file was available at sync time.\n'
+            pages[note(contact) + '.md'] = '# ' + label(names.get(contact, 'Unknown contact')) + '\n\n' + literal(contact) + '\n' + link(note(contact, 'Dates'), 'Dates') + ' · ' + link(note(contact, 'Notes'), 'Contact notes') + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations))
+            text = '# Dates\n\n' + link(note(contact), 'Profile') + '\n\n'
             for day, conversations in sorted(days[contact].items(), reverse=True):
                 text += '## ' + day + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations)) + '\n'
-            pages[base + '/Dates.md'] = text
+            pages[note(contact, 'Dates') + '.md'] = text
         # The contact index is the explicit shared navigation hub; dates stay local.
-        pages['Contacts.md'] = '# Contacts\n\nChoose a contact to browse their profile, dates and conversations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join('- ' + link(folder(c) + '/Profile', names.get(c, 'Unknown contact')) + '\n' for c in sorted(contacts, key=lambda c: (names.get(c, '').casefold(), c or '')))
+        pages['Contacts.md'] = '# Contacts\n\nChoose a contact to browse their profile, dates and conversations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join('- ' + link(note(c), names.get(c, 'Unknown contact')) + '\n' for c in sorted(contacts, key=lambda c: (names.get(c, '').casefold(), c or '')))
         generated = vault / 'Generated'
         if generated.exists() and not (generated / '.marionette-managed').is_file():
             raise ValueError('Refusing to overwrite an unrecognized Generated directory.')

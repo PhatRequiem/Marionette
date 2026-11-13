@@ -28,14 +28,16 @@ Alternate log locations require operator review for memory reset, as before.
 
 ## Contents and ownership
 
-- `Generated/Contacts/<name>-<ID hash>/Profile.md`: contact name/ID and links to
+- `Generated/Contacts/<name>-<ID hash>/<name>.md`: contact name/ID and links to
   that contact's conversations. These are browsing pages, not full saved profiles.
-- Each profile links to `contact_notes.md`, a verbatim Markdown mirror of
+- Each profile links to `<name> - Notes.md`, a verbatim Markdown mirror of
   `data/contact_notes/<contact-uuid>.md` at sync time. Missing source files get an
   explicit placeholder; sync never creates or edits the original notes. Editing
   the mirror does not write back and is overwritten on refresh. No conversation
   links are inferred from notes. Direct model editing of vault notes is not enabled.
-- Each contact folder has its own `Dates.md` and `Conversations/` directory.
+- Each contact folder has its own `<name> - Dates.md` and `Conversations/` directory.
+  Conversation filenames include the saved name, UTC date and a short ID. Graph
+  labels therefore use readable names instead of generic Profile/Dates labels.
   Conversations are grouped by session + conversation ID + contact UUID. Names
   are readable labels; the ID suffix distinguishes contacts with identical names.
   Renaming a contact moves its generated folder on the next sync.

@@ -62,13 +62,14 @@ class Conversation:
             self.pending = None
             self.pending_key = None
 
-    def submit_discord(self, message, *, sender_id, timings=None, message_id=None, generation=None):
+    def submit_discord(self, message, *, sender_id, timings=None, message_id=None, generation=None, display_name=None):
         # The terminal thread owns rendering, including while awaiting local input.
         epoch = self.epoch if generation is None else generation
         if self.resetting or epoch != self.epoch:
             return 'Message discarded because memory was reset. Please send it again.', 'stop'
         future = Future()
         future.memory_epoch = epoch
+        future.discord_display_name = display_name
         self.incoming.put((message, sender_id, future, time.monotonic(), timings, message_id))
         while not self.api.closing.is_set():
             try:
@@ -78,19 +79,19 @@ class Conversation:
                     return future.result()  # Also handle completion at the timeout boundary.
         raise RuntimeError('Session is closing.')
 
-    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None):
+    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None, display_name=None):
         identifier = diagnostics.message_id(message_id)
         with self.lock:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
-                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier)
+                result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
             if recognize(message, source) not in ('clear', 'resetmemory'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             return result
 
-    def _turn(self, message, *, on_delta, source, sender_id, identifier):
+    def _turn(self, message, *, on_delta, source, sender_id, identifier, display_name=None):
         if self.resetting:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
@@ -99,7 +100,7 @@ class Conversation:
         if self.profiles is not None:
             sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
             if source == 'discord':
-                sender_id = self.profiles.register_discord(sender_id)
+                sender_id = self.profiles.register_discord(sender_id, display_name)
             identity = self.profiles.resolve(source, sender_id)
             diagnostics.log('Sender identity: ' + json.dumps(identity, ensure_ascii=False))
         if source not in ('terminal', 'discord'):

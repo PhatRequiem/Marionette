@@ -170,22 +170,37 @@ class ContactProfiles:
             raise
         return profile
 
-    def register_discord(self, sender_id):
+    def register_discord(self, sender_id, display_name=None):
         """Create a distinct identity on first DM; never infer links from names."""
         if (not isinstance(sender_id, str) or not sender_id.isascii()
                 or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
             raise ValueError('A numeric Discord sender ID is required.')
         sender_id = str(int(sender_id))
+        def saved_name(exclude=None):
+            base = display_name.strip() if valid_name(display_name) else f'Discord {sender_id}'
+            existing = {p['name'].casefold() for p in self.profiles if p is not exclude}
+            name, suffix = base, 2
+            while name.casefold() in existing:
+                ending = f' ({suffix})'
+                name = base[:80-len(ending)] + ending
+                suffix += 1
+            return name
+
         for profile in self.profiles:
             if any(link['service'] == 'discord' and str(int(link['account_id'])) == sender_id
                    for link in profile['linked_accounts']):
+                # Upgrade legacy generated labels once; retain explicit/saved names.
+                placeholder = re.fullmatch(r'Discord ' + re.escape(sender_id) + r'(?: \(\d+\))?', profile['name'])
+                if placeholder and valid_name(display_name) and profile['uuid'] != self.data['owner_uuid']:
+                    previous = profile['name']
+                    profile['name'] = saved_name(profile)
+                    try:
+                        self.save()
+                    except (OSError, ValueError):
+                        profile['name'] = previous
+                        raise
                 return sender_id
-        name = f'Discord {sender_id}'
-        existing = {p['name'].casefold() for p in self.profiles}
-        suffix = 2
-        while name.casefold() in existing:
-            name = f'Discord {sender_id} ({suffix})'
-            suffix += 1
+        name = saved_name()
         profile = self.new_profile(name)
         profile['linked_accounts'] = [{'service': 'discord', 'account_id': sender_id}]
         self.profiles.append(profile)

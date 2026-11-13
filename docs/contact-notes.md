@@ -56,7 +56,7 @@ Restart Marionette after this update so the running process uses the entry tool 
 ## Obsidian mirror
 
 The manual [conversation-vault sync](conversation-vault.md) mirrors existing notes
-for contacts with exported conversations into their `contact_notes.md` page, linked
+for contacts with exported conversations into their `<name> - Notes.md` page, linked
 from the profile. The original file remains authoritative. No vault write-back or
 model vault access is enabled.
 

@@ -190,3 +190,25 @@ class ContactProfileTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             ContactProfiles(self.path)
         self.assertEqual(self.path.read_bytes(), invalid)
+
+    def test_discord_names_saved_once_with_ids_and_collision_handling(self):
+        self.profiles.register_discord('456', 'Sample Person')
+        first = self.profiles.resolve('discord', '456')
+        self.assertEqual(first['display_name'], 'Sample Person')
+        self.profiles.register_discord('456', 'Changed on Discord')
+        self.assertEqual(self.profiles.resolve('discord', '456')['display_name'], 'Sample Person')
+        self.profiles.register_discord('789', 'Sample Person')
+        self.assertEqual(self.profiles.resolve('discord', '789')['display_name'], 'Sample Person (2)')
+        self.assertNotEqual(first['contact_uuid'], self.profiles.resolve('discord', '789')['contact_uuid'])
+        self.assertEqual(first['sender_id'], '456')
+        self.profiles.register_discord('123', 'Owner Discord Name')
+        self.assertEqual(self.profiles.resolve('discord', '123')['display_name'], 'Phat')
+        self.profiles.register_discord('987')
+        old_id = self.profiles.resolve('discord', '987')['contact_uuid']
+        self.profiles.register_discord('987', 'Legacy Person')
+        self.assertEqual(self.profiles.resolve('discord', '987')['display_name'], 'Legacy Person')
+        self.assertEqual(self.profiles.resolve('discord', '987')['contact_uuid'], old_id)
+        self.profiles.register_discord('654', 'Bad\nName')
+        self.assertEqual(self.profiles.resolve('discord', '654')['display_name'], 'Discord 654')
+        restored = ContactProfiles(self.path)
+        self.assertEqual(restored.resolve('discord', '456'), first)

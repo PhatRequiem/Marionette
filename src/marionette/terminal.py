@@ -88,7 +88,7 @@ def display_discord(conversation):
     print(f'{message}\n', flush=True)
     color('data')
     try:
-        answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id)
+        answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
         if recognize(message, 'discord') in ('clear', 'resetmemory'):
             color('meta')
             print(answer)

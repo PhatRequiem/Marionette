@@ -32,7 +32,7 @@ def message(number=1, owner=123, guild=None, channel=None, content='hello', atta
         channel.id = 789
         channel.send = AsyncMock(return_value=SimpleNamespace(id=987))
         channel.typing = typing
-    return SimpleNamespace(id=number, author=SimpleNamespace(id=owner, bot=False),
+    return SimpleNamespace(id=number, author=SimpleNamespace(id=owner, bot=False, display_name="Synthetic Discord Name"),
                            guild=guild, channel=channel, content=content,
                            created_at=datetime.datetime.now(datetime.timezone.utc),
                            attachments=attachments or [], stickers=[])
@@ -58,8 +58,8 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         profiles = ContactProfiles(Path(temporary.name) / 'profiles.json')
         profiles.profiles[0]['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
         self.conversation = Conversation(self.api, 65536, profiles, profiles.profiles[0])
-        async def request(address, text, sender_id, *, message_id=None, generation=None):
-            answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id), message_id=message_id)
+        async def request(address, text, sender_id, *, message_id=None, generation=None, display_name=None):
+            answer, finish = self.conversation.turn(text, source='discord', sender_id=str(sender_id), message_id=message_id, display_name=display_name)
             return {'answer': answer, 'finish': finish, 'timings': {'main_queue_ms': 2, 'processing_ms': 3}}
         self.request = patch.object(bot, 'request', side_effect=request).start()
         self.client = bot.DMChat('/synthetic/socket', 123)
@@ -67,6 +67,17 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.events = patch.object(bot, 'log').start()
         self.transcript = patch.object(bot, 'transcript').start()
         self.addCleanup(patch.stopall)
+
+    async def test_new_sender_display_name_is_saved_without_changing_identity(self):
+        incoming = message(owner=456)
+        await self.client.on_message(incoming)
+        identity = self.conversation.profiles.resolve('discord', '456')
+        self.assertEqual(identity['display_name'], 'Synthetic Discord Name')
+        self.assertEqual(identity['sender_id'], '456')
+        incoming = message(number=2, owner=456)
+        incoming.author.display_name = 'Later Discord Name'
+        await self.client.on_message(incoming)
+        self.assertEqual(self.conversation.profiles.resolve('discord', '456'), identity)
 
     async def test_reset_completion_keeps_transport_watermarks_and_delivers_notice(self):
         token='00000000-0000-0000-0000-000000000001'
