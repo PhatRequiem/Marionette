@@ -8,7 +8,7 @@ from unittest.mock import patch
 import httpx
 from openai import OpenAI
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from vault_tool import ReadVault, MCP, plan, configured_tools
+from vault_tool import ReadVault, MCP, plan, configured_tools, READ_TOOLS
 from inference import API
 from conversation import Conversation
 from test_coordination import response
@@ -65,15 +65,38 @@ class VaultTests(unittest.TestCase):
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
         import threading
         requests=[]
+        note_count=1
         class Handler(BaseHTTPRequestHandler):
             def log_message(self,*args): pass
             def do_GET(self):
                 requests.append(('GET',self.path))
-                self.send_response(200); self.send_header('Content-Type','text/markdown'); self.end_headers()
-                self.wfile.write(b'# Synthetic note\nFixture only.\n')
+                if self.path == '/vault/Missing.md':
+                    self.send_response(404); self.end_headers(); return
+                self.send_response(200); self.send_header('Content-Type', self.headers.get('Accept') if '+json' in self.headers.get('Accept', '') else ('application/json' if self.path in ('/', '/vault/') else 'text/markdown')); self.end_headers()
+                body = '# Synthetic note\nFixture only. #example\n'
+                if self.path == '/':
+                    payload = {'versions': {'obsidian': '1.0', 'self': '5.5.2'}}
+                elif self.path == '/vault/':
+                    payload = {'files': ['Note.md']}
+                elif 'document-map' in self.headers.get('Accept', ''):
+                    payload = {'headings': {'Synthetic note': {}}, 'blocks': [], 'frontmatterFields': []}
+                elif 'note+json' in self.headers.get('Accept', ''):
+                    payload = {'path': 'Note.md', 'content': body, 'frontmatter': {}, 'tags': ['example'],
+                               'stat': {'ctime': 0, 'mtime': 0, 'size': len(body)}}
+                else:
+                    self.wfile.write(body.encode()); return
+                self.wfile.write(json.dumps(payload).encode())
             def do_PUT(self):
                 requests.append(('PUT',self.path)); self.send_response(500);self.end_headers()
-            do_POST=do_PUT
+            def do_POST(self):
+                requests.append(('POST', self.path))
+                self.rfile.read(int(self.headers.get('Content-Length', 0)))
+                self.send_response(200 if self.path.startswith(('/open/', '/search/')) else 500)
+                self.send_header('Content-Type', 'application/json'); self.end_headers()
+                if self.path == '/search/':
+                    self.wfile.write(json.dumps([{'filename':f'Note{i}.md','result':{
+                        'path':'Note.md','content':'# Synthetic note\nFixture only. #example\n',
+                        'tags':['example'],'frontmatter':{},'stat':{'ctime':0,'mtime':0,'size':40}}} for i in range(note_count)]).encode())
             do_DELETE=do_PUT
             do_PATCH=do_PUT
         server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
@@ -82,10 +105,38 @@ class VaultTests(unittest.TestCase):
         client=MCP({'api_key':'synthetic-only','base_url':f'http://127.0.0.1:{server.server_port}'})
         self.addCleanup(client.close)
         names={t['name'] for t in client.request('tools/list',{})['tools']}
-        self.assertTrue({'obsidian_get_note','obsidian_list_notes','obsidian_search_notes'} <= names)
+        self.assertEqual(READ_TOOLS, names)
         self.assertFalse(any(word in n for n in names for word in ('write','append','delete','patch','replace','command','manage')))
         read=client.call('obsidian_get_note',{'target':{'type':'path','path':'Note.md'},'format':'content'})
         self.assertFalse(read.get('isError'));self.assertIn('Fixture only',json.dumps(read))
+        for form in (
+            {'action':'read','path':'Note.md','options':{'format':'document-map'}},
+            {'action':'read','path':'Note.md','options':{'format':'section','section':{'type':'heading','target':'Synthetic note'}}},
+            {'action':'list','options':{'depth':2}},
+            {'action':'tags'},
+            {'action':'search','query':'Fixture'},
+            {'action':'search','options':{'mode':'jsonlogic','logic':{'==':[{'var':'path'},'Note.md']}}},
+            {'action':'open','path':'Note.md','options':{'newLeaf':True}},
+        ):
+            with self.subTest(form=form):
+                result=client.call(*plan(form))
+                self.assertFalse(result.get('isError'), result)
+        self.assertTrue(any(method == 'POST' and path.startswith('/open/') for method,path in requests))
+        before_open=list(requests)
+        missing=client.call(*plan({'action':'open','path':'Missing.md'}))
+        self.assertTrue(missing.get('isError'))
+        self.assertFalse(any(method == 'POST' for method,path in requests[len(before_open):]))
+        note_count=51
+        first=client.call(*plan({'action':'search','query':'Fixture'}))['structuredContent']['result']
+        self.assertEqual(len(first['hits']),50)
+        # Each production lookup starts a fresh process: verify cursor continuation there too.
+        other=MCP({'api_key':'synthetic-only','base_url':f'http://127.0.0.1:{server.server_port}'})
+        try:
+            second=other.call(*plan({'action':'search','query':'Fixture',
+                'options':{'cursor':first['nextCursor']}}))['structuredContent']['result']
+            self.assertEqual(len(second['hits']),1)
+            self.assertFalse(set(h['filename'] for h in first['hits']) & set(h['filename'] for h in second['hits']))
+        finally: other.close()
         before=list(requests)
         for name,args in [('obsidian_write_note',{'target':{'type':'path','path':'Note.md'},'content':'CHANGED'}),
                           ('obsidian_delete_note',{'target':{'type':'path','path':'Note.md'}}),
@@ -110,3 +161,15 @@ class VaultTests(unittest.TestCase):
                 chat.turn('Synthetic turn two');chat.finish_preparation()
             self.assertIn(tool,api.tools)
             self.assertEqual([t.name for t in api.tools].count('update_contact_notes'),1)
+
+    def test_extended_routing_and_edit_options_rejected(self):
+        self.assertEqual(plan({'action':'open','path':'Note.md'})[1]['failIfMissing'], True)
+        self.assertEqual(plan({'action':'list','options':{'depth':3}})[1]['depth'], 3)
+        for form in (
+            {'action':'open','path':'New.md','options':{'failIfMissing':False}},
+            {'action':'tags','options':{'operation':'add'}},
+            {'action':'read','options':{'target':{'type':'path','path':'.obsidian/config.md'}}},
+            {'action':'search','options':{'mode':'omnisearch'}},
+            {'action':'search','path':'Contacts','options':{'mode':'jsonlogic','logic':{}}},
+        ):
+            with self.subTest(form=form), self.assertRaises(ValueError): plan(form)
