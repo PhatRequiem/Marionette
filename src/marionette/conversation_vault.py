@@ -106,8 +106,8 @@ def sync(database, profiles=None):
             for day, conversations in sorted(days[contact].items(), reverse=True):
                 text += '## ' + day + '\n\n' + ''.join('- ' + link(s, titles[s]) + '\n' for s in sorted(conversations)) + '\n'
             pages[base + '/Dates.md'] = text
-        # Plain paths instead of a shared linking hub keep contact graph clusters separate.
-        pages['Conversations.md'] = '# Conversations\n\nBrowse Generated/Contacts in the file explorer. Each contact has Profile, Dates and Conversations.\n\nGenerated pages are replaced on sync; keep your own notes in Annotations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join(literal(folder(c)) + '\n' for c in sorted(contacts, key=lambda c: c or ''))
+        # The contact index is the explicit shared navigation hub; dates stay local.
+        pages['Contacts.md'] = '# Contacts\n\nChoose a contact to browse their profile, dates and conversations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join('- ' + link(folder(c) + '/Profile', names.get(c, 'Unknown contact')) + '\n' for c in sorted(contacts, key=lambda c: (names.get(c, '').casefold(), c or '')))
         generated = vault / 'Generated'
         if generated.exists() and not (generated / '.marionette-managed').is_file():
             raise ValueError('Refusing to overwrite an unrecognized Generated directory.')
@@ -129,8 +129,7 @@ def sync(database, profiles=None):
         for old in sorted(generated.rglob('*'), key=lambda p: len(p.parts), reverse=True):
             if old.is_dir() and old not in (generated / 'Contacts', generated / 'Groups') and not any(old.iterdir()):
                 old.rmdir()
-        if not (vault / 'Welcome.md').exists():
-            atomic_write(vault / 'Welcome.md', '# Marionette conversations\n\nStart at [[Conversations]]. Use search or graph view to explore.\n\nGenerated pages are replaced on sync. Keep your own notes in Annotations.\nAll vault contents, including annotations, are private memory and are cleared by a memory reset.\n')
+        atomic_write(vault / 'Welcome.md', '# Welcome to Marionette’s conversation vault\n\nStart at [[Generated/Contacts|Contacts]], then choose a contact to browse their profile, dates and conversations.\n\nThe Contacts index connects the contact collections. Dates stay within each contact’s folder. Groups is reserved for future group conversations.\n\nThis is a local mirror of saved SQLite conversations. Refresh it manually with `./scripts/native-linux/sync-conversation-vault.sh`. Marionette has no access to this vault yet.\n\nWelcome and Generated pages are replaced on sync. Keep your own notes in Annotations.\nAll vault contents, including annotations, are private memory and are cleared by a memory reset.\n')
         db.rollback()
     return {'vault': str(vault), 'conversations': len(groups), 'messages': sum(map(len, groups.values())), 'contacts': len(contacts)}
 

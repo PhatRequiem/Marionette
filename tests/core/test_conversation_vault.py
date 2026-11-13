@@ -124,6 +124,8 @@ class ConversationVaultTests(unittest.TestCase):
         (generated / '.marionette-managed').write_text('Marionette conversation mirror v1\n')
         (generated / 'day-old.md').write_text('[[contact-old]]')
         (generated / 'contact-old.md').write_text('old hub')
+        (generated / 'Conversations.md').write_text('old index')
+        (vault / 'Welcome.md').write_text('Start at [[Conversations]]')
         (vault / 'Annotations').mkdir()
         (vault / 'Annotations/mine.md').write_text('Keep this')
         sync(self.database, self.profiles)
@@ -140,6 +142,10 @@ class ConversationVaultTests(unittest.TestCase):
                 for target in re.findall(r'\[\[([^]|]+)', page.read_text()):
                     self.assertTrue(target.startswith('Generated/Contacts/' + compartment.name + '/'))
                     self.assertTrue((vault / (target + '.md')).exists())
-        self.assertNotIn('[[', (generated / 'Conversations.md').read_text())
+        self.assertFalse((generated / 'Conversations.md').exists())
+        index = (generated / 'Contacts.md').read_text()
+        for compartment in compartments:
+            self.assertIn('[[Generated/Contacts/' + compartment.name + '/Profile|', index)
+        self.assertIn('[[Generated/Contacts|Contacts]]', (vault / 'Welcome.md').read_text())
         self.assertEqual((vault / 'Annotations/mine.md').read_text(), 'Keep this')
         self.assertTrue((generated / 'Groups').is_dir())

@@ -16,7 +16,7 @@ From the checkout:
 
 In Obsidian, choose **Open folder as vault**, then select
 `data/conversations/obsidian-vault` inside this checkout. Open `Welcome` or
-`Generated/Conversations`. Search finds message text; the graph links conversation,
+`Generated/Contacts`. Search finds message text; the graph links conversation,
 contact pages and contact-specific date indexes. No Obsidian Sync, Publish, account or community plugin is
 needed. Keep this private vault separate from the source-code vault.
 
@@ -36,12 +36,13 @@ Alternate log locations require operator review for memory reset, as before.
   Renaming a contact moves its generated folder on the next sync.
 - `Generated/Groups/`: reserved empty folder; group chat ingestion and member links
   are not implemented. No group membership is inferred from messages.
-- `Generated/Conversations.md`: plain folder directory without graph links. There
-  are no shared date pages or shared linking hub across contacts. All generated
-  conversation/profile/date links stay within the contact's folder. These are
-  organizational compartments, not access restrictions.
+- `Generated/Contacts.md`: shared navigation hub linking every contact profile.
+  Welcome links to this index. Contact collections therefore connect through the
+  Contacts hub in graph view, but there are no shared date pages. Conversation,
+  profile and date links within each collection stay local to that contact.
+  These are organizational compartments, not access restrictions.
 - `Annotations/`: your own optional notes; ordinary sync leaves them alone.
-- `Welcome.md`: starting instructions. Obsidian manages its own `.obsidian/` settings.
+- `Welcome.md`: generated starting instructions, refreshed on every sync. Obsidian manages its own `.obsidian/` settings.
 
 Messages retain content, row ID, correlation ID, source, sender, contact UUID,
 role, status and receipt timestamp. Contact names are current registry labels,
@@ -53,7 +54,7 @@ Message text is fenced as literal text: quoted Markdown, embedded images and
 wikilinks do not become active graph links or remote image fetches. The generated
 links supply the graph. No semantic relationships or tags are inferred.
 
-SQLite remains authoritative. Generated edits are overwritten on the next sync;
+SQLite remains authoritative. Welcome and Generated edits are overwritten on the next sync;
 removed records lose their generated pages. Sync also migrates the earlier flat
 layout by removing its generated shared contact/date pages. Existing annotations
 and Obsidian settings are preserved; manually created links to old paths may need
