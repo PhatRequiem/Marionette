@@ -44,7 +44,7 @@ class Conversation:
         root = Path(__file__).resolve().parents[2]
         tool = QueryLogs(database=database, session=self.session_id,
                          conversation=self.key, before_message_id=identifier,
-                         datasheet=Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH', root / 'docs/setup-datasheet.md')),
+                         datasheet=Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH', root / 'docs/active/setup-and-maintenance/setup-datasheet.md')),
                          socket_path=os.environ.get('MARIONETTE_SESSION_SOCKET'))
         self.api.tools = tuple(t for t in getattr(self.api, 'tools', ()) if t.name != tool.name) + (tool,)
 

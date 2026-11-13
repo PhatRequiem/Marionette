@@ -126,4 +126,4 @@ For storage and query details, see [storage](storage.md). For budgets and durabi
 see [retention](log-retention.md). The former snapshot utilities have been removed;
 this glossary describes the logs. The [request form](log-request-form.md) defines lookup inputs for the [operator query handler](log-queries.md); `query_logs` exposes these lookups through Qwen-Agent within the current conversation and session.
 
-For application/setup facts and their verification status, see the [setup datasheet](setup-datasheet.md).
+For application/setup facts and their verification status, see the [setup datasheet](../setup-and-maintenance/setup-datasheet.md).

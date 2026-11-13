@@ -20,16 +20,16 @@ No startup has been recorded by the automatic updater yet.
 
 | Item | Information | Evidence |
 |---|---|---|
-| Application | Marionette, a local Python terminal chat application | Design: [session composition](../src/marionette/session.py) |
-| Inference interface | Local llama.cpp HTTP server; client owns its lifetime | Design: [session.py](../src/marionette/session.py), [inference.py](../src/marionette/inference.py) |
-| Tool coordinator | Qwen-Agent; pinned version 0.0.34 | Configured: [dependency input](../scripts/native-linux/agent-requirements.in), [coordination guide](qwen-agent.md); installed version not re-probed in this audit |
-| Registered production tools | `update_contact_notes` and `update_soul` on ordinary identified-contact turns | Design: [conversation.py](../src/marionette/conversation.py); available tools depend on turn context |
-| Interfaces | Terminal chat and optional Discord human one-to-one DMs | Design: [startup guide](../STARTUP.md), [Discord guide](discord.md) |
-| Conversation scope | Separate terminal/profile and Discord-sender histories | Design: [conversation.py](../src/marionette/conversation.py) |
-| Memory | Contact notes persist per contact; soul is shared; ordinary restart starts fresh conversation histories | Design: [contact notes](contact-notes.md), [soul](soul.md), [context](context.md) |
-| Storage | Durable SQLite conversations; diagnostics in recorder's in-memory SQLite, saved on orderly shutdown | Design: [storage](storage.md) |
-| Diagnostic retention | 500,000,000 raw bytes in 20,000,000-byte batches; latest 20 recognized error windows, up to 20 events before/after | Design: [retention](log-retention.md); metadata/index overhead is additional |
-| Access | No model-facing log lookup, general shell/file reader, browsing or scheduler | Design: explicit tool registration in [coordination.py](../src/marionette/coordination.py) |
+| Application | Marionette, a local Python terminal chat application | Design: [session composition](../../../src/marionette/session.py) |
+| Inference interface | Local llama.cpp HTTP server; client owns its lifetime | Design: [session.py](../../../src/marionette/session.py), [inference.py](../../../src/marionette/inference.py) |
+| Tool coordinator | Qwen-Agent; pinned version 0.0.34 | Configured: [dependency input](../../../scripts/native-linux/agent-requirements.in), [coordination guide](../current-operation/qwen-agent.md); installed version not re-probed in this audit |
+| Registered production tools | `update_contact_notes` and `update_soul` on ordinary identified-contact turns | Design: [conversation.py](../../../src/marionette/conversation.py); available tools depend on turn context |
+| Interfaces | Terminal chat and optional Discord human one-to-one DMs | Design: [startup guide](../../../STARTUP.md), [Discord guide](discord.md) |
+| Conversation scope | Separate terminal/profile and Discord-sender histories | Design: [conversation.py](../../../src/marionette/conversation.py) |
+| Memory | Contact notes persist per contact; soul is shared; ordinary restart starts fresh conversation histories | Design: [contact notes](../current-operation/contact-notes.md), [soul](../current-operation/soul.md), [context](../current-operation/context.md) |
+| Storage | Durable SQLite conversations; diagnostics in recorder's in-memory SQLite, saved on orderly shutdown | Design: [storage](../current-operation/storage.md) |
+| Diagnostic retention | 500,000,000 raw bytes in 20,000,000-byte batches; latest 20 recognized error windows, up to 20 events before/after | Design: [retention](../current-operation/log-retention.md); metadata/index overhead is additional |
+| Access | No model-facing log lookup, general shell/file reader, browsing or scheduler | Design: explicit tool registration in [coordination.py](../../../src/marionette/coordination.py) |
 | Network dependency | Core inference is local; optional Discord needs internet and an account | Design: [setup](setup.md), [Discord](discord.md) |
 
 These descriptions require review when code changes. They are not measurements of
@@ -37,8 +37,8 @@ hardware, proof of deployment ownership, or guarantees about model answer qualit
 
 ## Model and session configuration
 
-Current launch defaults come from [chat.sh](../scripts/native-linux/chat.sh) and
-[downloads.json](../scripts/native-linux/downloads.json). Environment variables and
+Current launch defaults come from [chat.sh](../../../scripts/native-linux/chat.sh) and
+[downloads.json](../../../scripts/native-linux/downloads.json). Environment variables and
 per-launch arguments can change allowed settings; consult the effective command.
 
 | Item | Configured value | Retained-run verification |
@@ -49,16 +49,16 @@ per-launch arguments can change allowed settings; consult the effective command.
 | GGUF revision | `e87f176479d0855a907a41277aca2f8ee7a09523` | Pinned in manifest; no new weight checksum was performed |
 | Runtime | llama.cpp b12211 | Manifest and archived executable path; build output is missing |
 | Device | `Vulkan0`, all GPU layers requested | Actual loaded device/offload count unverified from retained startup evidence |
-| Hardware identity | Existing baseline reports AMD RX 7900 XT, 20 GB VRAM | Historical [baseline](baseline.md); not independently reverified by this audit |
+| Hardware identity | Existing baseline reports AMD RX 7900 XT, 20 GB VRAM | Historical [baseline](../../development/history/baseline.md); not independently reverified by this audit |
 | Context capacity | 65,536 tokens | Recorded message budget confirms 65,536 |
 | Reply allowance | 32,768 tokens per model request, shared by reasoning and answer | Recorded budget confirms 32,768; code uses `min(32768, capacity // 2)` |
 | Next-input reserve | 2,048 at this capacity | Design: `min(2048, capacity // 8)`; startup policy marker is missing |
-| Thinking | Enabled; native template receives `enable_thinking: true` | Configured in launcher and [inference.py](../src/marionette/inference.py); not a retained startup-mode observation |
+| Thinking | Enabled; native template receives `enable_thinking: true` | Configured in launcher and [inference.py](../../../src/marionette/inference.py); not a retained startup-mode observation |
 | Reasoning handling | `deepseek` format, reasoning budget `-1` (no separate reasoning cap) | Archived command; combined generation allowance still applies |
 | Prompt cache | 5,120 MiB system-RAM cache budget | Archived command; actual cache occupancy is dynamic and not established here |
 | Parallel inference | One server slot | Archived command `--parallel 1`; startup slot observation is missing |
 | Listener | Loopback `127.0.0.1`, OS-selected port; web UI disabled | Archived command; current address/health not established |
-| Context handling | Client-managed fitting; server context shift disabled | Design and archived command; see [context](context.md) |
+| Context handling | Client-managed fitting; server context shift disabled | Design and archived command; see [context](../current-operation/context.md) |
 
 The model string in the HTTP request is an application label, not independent
 proof of the loaded weights. Likewise, a filename, runtime directory or requested
@@ -139,7 +139,7 @@ Do not remove or duplicate the marker pair. A detected concurrent edit cancels t
 update. There is no backup copy or background updater. Launching changes this tracked
 Markdown file locally; runtime never commits or pushes it.
 
-Default target: `docs/setup-datasheet.md` in this checkout. For isolated tests or
+Default target: `docs/active/setup-and-maintenance/setup-datasheet.md` in this checkout. For isolated tests or
 another operator document, `MARIONETTE_SETUP_DATASHEET_PATH` selects an existing
 file containing the same marker pair. Tests must use temporary documents, never
 the real datasheet. This update is a bounded startup configuration summary, not

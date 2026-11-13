@@ -88,7 +88,7 @@ def run(command):
     setup_facts = {}
     setup_details = {}
     datasheet = Path(os.environ.get('MARIONETTE_SETUP_DATASHEET_PATH',
-        Path(__file__).resolve().parents[2] / 'docs/setup-datasheet.md'))
+        Path(__file__).resolve().parents[2] / 'docs/active/setup-and-maintenance/setup-datasheet.md'))
     def refresh(status, capacity=None):
         try:
             setup_datasheet.update(datasheet, status, setup_facts, capacity=capacity, details=setup_details)

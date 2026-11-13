@@ -28,19 +28,19 @@ nvim data/discord/.env
 
 ## Start and stop
 
-Follow [STARTUP.md](../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
+Follow [STARTUP.md](../../../STARTUP.md): launch main chat first, then optionally run the Discord connection in a fourth terminal. Wait for **Discord ready**, then DM the bot. Keep the Discord terminal open while using the connection. Your computer must stay awake and connected.
 
 **Ctrl+C in the Discord window disconnects Discord only.** Closing the main chat stops the model and disconnects Discord. You can reconnect Discord later without resetting the running conversation. Restarting the main chat starts a fresh conversation. Nothing is installed as a background service; automatic connection at startup is not implemented.
 
-- Each Discord sender and the terminal have separate histories, with the same per-conversation context budget and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and contact UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](contacts.md). New Discord senders receive their own saved UUID, a name initialized from their Discord display name, and contact notes; identities are never merged by name. Only that conversation’s messages and the current contact’s contact notes are supplied to the model. Linked terminal/Discord accounts share contact notes but not history.
-- `/resetmemory` is owner-only and resets all local memory and histories while staying connected. See [reset behavior and limits](reset-memory.md).
+- Each Discord sender and the terminal have separate histories, with the same per-conversation context budget and rollover preparation. Inputs take turns generating. Main chat displays the Discord label in cyan and numeric user ID in lavender, your text in neon green, a yellow reasoning heading with white reasoning text, and a light-pink answer heading with hot-pink answer text. Only final answers are sent back to Discord; local terminal messages are not forwarded there. The client includes source, sender ID, display name, and contact UUID in each model input; your configured Discord account maps to Phat independently of the selected terminal profile. See [identity mapping](../current-operation/contacts.md). New Discord senders receive their own saved UUID, a name initialized from their Discord display name, and contact notes; identities are never merged by name. Only that conversation’s messages and the current contact’s contact notes are supplied to the model. Linked terminal/Discord accounts share contact notes but not history.
+- `/resetmemory` is owner-only and resets all local memory and histories while staying connected. See [reset behavior and limits](../current-operation/reset-memory.md).
 - `/clear` clears only the sender’s originating conversation, not saved contact notes, logs, or Discord messages. Every DM sender may clear their own conversation.
 - Only text is accepted. Attachments and stickers receive a short unsupported-input notice.
 - Discord replies are sent once complete and split into chunks when needed. Mention notifications and link previews are suppressed. Markdown can span chunk boundaries.
 - After a temporary disconnect, a successful Discord Gateway resume replays missed events. This differs from stopping the bot or reconnecting without a resumable session: the application does not fetch missed message history in those cases, so you may need to resend. In-process duplicate/older message events are ignored per DM channel, so activity in another channel does not discard a valid message. See [Discord's resume behavior](https://github.com/discord/discord-api-docs/blob/main/developers/events/gateway.mdx#resuming).
 - A failed generation does not commit a new turn. A completed generation stays in that conversation’s history even if Discord disconnects or delivery fails. Delivery can be partial; no automatic resend occurs. Check the Discord log before retrying.
 
-The main chat owns the model and conversation histories. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text and sender identity; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no history storage or model-launch code. See [context policy](context.md).
+The main chat owns the model and conversation histories. A Unix socket at `data/session/chat.sock` lets the optional Discord process submit text and sender identity; it does not expose a new network port. Its directory is private to your OS account, and the socket is removed on normal shutdown. Locks prevent duplicate main sessions and duplicate Discord connections. The adapter contains no history storage or model-launch code. See [context policy](../current-operation/context.md).
 
 ## Local logs and verification
 
@@ -51,7 +51,7 @@ The Discord launcher reads `data/session/log-session.json` to use the same datab
 The Discord log adds these diagnostics without additional Discord permissions:
 
 - Connection, disconnect, ready, and resumed events, with time disconnected when known.
-- Sender ID, DM channel ID, and incoming message ID on each turn; outgoing message IDs on successful sends. IDs are stored as strings to preserve precision. `log_message_id` links the same message to main processing diagnostics, with explicit start/end markers for delivery; see [message log boundaries](logs.md#message-ids-and-section-boundaries).
+- Sender ID, DM channel ID, and incoming message ID on each turn; outgoing message IDs on successful sends. IDs are stored as strings to preserve precision. `log_message_id` links the same message to main processing diagnostics, with explicit start/end markers for delivery; see [message log boundaries](../current-operation/logs.md#message-ids-and-section-boundaries).
 - Discord's message creation time and local handler receipt time, recorded before waiting for the previous turn. `receipt_delay_ms` compares those clocks; it is not a precise network measurement and can be negative if clocks disagree.
 - `adapter_queue_ms`: waiting behind another Discord turn. `main_queue_ms`: waiting for main chat to pick up the request. `processing_ms`: local handling, including token counting, any rollover wait, and generation. `local_response_ms`: the complete local request, including main queue and connection overhead. These overlap; do not add all of them together.
 - `send_ms` for each part and the complete send, plus `total_ms` from local receipt through successful answer delivery. Discord library retries/rate-limit waits are included in send time.
@@ -59,7 +59,7 @@ The Discord log adds these diagnostics without additional Discord permissions:
 - Error class, HTTP status, and Discord error code when provided. Exception bodies, request headers, credentials, and raw network packets are not dumped.
 - `heartbeat_ms` snapshots on ready/resume/disconnect and accepted incoming messages. This is Gateway heartbeat round-trip latency, not message delivery latency. Unavailable readings are `null`; there is no continuous heartbeat log spam.
 
-Discord event payloads preserve timestamped names and JSON fields/records as original bytes in SQLite; server/model events use their own stream. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
+Discord event payloads preserve timestamped names and JSON fields/records as original bytes in SQLite; server/model events use their own stream. The live view formats these without changing the saved evidence; see [log colors and reading saved logs](../current-operation/logs.md). Restart main chat and reconnect Discord after code updates so both processes use the same local request format. Main chat and model logs still contain reasoning; the Discord log does not.
 
 Credentials and logs are ignored by Git. Regenerate a token in Discord if it is ever exposed.
 
@@ -83,17 +83,17 @@ uv pip compile --python python --generate-hashes scripts/native-linux/discord-re
 
 Review changed packages and licenses and rerun both test suites when updating.
 
-Conversation commands are checked by [command permissions](contacts.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
+Conversation commands are checked by [command permissions](../current-operation/contacts.md#command-permissions): `/clear` targets only the resolved sender’s originating conversation.
 
-Current separate-history verification and cache measurements are in [the conversation-cache report](experiments/conversation-cache-2026-11-10.md).
+Current separate-history verification and cache measurements are in [the conversation-cache report](../../development/experiments/conversation-cache-2026-11-10.md).
 
-The [operator query handler](log-queries.md) can request fresh Discord status
+The [operator query handler](../current-operation/log-queries.md) can request fresh Discord status
 from a same-user private socket in the existing bot process. The response is
 `online`, `connecting`, or `offline`; an unreachable probe means `unknown`.
 Restart the adapter after updating code to enable this endpoint. It neither
 updates the startup datasheet nor exposes a model tool.
 
-Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Restart both main chat and Discord after this update; no live name backfill occurs until a message arrives. See [name preservation and fallback rules](contacts.md).
+Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Restart both main chat and Discord after this update; no live name backfill occurs until a message arrives. See [name preservation and fallback rules](../current-operation/contacts.md).
 
 ## Admin shutdown
 

@@ -1,6 +1,6 @@
 # Baseline 1
 
-Historical checkpoint: `baseline-v1`. The current setup uses a small terminal client with an owned loopback `llama-server` process and [between-turn context preparation](../context.md). This entire document describes the older direct-inference checkpoint; use [current operation](../setup.md) for present behavior and checks.
+Historical checkpoint: `baseline-v1`. The current setup uses a small terminal client with an owned loopback `llama-server` process and [between-turn context preparation](../../active/current-operation/context.md). This entire document describes the older direct-inference checkpoint; use [current operation](../../active/setup-and-maintenance/setup.md) for present behavior and checks.
 
 A local, text-only terminal chat with reproducible installation and diagnostic logs. This is the base for future work, reviewed on November 8, 2026.
 
@@ -66,4 +66,4 @@ Ask her to remember a made-up word, ask for it again, then exit with Ctrl+D. Con
 
 ## Change discipline
 
-Keep the short [launch guide](../../STARTUP.md) focused on daily use. Put technical changes in [setup and operation](../setup.md), update the manifest and license inventory when dependencies change, and rerun the relevant checks before committing. Use this baseline document to distinguish verified behavior from proposed features.
+Keep the short [launch guide](../../../STARTUP.md) focused on daily use. Put technical changes in [setup and operation](../../active/setup-and-maintenance/setup.md), update the manifest and license inventory when dependencies change, and rerun the relevant checks before committing. Use this baseline document to distinguish verified behavior from proposed features.

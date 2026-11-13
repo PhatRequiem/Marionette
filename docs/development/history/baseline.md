@@ -2,7 +2,7 @@
 
 Recovery checkpoint: **`baseline-v4`** in `PhatRequiem/Marionette`. This is the deliberately saved working foundation before further self-knowledge and retrieval changes. Keep this tag fixed. It captures tracked code and documentation, not personal data or an assertion that answer quality is solved. Future changes need their own checkpoint.
 
-The [V3 guide](archive/baseline-v3-2026-11-09.md) is archived; its original tag remains unchanged. V4 adds Qwen-Agent tool coordination, separate conversations and RAM prompt caching, persistent contacts and editable soul, SQLite storage, rolling RAM diagnostics, and owner-only memory reset. Launch commands remain unchanged.
+The [V3 guide](baseline-v3-2026-11-09.md) is archived; its original tag remains unchanged. V4 adds Qwen-Agent tool coordination, separate conversations and RAM prompt caching, persistent contacts and editable soul, SQLite storage, rolling RAM diagnostics, and owner-only memory reset. Launch commands remain unchanged.
 
 ## Current checkout versus V4
 
@@ -12,10 +12,10 @@ chat, Discord, soul, contact-note and diagnostic-retention foundation, with thes
 - Connected scoped `query_logs`, searchable metadata (SQLite schema 5), a request form and automatic startup datasheet updates.
 - Tool calls/results retained with each conversation exchange and trimmed together.
 - Separate feature guidance and a brief system reminder after log-tool results.
-- Added an operator-only, on-demand [Markdown conversation mirror](conversation-vault.md) for browsing in Obsidian; no model vault access.
+- Added an operator-only, on-demand [Markdown conversation mirror](../../active/setup-and-maintenance/conversation-vault.md) for browsing in Obsidian; no model vault access.
 - Removed the old snapshot utilities. The experimental idle cycle, scratchpads and earlier model-facing Obsidian integration are also removed.
 
-See [log-query reliability limits](log-queries.md#current-reliability-limits) for
+See [log-query reliability limits](../../active/current-operation/log-queries.md#current-reliability-limits) for
 current answer-quality observations. A memory reset changes personal data, not
 the code version or the baseline tag.
 
@@ -34,22 +34,22 @@ the code version or the baseline tag.
 | Storage | SQLite schema 4 for messages/events; JSON contact registry; Markdown contact notes; revisioned JSON soul |
 | Diagnostic retention | Existing recorder holds 500,000,000 raw bytes in 20,000,000-byte batches; latest 20 recognized failure windows, 20 events before/after |
 
-Q4 is a deliberate speed tradeoff for infrastructure testing; BF16 remains in the shared model library. Publisher guidance, dependencies, licenses and reproducible downloads are documented in [setup](setup.md), [licenses](licenses.md), and [download checksums](../scripts/native-linux/downloads.json). Nothing in this checkpoint changes sampling or model precision.
+Q4 is a deliberate speed tradeoff for infrastructure testing; BF16 remains in the shared model library. Publisher guidance, dependencies, licenses and reproducible downloads are documented in [setup](../../active/setup-and-maintenance/setup.md), [licenses](../../active/setup-and-maintenance/licenses.md), and [download checksums](../../../scripts/native-linux/downloads.json). Nothing in this checkpoint changes sampling or model precision.
 
 ## Behavior and organization
 
-- Follow [STARTUP.md](../STARTUP.md): `./scripts/native-linux/chat.sh`, choose a terminal profile, then optionally `./scripts/native-linux/discord.sh`. Main chat plus two diagnostic views and the optional Discord connection make four terminals.
+- Follow [STARTUP.md](../../../STARTUP.md): `./scripts/native-linux/chat.sh`, choose a terminal profile, then optionally `./scripts/native-linux/discord.sh`. Main chat plus two diagnostic views and the optional Discord connection make four terminals.
 - Human one-to-one Discord DMs are accepted. Each sender has a separate conversation; terminal history is separate too. Linked accounts share contact notes, not conversation history. The main terminal displays all exchanges. Generation and preparation are sequential.
-- The client owns exact token counting, oldest-complete-exchange trimming and between-turn cache preparation. Cache eviction does not erase text history. See [context](context.md).
-- [Contacts](contacts.md) have permanent UUIDs and account links. [Contact notes](contact-notes.md) use Markdown entries separated by `§`, with add/patch/remove and a 1,375-character total limit. Current-contact notes are supplied automatically.
-- The [soul](soul.md) has a permanent UUID, editable name (80 characters), and description (1,375 characters). Revisions preserve timestamps/source. Blank name and description produce no custom system message; populated values become system context on subsequent turns. The soul is shared across conversations. Earlier revisions are not supplied to the model.
-- [Qwen-Agent](qwen-agent.md) coordinates only the registered tool loop. Tool results are available within that turn; ordinary retained history contains user messages and final answers. Persistent profile writes survive independently.
-- [SQLite](storage.md) durably stores messages, terminal and Discord output. Routine diagnostics stay in RAM until orderly recorder shutdown; two colored views show shared event IDs and timestamps. [Retention](log-retention.md) governs saving and limits.
+- The client owns exact token counting, oldest-complete-exchange trimming and between-turn cache preparation. Cache eviction does not erase text history. See [context](../../active/current-operation/context.md).
+- [Contacts](../../active/current-operation/contacts.md) have permanent UUIDs and account links. [Contact notes](../../active/current-operation/contact-notes.md) use Markdown entries separated by `§`, with add/patch/remove and a 1,375-character total limit. Current-contact notes are supplied automatically.
+- The [soul](../../active/current-operation/soul.md) has a permanent UUID, editable name (80 characters), and description (1,375 characters). Revisions preserve timestamps/source. Blank name and description produce no custom system message; populated values become system context on subsequent turns. The soul is shared across conversations. Earlier revisions are not supplied to the model.
+- [Qwen-Agent](../../active/current-operation/qwen-agent.md) coordinates only the registered tool loop. Tool results are available within that turn; ordinary retained history contains user messages and final answers. Persistent profile writes survive independently.
+- [SQLite](../../active/current-operation/storage.md) durably stores messages, terminal and Discord output. Routine diagnostics stay in RAM until orderly recorder shutdown; two colored views show shared event IDs and timestamps. [Retention](../../active/current-operation/log-retention.md) governs saving and limits.
 - The [log snapshot utility at V4](https://github.com/PhatRequiem/Marionette/blob/baseline-v4/docs/log-snapshots.md) exists for operators but remains disconnected from the model. No automatic log recall, general file access, browsing, skill creation, or scheduler is enabled. This describes V4; the snapshot utilities have since been removed from the current checkout.
-- `/clear` clears only the sender's conversation, preserving saved records/notes. `/resetmemory` is owner-only and clears personal memory/logs while preserving permanent IDs, the owner account link and core installation. Operator resets leave the program stopped; live resets keep it loaded. See [reset scope](reset-memory.md) and [project rules](../AGENTS.md).
+- `/clear` clears only the sender's conversation, preserving saved records/notes. `/resetmemory` is owner-only and clears personal memory/logs while preserving permanent IDs, the owner account link and core installation. Operator resets leave the program stopped; live resets keep it loaded. See [reset scope](../../active/current-operation/reset-memory.md) and [project rules](../../../AGENTS.md).
 - Local inference needs no hosted API/account. Discord is an optional external service. The temporary unauthenticated HTTP listener remains loopback-only and stops with main chat.
 
-The [README folder map and source guide](../README.md) remain authoritative: source under `src/marionette/`, application guides under `docs/`, platform scripts under `scripts/native-linux/`, private data under `data/`, project environments under `runtime/`. Shared model weights and inference engines live under `~/AI Infrastructure/`. No private data is included in Git.
+The [README folder map and source guide](../../../README.md) remain authoritative: source under `src/marionette/`, application guides under `docs/`, platform scripts under `scripts/native-linux/`, private data under `data/`, project environments under `runtime/`. Shared model weights and inference engines live under `~/AI Infrastructure/`. No private data is included in Git.
 
 ## Verification at V4
 
@@ -91,8 +91,8 @@ git switch -c codex/restart-from-baseline-v4
 python scripts/native-linux/setup.py
 ```
 
-Follow [setup prerequisites](setup.md); scripts verify/reuse the shared pinned weights and runtime. Rebuild virtual environments at the new path. For Discord, run `./scripts/native-linux/setup-discord.sh` and restore or enter credentials locally before launch. Stop any other instance using that bot.
+Follow [setup prerequisites](../../active/setup-and-maintenance/setup.md); scripts verify/reuse the shared pinned weights and runtime. Rebuild virtual environments at the new path. For Discord, run `./scripts/native-linux/setup-discord.sh` and restore or enter credentials locally before launch. Stop any other instance using that bot.
 
-Before first launch, privately restore `data/contacts/profiles.json` and `data/soul/profile.json` if preserving permanent IDs. Restore matching notes and the database only if wanted; use the stopped [storage recovery procedure](storage.md#backup-and-restore), never mix old WAL/SHM sidecars with a different database. A fresh checkout without those private records creates new IDs. Do not restore stale session sockets. Restore credentials with mode 600; they are never in Git.
+Before first launch, privately restore `data/contacts/profiles.json` and `data/soul/profile.json` if preserving permanent IDs. Restore matching notes and the database only if wanted; use the stopped [storage recovery procedure](../../active/current-operation/storage.md#backup-and-restore), never mix old WAL/SHM sidecars with a different database. A fresh checkout without those private records creates new IDs. Do not restore stale session sockets. Restore credentials with mode 600; they are never in Git.
 
 Then use `./scripts/native-linux/chat.sh` and optionally `./scripts/native-linux/discord.sh` from that checkout. Database restoration preserves records, not automatic live conversation context. Restore personal state from the external test archive only when deliberately choosing to undo the fresh reset. Model weights, environments, credentials, conversations, profiles, visual references and OS/GPU drivers are outside this tag. A full fresh-machine restoration has not been performed for V4.

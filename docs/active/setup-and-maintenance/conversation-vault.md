@@ -49,13 +49,13 @@ Alternate log locations require operator review for memory reset, as before.
   profile and date links within each collection stay local to that contact.
   These are organizational compartments, not access restrictions.
 - `Generated/Self documentation.md`: index linked from Welcome.
-- `Generated/Self documentation/docs/`: one-way mirror of the project `docs/`
-  folder, preserving subfolders and file bytes, including Markdown, JSON and text.
+- `Generated/Self documentation/active/`: one-way mirror of the project `docs/`
+  `active/` subtree only, preserving subfolders and file bytes, including Markdown, JSON and text.
   Hidden/editor files are excluded and symlinks refused. Ordinary sync refreshes
   these copies and removes copies of deleted source files. Original docs are never
-  edited by sync. Internal docs links keep their relative layout; links outside
-  `docs/` are not mirrored and may not resolve in the vault. Experiments/archives
-  remain historical evidence and ideas remain discussion-only. No model access
+  edited by sync. Internal active-docs links keep their relative layout; links outside
+  `docs/active/` are not mirrored and may not resolve in the vault. Everything under `docs/development/` (experiments, history, ideas) is excluded.
+  Sync removes the earlier full-docs mirror, including historical and idea copies. No model access
   or new source of model instructions is enabled.
 - `Annotations/`: your own optional notes; ordinary sync leaves them alone.
 - `Welcome.md`: generated starting instructions, refreshed on every sync. Obsidian manages its own `.obsidian/` settings.
@@ -69,7 +69,7 @@ Reasoning, command notices, tool results and raw diagnostics are excluded.
 Contact notes preserve their wording and Markdown formatting. Supplied stable
 `marionette-conversation:` citation destinations are translated into relative links
 to exported conversations; other links remain as written. The source notes are
-never rewritten. Missing destinations remain unresolved. See [note citations](contact-notes.md#optional-conversation-links).
+never rewritten. Missing destinations remain unresolved. See [note citations](../current-operation/contact-notes.md#optional-conversation-links).
 Message text is fenced as literal text: quoted Markdown, embedded images and
 wikilinks do not become active graph links or remote image fetches. The generated
 links supply the graph. No semantic relationships or tags are inferred.

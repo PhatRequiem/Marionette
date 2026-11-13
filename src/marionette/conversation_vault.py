@@ -134,12 +134,12 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
         pages['Contacts.md'] = '# Contacts\n\nChoose a contact to browse their profile, dates and conversations.\n\nLast synchronized: ' + captured + '\n\n' + ''.join('- ' + link(note(c), names.get(c, 'Unknown contact')) + '\n' for c in sorted(contacts, key=lambda c: (names.get(c, '').casefold(), c or '')))
         documentation_count = 0
         if docs is not None:
-            source_docs = Path(docs).absolute()
+            source_docs = Path(docs).absolute() / 'active'
             if any(p.is_symlink() for p in (source_docs, *source_docs.parents)):
                 raise ValueError('Documentation source refuses symbolic links.')
             if not source_docs.is_dir():
-                raise ValueError('Documentation source directory is missing.')
-            index = '# Self documentation\n\nOne-way mirror of the project docs folder. Refresh with the vault sync command.\n\nCurrent guides are at the top level. Experiments and archives are historical; ideas are discussion-only, not active configuration.\n\nLinks between files inside docs are preserved. Links to source code or other files outside docs are not mirrored.\n\n'
+                raise ValueError('Active documentation source directory is missing.')
+            index = '# Self documentation\n\nOne-way mirror of active project documentation. Refresh with the vault sync command.\n\nCurrent operation describes how Marionette works. Setup and maintenance covers installation and upkeep. Experiments, history and ideas stay outside this vault.\n\nLinks within active documentation are preserved. Files outside docs/active are not mirrored.\n\n'
             for source in sorted(source_docs.rglob('*')):
                 relative = source.relative_to(source_docs)
                 if any(part.startswith('.') for part in relative.parts):
@@ -148,9 +148,11 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
                     raise ValueError('Documentation source refuses symbolic links.')
                 if not source.is_file():
                     continue
-                destination = 'Self documentation/docs/' + relative.as_posix()
+                destination = 'Self documentation/active/' + relative.as_posix()
                 pages[destination] = source.read_bytes()
-                index += '- [' + label(relative.as_posix()) + '](' + quote(destination, safe='/') + ')\n'
+                if len(relative.parts) == 1 or relative.name == 'README.md':
+                    heading = relative.parent.name.replace('-', ' ').capitalize() if relative.name == 'README.md' else relative.stem
+                    index += '- [' + label(heading) + '](' + quote(destination, safe='/') + ')\n'
                 documentation_count += 1
             pages['Self documentation.md'] = index
         generated = vault / 'Generated'
@@ -177,7 +179,7 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
                 old.rmdir()
         welcome = '# Welcome to Marionette’s conversation vault\n\nStart at [[Generated/Contacts|Contacts]], then choose a contact to browse their profile, dates and conversations.\n\nThe Contacts index connects the contact collections. Dates stay within each contact’s folder. Groups is reserved for future group conversations.\n\nThis is a local mirror of saved SQLite conversations. Refresh it manually with `./scripts/native-linux/sync-conversation-vault.sh`. Marionette has no access to this vault yet.\n\nWelcome and Generated pages are replaced on sync. Keep your own notes in Annotations.\nAll vault contents, including annotations, are private memory and are cleared by a memory reset.\n'
         if docs is not None:
-            welcome = welcome.replace('The Contacts index', 'Browse [[Generated/Self documentation|Self documentation]] for a mirror of the project docs.\n\nThe Contacts index')
+            welcome = welcome.replace('The Contacts index', 'Browse [[Generated/Self documentation|Self documentation]] for current operation and setup and maintenance guides.\n\nThe Contacts index')
         atomic_write(vault / 'Welcome.md', welcome)
         db.rollback()
     return {'vault': str(vault), 'conversations': len(groups), 'messages': sum(map(len, groups.values())), 'contacts': len(contacts), 'documentation_files': documentation_count}

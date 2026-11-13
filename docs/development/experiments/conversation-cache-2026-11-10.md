@@ -1,6 +1,6 @@
 # Separate conversations and RAM cache — 2026-11-10
 
-This is a functional experiment, not a replacement for the fixed baseline or a long-session reliability claim. Current behavior is documented in [context](../context.md).
+This is a functional experiment, not a replacement for the fixed baseline or a long-session reliability claim. Current behavior is documented in [context](../../active/current-operation/context.md).
 
 ## Configuration and method
 

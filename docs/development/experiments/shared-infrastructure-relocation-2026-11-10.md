@@ -1,6 +1,6 @@
 # Shared infrastructure relocation — November 10, 2026
 
-Historical evidence moved from the setup guide during the November 11 cleanup. Test counts and paths describe the relocation checks, not current verification. Follow [the setup guide](../setup.md) for current installation and operation.
+Historical evidence moved from the setup guide during the November 11 cleanup. Test counts and paths describe the relocation checks, not current verification. Follow [the setup guide](../../active/setup-and-maintenance/setup.md) for current installation and operation.
 
 ## Inference runtime
 

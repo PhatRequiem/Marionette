@@ -2,7 +2,7 @@
 
 The soul contains a permanent UUID, an editable name, and an editable personal description. Both editable fields start empty; no name, identity claim, or fixed self-description instruction is supplied. They are shared across terminal and Discord conversations, separately from contact profiles.
 
-The [original starting description](marionette-starting-sheet.md) is a historical reference from the earlier assigned-identity experiment. It is preserved for comparison and is no longer loaded by the application. Its consciousness statement was a user-supplied premise, not a verified finding.
+The [original starting description](../../development/history/marionette-starting-sheet.md) is a historical reference from the earlier assigned-identity experiment. It is preserved for comparison and is no longer loaded by the application. Its consciousness statement was a user-supplied premise, not a verified finding.
 
 ## Storage and editing
 

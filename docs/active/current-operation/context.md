@@ -40,17 +40,17 @@ The allowances are capacity planning, not separate model windows or hard input-l
 
 ## Logs and checks
 
-The optional [Discord transport](discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
+The optional [Discord transport](../setup-and-maintenance/discord.md) attaches to the running conversation and shares this policy, with reasoning kept local and final answers delivered by DM.
 
 Each launch records a SQLite session with conversation messages, terminal output, server/model diagnostics, and optional Discord events. These saved records are not automatically restored as model context. See [logs](logs.md) for formats and colors. The two diagnostic windows retain timestamps and shared event numbers. They record preparation start/completion, removed exchanges, cache timings, input-time fallback, and any wait after input. Preparation notices stay out of the chat display.
 
 Run `runtime/agent/bin/python -m unittest discover -s tests/core -v`. Tests use synthetic conversations and loopback sockets. GPU verification must also check cache reuse after preparation; a successful preparation request alone does not prove the next reply avoids reprocessing.
 
-Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](experiments/q4-return.md). This switch does not change rollover policy.
+Verified on the pinned runtime and RX 7900 XT at 65,536 tokens; earlier checks used 1,024, 8,192, and 16,384 tokens. See [historical Q4 GPU preparation results](../../development/experiments/idle-rollover.md). Q4_K_M is selected again for infrastructure testing; see [current loading and generation verification](../../development/experiments/q4-return.md). This switch does not change rollover policy.
 
 ## Separate-conversation verification
 
-See [the November 10 cache-switch experiment](experiments/conversation-cache-2026-11-10.md): 66 core and 12 mocked Discord checks pass. A real GPU run retained three 60,000-token cached contexts with one active slot under the previous 9 GiB budget; cached returns took 0.80–1.22 seconds versus 25.5–26.3 seconds initially. Those results used the previous budget, not the current 5 GiB setting; they are synthetic cache timings, not promised full-response latency. Separate linked terminal/Discord histories were also checked with real generation.
+See [the November 10 cache-switch experiment](../../development/experiments/conversation-cache-2026-11-10.md): 66 core and 12 mocked Discord checks pass. A real GPU run retained three 60,000-token cached contexts with one active slot under the previous 9 GiB budget; cached returns took 0.80–1.22 seconds versus 25.5–26.3 seconds initially. Those results used the previous budget, not the current 5 GiB setting; they are synthetic cache timings, not promised full-response latency. Separate linked terminal/Discord histories were also checked with real generation.
 
 Tool exchanges use Qwen-Agent message records internally. Native rendering converts
 them to matching `tool_calls` and `tool_call_id` messages for both counting and

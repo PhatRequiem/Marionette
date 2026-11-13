@@ -116,8 +116,8 @@ class LauncherTests(unittest.TestCase):
         model = self.model
         model.parent.mkdir(parents=True)
         model.write_bytes(b'synthetic')
-        (self.root / 'docs').mkdir()
-        shutil.copy2(ROOT / 'docs/setup-datasheet.md', self.root / 'docs/setup-datasheet.md')
+        (self.root / 'docs/active/setup-and-maintenance').mkdir(parents=True)
+        shutil.copy2(ROOT / 'docs/active/setup-and-maintenance/setup-datasheet.md', self.root / 'docs/active/setup-and-maintenance/setup-datasheet.md')
         (self.root / 'data').mkdir()
         tools = self.root / 'tools'
         tools.mkdir()

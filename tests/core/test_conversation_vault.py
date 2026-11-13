@@ -174,27 +174,35 @@ class ConversationVaultTests(unittest.TestCase):
             sync(self.database, self.profiles, notes)
 
     def test_documentation_mirror_keeps_nested_files_and_removes_stale_copies(self):
-        docs = self.root / 'docs'
-        (docs / 'ideas').mkdir(parents=True)
+        docs_root = self.root / 'docs'
+        docs = docs_root / 'active'
+        (docs / 'current-operation').mkdir(parents=True)
+        (docs_root / 'development/history').mkdir(parents=True)
+        (docs_root / 'development/history/old.md').write_text('EXCLUDED_HISTORY')
         (docs / '.obsidian').mkdir()
         (docs / '.obsidian/config.json').write_text('not documentation')
-        (docs / 'guide.md').write_text('# Guide\n[Idea](ideas/plan.md)\n')
-        (docs / 'ideas/plan.md').write_text('# Discussion only\n')
+        (docs / 'guide.md').write_text('# Guide\n[Guide](current-operation/plan.md)\n')
+        (docs / 'current-operation/plan.md').write_text('# Current operation\n')
         (docs / 'schema.json').write_bytes(b'{"value": 1}\r\n')
-        result = sync(self.database, docs=docs)
+        result = sync(self.database, docs=docs_root)
         vault = Path(result['vault'])
-        target = vault / 'Generated/Self documentation/docs'
+        target = vault / 'Generated/Self documentation/active'
         self.assertEqual(result['documentation_files'], 3)
-        for relative in ('guide.md', 'ideas/plan.md', 'schema.json'):
+        self.assertFalse(any('EXCLUDED_HISTORY' in p.read_text() for p in vault.rglob('*.md')))
+        legacy = vault / 'Generated/Self documentation/docs/development/history'
+        legacy.mkdir(parents=True)
+        (legacy / 'old.md').write_text('EXCLUDED_HISTORY')
+        for relative in ('guide.md', 'current-operation/plan.md', 'schema.json'):
             self.assertEqual((target / relative).read_bytes(), (docs / relative).read_bytes())
         self.assertFalse((target / '.obsidian').exists())
         self.assertIn('[[Generated/Self documentation|Self documentation]]', (vault / 'Welcome.md').read_text())
-        self.assertIn('Self%20documentation/docs/guide.md', (vault / 'Generated/Self documentation.md').read_text())
+        self.assertIn('Self%20documentation/active/guide.md', (vault / 'Generated/Self documentation.md').read_text())
         (docs / 'schema.json').unlink()
         (docs / 'guide.md').write_text('# Updated guide')
-        sync(self.database, docs=docs)
+        sync(self.database, docs=docs_root)
         self.assertFalse((target / 'schema.json').exists())
+        self.assertFalse((vault / 'Generated/Self documentation/docs').exists())
         self.assertEqual((target / 'guide.md').read_text(), '# Updated guide')
         (docs / 'unsafe.md').symlink_to(self.profiles)
         with self.assertRaises(ValueError):
-            sync(self.database, docs=docs)
+            sync(self.database, docs=docs_root)

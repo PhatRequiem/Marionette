@@ -10,7 +10,7 @@ SQLite `:memory:` is used as a RAM data structure containing raw BLOB events and
 indexes; its database and temporary storage are in memory, with no database/WAL
 file. This does **not** mean per-event writes to the on-disk SQLite database.
 
-The [project rules](../AGENTS.md#diagnostic-ram-policy) and regression tests make
+The [project rules](../../../AGENTS.md#diagnostic-ram-policy) and regression tests make
 this an explicit architectural policy. Changing it requires a deliberate decision.
 
 ## Rolling buffer

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-command -v uv >/dev/null || { echo 'Install uv first; see docs/setup.md.' >&2; exit 1; }
+command -v uv >/dev/null || { echo 'Install uv first; see docs/active/setup-and-maintenance/setup.md.' >&2; exit 1; }
 umask 077
 mkdir -p "$ROOT/runtime/agent" "$ROOT/data"
 exec 9>"$ROOT/data/.agent-setup.lock"

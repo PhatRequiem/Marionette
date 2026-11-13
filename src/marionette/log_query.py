@@ -301,7 +301,7 @@ def main():
     root=Path(__file__).resolve().parents[2]
     parser.add_argument('--database',type=Path,default=root/'data/conversations/marionette.sqlite3')
     parser.add_argument('--session');parser.add_argument('--conversation');parser.add_argument('--before-message-id')
-    parser.add_argument('--datasheet',type=Path,default=root/'docs/setup-datasheet.md')
+    parser.add_argument('--datasheet',type=Path,default=root/'docs/active/setup-and-maintenance/setup-datasheet.md')
     parser.add_argument('--socket',type=Path,default=root/'data/session/chat.sock')
     parser.add_argument('--saved-only',action='store_true')
     args=parser.parse_args()

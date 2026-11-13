@@ -5,10 +5,10 @@ These instructions apply throughout this repository.
 ## Direction and change scope
 
 - Future scaling is intended. Prioritize a reliable, understandable base and incremental additions; simplicity must not be mistaken for abandoning scalability.
-- Consult README.md, docs/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
+- Consult README.md, docs/development/history/baseline.md, and the relevant component guide before making changes. Treat experiment reports as historical evidence, not current configuration. Preserve established launch commands and behavior unless the requested change requires otherwise.
 - When the user requests discussion or confirmation first, investigate and present a concrete proposal without editing. Once implementation is authorized, complete the agreed scope without adding unrelated features.
 
-- Treat `docs/ideas/` as discussion-only notes. Saving or editing an idea does not authorize implementation; require a separate explicit user instruction before acting on it. Ideas do not override the current baseline or project rules.
+- Treat `docs/development/ideas/` as discussion-only notes. Saving or editing an idea does not authorize implementation; require a separate explicit user instruction before acting on it. Ideas do not override the current baseline or project rules.
 
 ## Complete and sync changes
 
@@ -28,7 +28,7 @@ These instructions apply throughout this repository.
 ## Preserve long-term independence
 
 - Choose free, open-source dependencies for core software. Verify actual licenses; distinguish open source from source available, and disclose paid feature restrictions before adoption. Review model licenses separately.
-- Keep `docs/licenses.md` limited to software actively used by the application, runtime, setup, and maintenance workflows, including required runtime dependencies. Update it in the same change when those dependencies change. Exclude proposed tools and dependencies used only in tests or experiments, even if those tests have run.
+- Keep `docs/active/setup-and-maintenance/licenses.md` limited to software actively used by the application, runtime, setup, and maintenance workflows, including required runtime dependencies. Update it in the same change when those dependencies change. Exclude proposed tools and dependencies used only in tests or experiments, even if those tests have run.
 - Keep core operation local, without required subscriptions, hosted APIs, vendor accounts, or license-server access.
 - Keep conversations, identities, and memories exportable in documented, portable formats with provenance. Test backup restoration and migration before relying on a storage system for real memories. Report same-version restoration and cross-database migration separately; keep unverified requirements visible.
 - Keep storage and memory integrations replaceable through small interfaces. Weigh project maintenance, upgrade paths, and custom-code burden alongside features; open source alone does not guarantee future support.
@@ -59,8 +59,8 @@ On initial setup or changes to the model, weight precision, reasoning mode, or r
 
 Keep the project understandable without reading development chats.
 
-1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Keep application guides directly under `docs/`; keep platform-specific launch and setup scripts under `scripts/native-linux/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep project-specific tools under `runtime/` and shared inference engines in the shared AI infrastructure locations above.
-2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/experiments/`.
+1. **Clear folder responsibilities:** Follow the folder map in the README and document new folders. Keep current application guides under `docs/active/current-operation/` and setup/maintenance guides under `docs/active/setup-and-maintenance/`; keep experiments, history and ideas under `docs/development/`. Mirror only `docs/active/` into Obsidian; keep platform-specific launch and setup scripts under `scripts/native-linux/`. Store session transcripts and diagnostic logs under `data/conversations/`; keep project-specific tools under `runtime/` and shared inference engines in the shared AI infrastructure locations above.
+2. **Concise documentation:** Keep the main README focused on purpose, status, quick start, architecture, folder map, and guide links. Give each topic one authoritative explanation and link to it. Put experiment reports under `docs/development/experiments/`.
 3. **Repeatable scripts:** Save documented setup, start, and stop commands in `scripts/`, including supported background operation and logging.
 4. **Documented decisions:** Record significant architecture choices and their reasons in `docs/`, linked from the README.
 5. **Source and operation:** Native Linux runs directly from its Git checkout using scripts/native-linux/. Keep setup and operation reproducible from this checkout.
@@ -70,7 +70,7 @@ Keep the project understandable without reading development chats.
 - Routine diagnostic capture must remain in the existing recorder's RAM: a 500,000,000-byte raw-event rolling budget in 20,000,000-byte batches. Do not silently restore per-event disk logging or add a helper process.
 - Keep conversations durable in SQLite. Save the surviving diagnostic buffer and protected latest-20 error windows on orderly recorder shutdown; keep 20 events before/after each recognized error. Document that recorder SIGKILL, OOM, OS crash, or power loss can lose unsaved RAM.
 - Preserve live operator views and IDs across shutdown saving. Keep model snapshot access disconnected unless separately authorized.
-- Any change to this storage/durability policy requires an explicit decision and updates to docs/log-retention.md and the RAM recorder regression tests, including the no-routine-payload-writes and shutdown-save checks.
+- Any change to this storage/durability policy requires an explicit decision and updates to docs/active/current-operation/log-retention.md and the RAM recorder regression tests, including the no-routine-payload-writes and shutdown-save checks.
 
 ## Operator instruction: reset memory
 
@@ -87,4 +87,4 @@ When the user explicitly asks to **reset memory**, perform this fresh personal-d
 
 ### In-application reset command
 
-`/resetmemory` is an implemented owner-only terminal/Discord command, handled by application code. It performs the reset scope above while keeping the model loaded and the live connection/session metadata active, coordinating recorder generation boundaries rather than deleting open database files. See `docs/reset-memory.md` for authorization, failures, and retained live session metadata. Development-agent requests to stop/reset/relaunch still use the orderly stopped maintenance procedure above.
+`/resetmemory` is an implemented owner-only terminal/Discord command, handled by application code. It performs the reset scope above while keeping the model loaded and the live connection/session metadata active, coordinating recorder generation boundaries rather than deleting open database files. See `docs/active/current-operation/reset-memory.md` for authorization, failures, and retained live session metadata. Development-agent requests to stop/reset/relaunch still use the orderly stopped maintenance procedure above.

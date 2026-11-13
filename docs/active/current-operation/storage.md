@@ -32,7 +32,7 @@ Schema 2 also adds diagnostic batches, policy/sequence state, retained failures,
 
 ## View and export
 
-For browsable Markdown conversation pages, see the [Obsidian conversation vault](conversation-vault.md). It exports user inputs and final answers on demand, separately from diagnostic views.
+For browsable Markdown conversation pages, see the [Obsidian conversation vault](../setup-and-maintenance/conversation-vault.md). It exports user inputs and final answers on demand, separately from diagnostic views.
 
 From the checkout, list sessions and substitute the desired UUID below:
 
@@ -82,11 +82,11 @@ Synthetic tests verify same-version SQLite backup restoration and SQL export/imp
 
 ## Fresh personal-data start
 
-Ask the development agent to **reset memory** using the [operator instruction](../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, souls, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
+Ask the development agent to **reset memory** using the [operator instruction](../../../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, souls, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs and Phat's name, linked Discord account, and owner status remain. The self name and sheet start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
 
 This is not a model tool or runtime slash command. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
 
-SQLite is [public domain](https://sqlite.org/copyright.html). Design references: [WAL](https://sqlite.org/wal.html) and [Python SQLite interface/backup](https://docs.python.org/3/library/sqlite3.html). Installed versions are recorded in [licenses](licenses.md).
+SQLite is [public domain](https://sqlite.org/copyright.html). Design references: [WAL](https://sqlite.org/wal.html) and [Python SQLite interface/backup](https://docs.python.org/3/library/sqlite3.html). Installed versions are recorded in [licenses](../setup-and-maintenance/licenses.md).
 
 ## Verification of this change
 
