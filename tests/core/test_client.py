@@ -56,9 +56,9 @@ class ClientTests(unittest.TestCase):
             answer, finish = api.reply([{'role': 'user', 'content': 'Two plus two?'}], 1024, on_delta=terminal.ReplyDisplay())
         self.assertEqual((answer, finish), ('Four.', 'stop'))
         self.assertTrue(sent[0]['chat_template_kwargs']['enable_thinking'])
-        self.assertEqual(output.getvalue(), COLORS['reasoning_heading'] + 'Reasoning:\n' + COLORS['data'] + 'Check '
-                         + 'the sum.' + COLORS['answer_heading']
-                         + '\n\nAnswer:\n' + COLORS['reply'] + 'Four.')
+        self.assertEqual(output.getvalue(), COLORS['answer_heading'] + 'Answer:\n' + COLORS['reply'] + 'Four.')
+        self.assertEqual([call.args[0] for call in logged.call_args_list if call.args[0].startswith('Reasoning delta:')],
+                         ['Reasoning delta: "Check "', 'Reasoning delta: "the sum."'])
         self.assertEqual(sent[0]['messages'], [{'role': 'user', 'content': 'Two plus two?'}])
         self.assertEqual(sent[0]['max_tokens'], 1024)
         self.assertNotIn('tools', sent[0])

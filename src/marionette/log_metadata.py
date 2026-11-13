@@ -17,7 +17,7 @@ PREFIXES = {
     'Model Request interrupted: ': 'model_request_interrupted',
     'Tool Call interrupted: ': 'tool_call_interrupted',
     'Tool call identity: ': 'tool_identity', 'Message input: ': 'message_input',
-    'Reasoning: ': 'reasoning', 'Message failed: ': 'message_failed',
+    'Reasoning delta: ': 'reasoning_delta', 'Reasoning: ': 'reasoning', 'Message failed: ': 'message_failed',
     'Message interrupted: ': 'message_interrupted',
     'Model Request failed: ': 'model_request_failed', 'Tool Call failed: ': 'tool_call_failed',
 }

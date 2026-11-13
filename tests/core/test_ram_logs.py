@@ -32,6 +32,40 @@ class RamLogTests(unittest.TestCase):
         self.addCleanup(buffer.close)
         return buffer
 
+    def test_reasoning_stream_is_live_and_saved_without_chat_or_query_pollution(self):
+        from log_router import category
+        from log_view import render
+        from log_query import records as query_records
+        buffer = self.buffer()
+        prefix = b'Client: [message discord:123] '
+        def emit(text):
+            raw = prefix + text.encode() + b'\n'
+            buffer.append(raw,category(raw))
+        with closing(LiveView(buffer,self.path)):
+            emit('========== MESSAGE START | processing ==========')
+            emit('Sender identity: {"source":"discord","display_name":"Synthetic","sender_id":"7"}')
+            emit('Reasoning delta: "first "')
+            first = read_live(self.path,self.session,'reasoning',0)
+            self.assertIn(b'first ',first[1])  # Visible before the turn finishes.
+            emit('Reasoning delta: "second\\n"')
+            for _ in range(300): emit('Reasoning delta: "x"')
+            emit('========== MESSAGE END | processing | completed ==========')
+            self.assertEqual(len(query_records(buffer.memory.db,self.session,'discord:123')),3)
+            server = read_live(self.path,self.session,'server',0)[1]
+            self.assertNotIn(b'Reasoning delta:',server)
+            self.assertEqual(self.disk.db.execute('SELECT count(*) FROM events').fetchone()[0],0)
+            live = io.BytesIO()
+            view_log(self.path,self.session,'reasoning',live)
+        buffer.save()
+        saved = io.BytesIO()
+        view_log(self.path,self.session,'reasoning',saved)
+        self.assertEqual(live.getvalue(),saved.getvalue())
+        rendered = io.StringIO()
+        render(io.StringIO(saved.getvalue().decode()),rendered,'reasoning',False)
+        self.assertIn('discord · Synthetic · 7',rendered.getvalue())
+        self.assertIn('first second\n'+'x'*300,rendered.getvalue())
+        self.assertIn('completed',rendered.getvalue())
+
     def test_default_policy_is_500mb_ram_in_20mb_batches(self):
         buffer=self.buffer()
         policy=buffer.memory.db.execute('SELECT * FROM retention_state').fetchone()

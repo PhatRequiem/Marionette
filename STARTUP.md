@@ -13,7 +13,7 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-This starts her and opens two log windows: **Connections and requests** and **Model processing**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/active/current-operation/contacts.md). You can now chat in this terminal.
+This starts her and opens three windows: **Connections and requests**, **Model processing**, and **Reasoning**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/active/current-operation/contacts.md). You can now chat in this terminal. Reasoning streams in its separate window; chat shows messages and replies.
 
 The log-query tool is connected.
 
@@ -26,13 +26,13 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/discord.sh
 ```
 
-Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal still displays all messages, reasoning, and answers.
+Wait for **Discord ready**, then DM her. This terminal shows the Discord logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal displays messages and answers; the Reasoning terminal shows reasoning for both chat sources.
 
 ## Stop or start fresh
 
 - **Disconnect Discord only:** press Ctrl+C in its terminal. Main chat stays running.
 - **Admin shutdown:** send `/shutdown` as the saved owner in terminal or Discord. Stops the local model and main chat, disconnects Discord, and follows normal recorder shutdown saving. Saved memory is kept. Other contacts receive `Access Denied`.
-- **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each diagnostic log window afterward to close it.
+- **Stop her:** type `/exit` in main chat, or press Ctrl+C. This also disconnects Discord. Press Enter in each log/reasoning window afterward to close it.
 - **Reset all memory (owner only):** type `/resetmemory` in terminal or Discord. Clears all chat histories, soul, contact notes, and local logs while preserving both IDs and your owner/account mapping. The model stays loaded. See [reset details](docs/active/current-operation/reset-memory.md).
 - **Clear the conversation:** type `/clear` in that conversation. Each person can clear their own DM; terminal `/clear` affects only terminal history. Saved SQLite records remain. Every new main-chat launch also starts fresh model history; contact notes persist.
 

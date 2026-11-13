@@ -158,3 +158,21 @@ Recorded envelopes now provide indexed event types, operation ordinals and expli
 Discord identity/delivery fields in SQLite. See [search fields and their limits](storage.md#searchable-diagnostic-metadata-schema-5). This does not enable model access.
 
 For bounded facts from a request form, use the [operator query handler](log-queries.md).
+
+## Separate Reasoning terminal
+
+Chat opens a Reasoning terminal alongside the two diagnostic views. It streams
+reasoning for terminal and Discord turns, labeled with message ID, timestamp and
+sender. Main chat shows messages and replies; Discord still receives replies only.
+Processing endings mark completion or failure, so partial reasoning is not a final
+answer. Closing this viewer does not stop generation or recording.
+
+The view reads `reasoning_delta` events from the existing RAM recorder and falls
+back to retained saved events after shutdown. Stream chunks are routed only to
+this view; full reasoning and raw runtime diagnostics remain available in the
+existing diagnostic records. Structured reasoning messages are still saved as
+before. No additional recorder, database, or per-chunk disk writer is introduced.
+The 500 MB rolling budget applies, so a slow viewer or later replay may miss expired
+chunks. This streaming view applies to new runs; old records have no delta events.
+
+Reopen it with `./scripts/native-linux/view-log.sh DATABASE SESSION_ID reasoning`.

@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens two live log terminals (connections/requests and model processing) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/active/current-operation/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
+Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens three live views (connections/requests, model processing and reasoning) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/active/current-operation/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -10,7 +10,7 @@ For quick experiments, the owner can send [`/resetmemory`](docs/active/current-o
 
 For a new installation, see [local setup](docs/active/setup-and-maintenance/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
-Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then optionally attach Discord to the same running model in a fourth terminal. It accepts human one-to-one DMs, sends only final answers to Discord, and displays the full exchange (including reasoning) in main chat and local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then optionally attach Discord to the same running model in a fifth terminal. It accepts human one-to-one DMs, sends only final answers to Discord, and displays messages and replies in main chat, with reasoning in its separate terminal and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
@@ -42,7 +42,7 @@ Start with these files, in order:
 
 | File | Responsibility |
 |---|---|
-| [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and two log windows |
+| [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and three live views |
 | [setup_datasheet.py](src/marionette/setup_datasheet.py) | Refresh the marked [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md) section from startup observations |
 | [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |

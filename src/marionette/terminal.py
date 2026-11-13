@@ -17,23 +17,17 @@ def color(kind):
 class ReplyDisplay:
     """One renderer per reply; inference supplies text without knowing its UI."""
     def __init__(self):
-        self.reasoning = False
         self.answer = False
         self.stream_color = None
 
     def __call__(self, phase, text):
         if phase == 'reasoning':
-            if not self.reasoning:
-                color('reasoning_heading')
-                print('Reasoning:', flush=True)
-            self.reasoning = True
-            kind = 'data'
-        else:
-            if not self.answer and self.reasoning:
-                color('answer_heading')
-                print('\n\nAnswer:', flush=True)
-            self.answer = True
-            kind = 'reply'
+            return
+        if not self.answer:
+            color('answer_heading')
+            print('Answer:', flush=True)
+        self.answer = True
+        kind = 'reply'
         if self.stream_color != kind:
             color(kind)
             self.stream_color = kind

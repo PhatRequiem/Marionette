@@ -73,6 +73,11 @@ def records(db, session, identifier):
     if db.execute('PRAGMA user_version').fetchone()[0] >= 2:
         sql += " UNION ALL SELECT event_id,recorded_at,stream,length(raw),truncated,raw,'error_evidence' FROM error_evidence WHERE session_id=? AND message_id=?"
         args += [session,identifier]
+    # Streaming presentation chunks do not supply processing/delivery/error facts.
+    # Exclude them before evidence limits, including protected copies.
+    if db.execute('PRAGMA user_version').fetchone()[0] >= 5:
+        sql = sql.replace('WHERE session_id=? AND message_id=?',
+                          "WHERE session_id=? AND message_id=? AND (event_type IS NULL OR event_type <> 'reasoning_delta')")
     rows = []
     size = 0
     # LIMIT caps matching rows, and SQL length checks avoid materializing oversized BLOBs.

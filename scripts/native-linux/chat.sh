@@ -128,10 +128,11 @@ Path(sys.argv[1]).write_text(json.dumps({'database': os.environ['MARIONETTE_LOG_
 PYTHON
 
 # Viewers read the existing recorder RAM socket, falling back to saved rows after exit.
-for view in server model; do
+for view in server model reasoning; do
     case "$view" in
         server) title='Marionette — Connections and requests' ;;
         model) title='Marionette — Model processing' ;;
+        reasoning) title='Marionette — Reasoning' ;;
     esac
     (
         exec 3>&- 9>&-

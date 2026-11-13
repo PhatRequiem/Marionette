@@ -189,6 +189,9 @@ class Store:
 
 
 def render_event(row, view):
+    if view == 'reasoning':
+        return (json.dumps({'message_id': row['message_id'], 'time': row['recorded_at'],
+                            'kind': row['event_type'], 'raw': row['raw'].decode('utf-8', errors='replace')}) + '\n').encode()
     if view in ('server', 'model'):
         from log_router import format_event
         return format_event(row['id'], row['recorded_at'], row['raw'])
@@ -196,10 +199,14 @@ def render_event(row, view):
 
 
 def records(db, session, view, after=0):
-    stream = 'diagnostic' if view in ('server', 'model') else view
+    stream = 'diagnostic' if view in ('server', 'model', 'reasoning') else view
     query = 'SELECT * FROM events WHERE session_id=? AND stream=? AND id>?'
     args = [session, stream, after]
-    if stream == 'diagnostic':
+    if view == 'reasoning':
+        if db.execute('PRAGMA user_version').fetchone()[0] < 5:
+            return []
+        query += " AND event_type IN ('reasoning_delta','processing_start','processing_end','sender_identity')"
+    elif stream == 'diagnostic':
         query += ' AND category IN (?,?)'
         args += [view, 'both']
     return db.execute(query + ' ORDER BY id LIMIT 256', args).fetchall()
@@ -213,7 +220,7 @@ def view_log(path, session, view, output, follow=False, owner_pid=None):
         draining = not follow
         while True:
             live = None
-            if view in ('server', 'model'):
+            if view in ('server', 'model', 'reasoning'):
                 from ram_logs import read_live
                 live = read_live(path, session, view, last)
             if live is not None:
@@ -309,7 +316,7 @@ def main():
     capture_parser = sub.add_parser('capture')
     capture_parser.add_argument('session'); capture_parser.add_argument('stream', choices=['diagnostic', 'terminal', 'discord'])
     view = sub.add_parser('view'); view.add_argument('session')
-    view.add_argument('view', choices=['server', 'model', 'discord', 'terminal'])
+    view.add_argument('view', choices=['server', 'model', 'reasoning', 'discord', 'terminal'])
     view.add_argument('--follow', action='store_true')
     view.add_argument('--owner-pid', type=int)
     sub.add_parser('export', help='Portable SQLite SQL dump with exact BLOB bytes and schema')

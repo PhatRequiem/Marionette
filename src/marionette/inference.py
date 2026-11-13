@@ -183,6 +183,8 @@ class API:
                     last_tool = max((i for i, m in enumerate(response) if m.role == 'function'), default=-1)
                     text = ''.join(m.content or '' for m in response[last_tool + 1:]
                                    if m.role == 'assistant' and not m.function_call)
+                    if thought[len(reasoning):]:
+                        diagnostics.log('Reasoning delta: ' + json.dumps(thought[len(reasoning):], ensure_ascii=False))
                     if on_delta is not None:
                         if thought[len(reasoning):]:
                             on_delta('reasoning', thought[len(reasoning):])

@@ -35,7 +35,7 @@ writes; it does not promise zero SSD activity or a measured endurance gain.
 
 ## Live views and IDs
 
-The two diagnostic windows query a private local socket served by a thread in
+The two diagnostic windows and the Reasoning window query a private local socket served by a thread in
 the **existing recorder process**. No additional process is launched. Linux
 abstract Unix sockets avoid stale socket files; the server checks `SO_PEERCRED`
 and accepts only the same OS user. Queries are read-only operator views, not a
@@ -147,3 +147,8 @@ recorder is unavailable.
 ## Maintenance guardrails
 
 Changes to retention must preserve the no-routine-payload-writes and shutdown-save checks in `tests/core/test_ram_logs.py`, along with the documented loss behavior on abrupt recorder termination. These are required regression checks, not a long-session reliability guarantee.
+
+Reasoning display chunks use the same diagnostic RAM budget and shutdown save.
+They do not create routine disk payload writes. Scoped log queries exclude these
+presentation chunks before applying evidence limits; the reasoning viewer can
+read them live and replay retained chunks after shutdown.

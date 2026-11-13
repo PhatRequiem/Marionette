@@ -190,10 +190,28 @@ def diagnostic_row(line, kind, colored):
     return paint(text, kind, colored)
 
 
+def reasoning_record(line, colored):
+    record = json.loads(line)
+    body = re.sub(r'^Client: (?:\[(?:message|request|tool) [^\]]+\] )*', '', record['raw']).rstrip('\n')
+    kind = record['kind']
+    if kind == 'reasoning_delta':
+        return paint(safe(json.loads(body.removeprefix('Reasoning delta: '))), 'data', colored)
+    if kind == 'sender_identity':
+        identity = json.loads(body.removeprefix('Sender identity: '))
+        return paint(safe(f"{identity['source']} · {identity['display_name']} · {identity['sender_id']}\n"), 'ids', colored)
+    if kind == 'processing_start':
+        return paint(safe(f"\n\nReasoning · {record['message_id']} · {record['time']}\n"), 'reasoning_heading', colored)
+    if kind == 'processing_end':
+        return paint(safe('\n' + body + '\n'), 'meta', colored)
+    return ''
+
+
 def render(source, output, mode, colored):
     view = DiagnosticView()
     for line in source:
-        if mode == 'discord':
+        if mode == 'reasoning':
+            output.write(reasoning_record(line, colored))
+        elif mode == 'discord':
             for kind, text in discord_rows(line):
                 rendered = field_text(text, kind[6:], colored) if kind.startswith('field/') else paint(text, kind, colored)
                 output.write(rendered + '\n')
@@ -209,8 +227,8 @@ def render(source, output, mode, colored):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2 or sys.argv[1] not in ('discord', 'diagnostic'):
-        raise SystemExit('Usage: log_view.py discord|diagnostic < SAVED_LOG')
+    if len(sys.argv) != 2 or sys.argv[1] not in ('discord', 'diagnostic', 'reasoning'):
+        raise SystemExit('Usage: log_view.py discord|diagnostic|reasoning < SAVED_LOG')
     if sys.argv[1] == 'discord':
         import signal
         signal.signal(signal.SIGINT, signal.SIG_IGN)  # Bot exits; drain final delivery/disconnect records.

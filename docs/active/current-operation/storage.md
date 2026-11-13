@@ -107,7 +107,7 @@ Both `events` and `error_evidence` have nullable text columns:
 
 | Column | Meaning |
 |---|---|
-| `event_type` | Recognized envelope type, e.g. `model_usage`, `tool_identity`, `processing_end`, `discord_chunk_sent`, `discord_delivery_end` |
+| `event_type` | Recognized envelope type, e.g. `reasoning_delta`, `model_usage`, `tool_identity`, `processing_end`, `discord_chunk_sent`, `discord_delivery_end` |
 | `request_number`, `tool_number` | Original per-message ordinals, e.g. `01`; use session + message ID to scope them |
 | `tool_name`, `protocol_tool_call_id` | Name and original protocol ID from the explicit tool-identity record |
 | `contact_uuid`, `display_name`, `preferred_name` | Identity as recorded in the sender-identity event; names are labels, not unique keys |

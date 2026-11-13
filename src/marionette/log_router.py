@@ -20,6 +20,8 @@ MODEL_PREFIXES = (b'llama_', b'ggml_', b'load_tensors:', b'print_info:',
 
 
 def category(line):
+    if re.match(rb'Client: (?:\[(?:message|request|tool) [^\]\r\n]+\] )*Reasoning delta: ', line):
+        return 'reasoning'
     # Unrecognized and unprefixed continuation lines are deliberately shared.
     record = RECORD.match(line)
     if not record:

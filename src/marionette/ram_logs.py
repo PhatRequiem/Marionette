@@ -120,7 +120,7 @@ class LiveView:
                 self.connection.settimeout(2)
                 request = json.loads(self.rfile.readline(4097))
                 if ((request.get('session') != buffer.session and request.get('view') != 'status')
-                        or request.get('view') not in ('server','model','status','message')
+                        or request.get('view') not in ('server','model','reasoning','status','message')
                         or type(request.get('after')) is not int or request['after'] < 0):
                     return
                 with buffer.lock:

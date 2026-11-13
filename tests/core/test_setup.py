@@ -176,6 +176,19 @@ class LauncherTests(unittest.TestCase):
         self.assertTrue(any('new sentinel' in p.read_text() for p in pages))
         self.assertTrue(any('Phat' in p.read_text() for p in pages))
 
+    def test_reasoning_separate_from_chat_and_saved_for_its_view(self):
+        self.runtime.write_text(self.runtime.read_text().replace(
+            "{'content': 'Synthetic reply.'}",
+            "{'reasoning_content': 'SEPARATE_THOUGHT', 'content': 'Synthetic reply.'}"))
+        result = self.run_chat()
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn('SEPARATE_THOUGHT',result.stdout)
+        self.assertIn('Synthetic reply.',result.stdout)
+        self.assertIn('SEPARATE_THOUGHT',self.saved('reasoning'))
+        self.assertIn('Marionette — Reasoning',(self.root/'viewer-calls.txt').read_text())
+        with closing(open_read(self.logs/'marionette.sqlite3')) as db:
+            self.assertEqual(db.execute("SELECT content FROM messages WHERE kind='reasoning'").fetchone()[0],'SEPARATE_THOUGHT')
+
     def test_owner_shutdown_uses_orderly_launcher_cleanup(self):
         result = subprocess.run(['bash', str(self.launcher)],
             input='1\nhello before shutdown\n/shutdown\n', text=True,
@@ -229,6 +242,7 @@ class LauncherTests(unittest.TestCase):
         calls = (self.root / 'viewer-calls.txt').read_text()
         self.assertEqual(calls.count('Connections and requests'), 2)
         self.assertEqual(calls.count('Model processing'), 2)
+        self.assertEqual(calls.count('Marionette — Reasoning'), 2)
         database = self.logs / 'marionette.sqlite3'
         with closing(open_read(database)) as db:
             sessions = db.execute('SELECT * FROM sessions').fetchall()

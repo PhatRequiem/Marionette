@@ -63,7 +63,7 @@ Defaults point to this checkout's normal paths. Run `--help` for all options.
   not prove success. Missing records do not establish why evidence is absent.
 
 The handler validates fields/combinations, reads SQLite in read-only mode, and
-combines saved evidence with available recorder RAM evidence. Protected copies
+combines saved evidence with available recorder RAM evidence. Streaming reasoning display chunks are excluded before evidence limits. Protected copies
 are deduplicated by event ID. Truncated evidence is excluded with a notice;
 conflicting copies, repeated boundaries, and a reset during retrieval are errors.
 Raw conversation, answer and reasoning text are not returned. Error excerpts and

@@ -116,7 +116,8 @@ class ConnectionTests(unittest.TestCase):
         rendered = output.getvalue()
         self.assertIn(COLORS['meta'] + '[Discord · ' + COLORS['ids'] + '123' + COLORS['meta'] + ']\n', rendered)
         self.assertIn(COLORS['input'] + 'Hello from Discord', rendered)
-        self.assertIn(COLORS['reasoning_heading'] + 'Reasoning:\n' + COLORS['data'] + 'Private thinking.', rendered)
+        self.assertNotIn('Private thinking.', rendered)
+        self.assertNotIn('Reasoning:', rendered)
         self.assertIn(COLORS['reply'] + 'Final answer.', rendered)
         self.assertEqual(conversation.history[0]['content'], 'Hello from Discord')
 
