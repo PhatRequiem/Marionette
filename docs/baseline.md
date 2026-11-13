@@ -12,7 +12,8 @@ chat, Discord, soul, contact-note and diagnostic-retention foundation, with thes
 - Connected scoped `query_logs`, searchable metadata (SQLite schema 5), a request form and automatic startup datasheet updates.
 - Tool calls/results retained with each conversation exchange and trimmed together.
 - Separate feature guidance and a brief system reminder after log-tool results.
-- Removed the old snapshot utilities. The experimental idle cycle, scratchpads and Obsidian integration are also removed.
+- Added an operator-only, on-demand [Markdown conversation mirror](conversation-vault.md) for browsing in Obsidian; no model vault access.
+- Removed the old snapshot utilities. The experimental idle cycle, scratchpads and earlier model-facing Obsidian integration are also removed.
 
 See [log-query reliability limits](log-queries.md#current-reliability-limits) for
 current answer-quality observations. A memory reset changes personal data, not

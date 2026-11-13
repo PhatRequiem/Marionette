@@ -9,6 +9,7 @@ This is an application command, processed before model inference. It does not de
 - All terminal and Discord model histories, pending preparation, soul name and personal description, and previous soul revisions.
 - All contact notes and all contacts except Phat. Phat retains the same contact UUID, name, linked Discord accounts, and owner status; other personal fields are cleared.
 - Saved conversation messages, old sessions, logs, protected error windows, and the recorder's RAM buffer.
+- The entire [conversation vault](conversation-vault.md), including generated pages, annotations and Obsidian settings.
 - Local memory backups, exports, and revision copies in the documented memory directories, including legacy directories. No new backup is made.
 
 The soul UUID is preserved. Configuration, credentials, model weights, installed environments, and documentation are preserved. Discord-hosted messages and external backups are not deleted. Existing terminal scrollback is not erased. This is a logical reset, not secure erasure of SQLite free pages, WAL bytes, or GPU/RAM allocations.

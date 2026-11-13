@@ -17,6 +17,7 @@ from contact_notes import ContactNotes
 from soul import Soul
 from conversation import Conversation
 from storage import Store
+from conversation_vault import sync
 from reset_boundary import BoundaryReader, marker
 from commands import recognize
 from ram_logs import RamLogs
@@ -56,6 +57,8 @@ class MemoryResetTests(unittest.TestCase):
                 (root/'session/log-session.json').write_text(json.dumps({'database':str(dbpath),'session':session}))
                 old_writer=Store(dbpath)
                 store.message(session,'local:00000000-0000-0000-0000-000000000001','terminal:test',identity,'terminal','test','user','input','OLD_SECRET','received')
+                vault=Path(sync(dbpath)['vault'])
+                (vault/'Annotations/private.md').write_text('OLD_SECRET')
                 api=Mock(closing=threading.Event(), tools=())
                 conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul)
                 conversation.histories={'terminal:test':[{'role':'user','content':'OLD_SECRET'}], 'discord:123':[{'role':'user','content':'old'}]}
@@ -87,6 +90,7 @@ class MemoryResetTests(unittest.TestCase):
                     self.assertEqual(len(soul.read()['revisions']),1)
                     self.assertEqual(list(notes.directory.iterdir()),[])
                     self.assertFalse((root/'soul/export.json').exists())
+                    self.assertFalse(vault.exists())
                     self.assertIsNone(old_writer.event(session,'discord',b'OLD_SECRET delayed'))
                     self.assertEqual(store.db.execute('SELECT count(*) FROM messages').fetchone()[0],0)
                     for proc in processes:proc.stdin.close()

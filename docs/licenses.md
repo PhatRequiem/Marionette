@@ -164,3 +164,7 @@ The following inventory was checked against installed distribution metadata and 
 | uvicorn | 0.54.0 | BSD-3-Clause |
 | websocket-client | 1.9.2 | Apache-2.0 |
 | yarl | 1.25.1 | Apache-2.0 |
+
+## Optional conversation viewer
+
+Obsidian 1.14.4 (installed package 1.14.4-2) is proprietary, not open source. Its [license overview](https://obsidian.md/license) permits free personal and commercial local use without an account. Optional Sync and Publish services are not used or required. It is a replaceable viewer for the [Markdown conversation mirror](conversation-vault.md), not a core dependency. The exporter uses only the existing Python standard library; any Markdown editor can read its output.

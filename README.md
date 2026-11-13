@@ -24,7 +24,7 @@ The selected 4B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen
 
 The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/baseline.md).
 
-See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md), with a [short log glossary](docs/log-glossary.md) and the [request form](docs/log-request-form.md) and [operator query handler](docs/log-queries.md). See [SQLite storage, export, and recovery](docs/storage.md). Historical experiments live under `docs/experiments/`.
+See [context policy and verified behavior](docs/context.md) for allowances, trimming, cache preparation, and limitations. See the [last saved stable baseline and its verification](docs/baseline.md) and [log guide](docs/logs.md), with a [short log glossary](docs/log-glossary.md) and the [request form](docs/log-request-form.md) and [operator query handler](docs/log-queries.md). See [SQLite storage, export, and recovery](docs/storage.md) and the [local Obsidian conversation mirror](docs/conversation-vault.md). Historical experiments live under `docs/experiments/`.
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/archive/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
@@ -82,6 +82,7 @@ Start with these files, in order:
 - `docs/licenses.md`: active dependency versions and licenses.
 - `~/AI Infrastructure/AI Apps/Inference Engines/Language Models/llama.cpp/`: shared versioned inference runtime and bundled licenses; outside Git. See [runtime storage](docs/setup.md#shared-inference-runtime).
 - `data/conversations/`: SQLite conversation/event database, optional private exports and backups; ignored by Git.
+- `data/conversations/obsidian-vault/`: private, on-demand Markdown conversation mirror for Obsidian; cleared by memory reset.
 - `data/contacts/`: private, portable JSON profile registry; ignored by Git.
 - `data/contact_notes/`: private Markdown contact notes, one file per contact UUID; ignored by Git.
 - `data/soul/`: private self identity and soul revision history; ignored by Git.
