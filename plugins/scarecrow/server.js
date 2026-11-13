@@ -52,7 +52,7 @@ function createServer(settings, operations, ready) {
       if (!(await fs.stat(path.join(root, 'Generated/.marionette-managed')).catch(() => null))?.isFile()) throw new RequestError('Vault mirror is absent or reset.', 503);
       if (!ready()) throw new RequestError('Obsidian is still indexing this vault.', 503);
       if (req.method === 'GET' && req.url === '/v1/status') {
-        send(200, {status:'ok', vault_id:settings.vault_id, plugin:'Scarecrow', version:'0.1.0', read_only:true});return;
+        send(200, {status:'ok', vault_id:settings.vault_id, plugin:'Scarecrow', version:'0.1.1', read_only:true});return;
       }
       if (req.method !== 'POST' || req.url !== '/v1/query') { send(404,{status:'error',error:'Unknown route.'});req.resume();return; }
       if ((req.headers['content-type'] || '').split(';')[0] !== 'application/json') throw new RequestError('Use application/json.', 415);

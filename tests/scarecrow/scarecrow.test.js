@@ -93,3 +93,39 @@ test('authenticated diagnostics stream correlates requests without content and e
  server.endDiagnostics();await until('plugin_stopping');
  await reader.cancel();
 });
+
+test('rank partial matches with rarity, bounded proximity and ordered phrases',async t=>{
+ const root=temp(t),data=fixture(root),ops=new Operations(data.app);
+ function add(name,text){fs.writeFileSync(path.join(root,name),text);data.files.set(name,{path:name,extension:'md',stat:{mtime:123}});data.cache[name]={};}
+ add('A.md','Marionette inference server');
+ add('B.md','Marionette server inference');
+ add('C.md','Marionette\ninference\nserver');
+ add('D.md','server');
+ add('E.md','observer');
+ let result=await ops.run({action:'search',query:'Marionette inference server'});
+ assert.deepEqual(result.matches.map(m=>m.path),['A.md','B.md','C.md','D.md']);
+ assert.deepEqual(result.matches[0].matched_phrases,['marionette inference','inference server']);
+ assert.deepEqual(result.matches[3].missing_terms,['marionette','inference']);
+ assert.deepEqual(result.matches[2].nearby_pairs,[]);
+ assert.deepEqual(result.matches[0].matching_lines,[{line:1,text:'Marionette inference server'}]);
+ const score=result.matches[0].score;
+ add('A.md','Marionette inference server\nMarionette inference server');
+ result=await ops.run({action:'search',query:'MARIONETTE inference server server!!!'});
+ assert.equal(result.matches[0].score,score);
+ assert.deepEqual((await ops.run({action:'search',query:'absentword server'})).matches.map(m=>m.path).sort(),['A.md','B.md','C.md','D.md']);
+ add('Rare.md','quokka');
+ result=await ops.run({action:'search',query:'server quokka'});
+ assert.equal(result.matches[0].path,'Rare.md');
+ add('Far.md','alpha '+ 'padding '.repeat(12)+'beta');
+ add('Near.md','alpha '+ 'padding '.repeat(11)+'beta');
+ result=await ops.run({action:'search',query:'alpha beta'});
+ assert.deepEqual(result.matches.map(m=>m.path),['Near.md','Far.md']);
+ assert.deepEqual(result.matches[1].nearby_pairs,[]);
+ add('Unicode.md','ＣＡＦÉ llama.cpp');
+ assert.equal((await ops.run({action:'search',query:'café LLAMA.CPP'})).matches[0].path,'Unicode.md');
+ assert.equal((await ops.run({action:'search',query:'banjo absent',folder:'People',tag:'music'})).total,1);
+ assert.equal((await ops.run({action:'search',query:'server',folder:'People'})).total,0);
+ assert.equal((await ops.run({action:'search',folder:'People'})).matches[0].score,0);
+ for(const query of ['', '   ', '!!!']) await assert.rejects(ops.run({action:'search',query}),/at least one|Search needs/);
+ assert.equal((await ops.run({action:'search',query:'notpresent'})).total,0);
+});

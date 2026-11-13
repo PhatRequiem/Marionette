@@ -1,6 +1,6 @@
 # Scarecrow: read-only Obsidian connection
 
-Scarecrow 0.1.0 is Marionette's local Obsidian desktop plugin. It runs an HTTP listener inside Obsidian on `127.0.0.1:27124`, serving only the open vault. There is no separate server process, cloud service, MCP middleware, embedding model or new database. Cyanheads and Local REST API are no longer used. Core chat works without Obsidian.
+Scarecrow 0.1.1 is Marionette's local Obsidian desktop plugin. It runs an HTTP listener inside Obsidian on `127.0.0.1:27124`, serving only the open vault. There is no separate server process, cloud service, MCP middleware, embedding model or new database. Cyanheads and Local REST API are no longer used. Core chat works without Obsidian.
 
 ## Install and start
 
@@ -37,7 +37,11 @@ The model calls one explicit Qwen-Agent tool, `read_vault`. Native tool schemas 
 {"action":"links","path":"Welcome.md"}
 ```
 
-Search is case-insensitive substring matching: every whitespace-separated query word must occur somewhere in the note path or content. Folder filtering includes descendants; tag filtering matches one exact tag (with or without `#`). No semantic inference, stemming or Obsidian search-language parsing is implied. A heading section requires an exact, unique heading; duplicates return an explicit ambiguity error. Use inspect or a full read to resolve it.
+Search returns **ranked partial matches**: any query token may occur in the note path or content. Both are Unicode NFKC-normalized and lowercased, then split into letter/number/underscore tokens; punctuation separates tokens. Thus `server` does not match `observer`, and `llama.cpp` becomes `llama` and `cpp`. Duplicate query tokens count once. An explicit empty or punctuation-only query is rejected; omit query for folder/tag-only browsing.
+
+Folder filtering includes descendants; tag filtering matches one exact tag (with or without `#`). Within that filtered collection, each distinct matching term contributes `1 + ln((1 + note count)/(1 + notes containing term))`. Less-common terms therefore carry more weight. Each distinct unordered pair occurring within 12 token positions on the same line adds half the smaller term weight. Each adjacent ordered pair from the deduplicated query occurring adjacently on that line adds the smaller term weight again. Paths are scored as a separate line. Each term/pair contributes at most once per note, so repeating words does not inflate scores. Scores descend, with path order breaking ties; filter-only results retain path order.
+
+Results expose `score`, `matched_terms`, `missing_terms`, `nearby_pairs`, `matched_phrases`, and original `matching_lines` with one-based line numbers. Scores are relative lexical evidence, not probabilities or factual confidence. Ranking is at note level; nearby-term bonuses are line-local, not conversation-exchange-aware. This is not noun extraction, synonym matching, stemming, semantic inference, or Obsidian search-language parsing. Generic terms get less weight only when common in the filtered collection. There is no stored topic index or new dependency. A heading section requires an exact, unique heading; duplicates return an explicit ambiguity error. Use inspect or a full read to resolve it.
 
 Results carry exact vault-relative paths and note modification timestamps where applicable. No application-level query/result byte budgets or pagination are imposed. Large results consume model context and memory; existing conversation context limits still apply. Search scans visible Markdown notes on demand, so performance at large vault sizes is not established. There is a 60-second HTTP inactivity timeout in the Python client and listener, plus Node's 60-second request/header reception timeouts; these are not a guaranteed total execution deadline for a long scan. Transport-level Node defaults still apply.
 
@@ -62,6 +66,8 @@ node --test tests/scarecrow/scarecrow.test.js
 runtime/agent/bin/python -m unittest discover -s tests/core
 runtime/discord/bin/python -m unittest discover -s tests/discord
 ```
+
+Version 0.1.1 verification: all 7 Scarecrow tests and 200 core tests passed. Synthetic search cases cover partial matches, rarity weighting, ordered phrases, the 12-token proximity boundary, repetition resistance, Unicode/punctuation, filters and empty queries. The setup script rebuilt and installed the bundle successfully. These checks do not establish real-conversation retrieval quality or large-vault performance. Reload Obsidian to activate the installed bundle and restart Marionette to load the updated search guidance.
 
 Node is needed to run plugin tests, not as a separate production server. Tests use temporary synthetic vaults; public Obsidian API fixtures do not establish real app compatibility or model answer quality. See [the Scarecrow verification report](../../development/experiments/scarecrow-2026-11-13.md) for what has actually been exercised.
 
