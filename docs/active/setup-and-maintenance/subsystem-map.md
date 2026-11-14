@@ -84,7 +84,7 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 **Current connections:** Conversation resolves identities and supplies current notes; model-facing update adapters live beside their storage implementations. `Soul.bind` updates Model engine state. Reset coordinates directly with profile, note and soul implementations. Contact notes and soul share some utilities, so they are not completely independent implementations.
 
-**Preserve on replacement:** permanent UUIDs; owner and linked-account mappings; portable formats and provenance; revision history where specified; note-size and edit validation; current-contact scope of note writes; explicit uncertainty versus facts; blank soul behavior; reset scope and safe migrations. Do not infer new authorization from model text or a contact's display name.
+**Preserve on replacement:** permanent UUIDs; explicit terminal enrollment separate from Discord registration; owner and linked-account mappings; portable formats and provenance; revision history where specified; note-size and edit validation; current-contact scope of note writes; explicit uncertainty versus facts; blank soul behavior; reset scope and safe migrations. Do not infer new authorization from model text or a contact's display name.
 
 **Checks:** `tests/core/test_contacts.py`, `test_contact_notes.py`, `test_soul.py`, `test_data_migration.py`, `test_permissions.py`, `test_memory_reset.py`. See [contacts](../current-operation/contacts.md), [contact notes](../current-operation/contact-notes.md) and [soul](../current-operation/soul.md).
 

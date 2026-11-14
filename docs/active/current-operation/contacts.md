@@ -1,6 +1,6 @@
 # Profiles and sender identity
 
-`terminal.py` owns the menu and keyboard prompts; `contacts.py` stores and resolves profiles without reading terminal input. At main-chat startup, choose a saved terminal profile or **Add new profile**. The initial profile is **Phat**. New names must be unique (ignoring case), printable, and 1–80 characters. A profile receives one random UUID when created; selecting it again never generates a new ID. Restart main chat to select a different terminal profile.
+`terminal.py` owns the menu and keyboard prompts; `contacts.py` stores and resolves profiles without reading terminal input. At main-chat startup, choose a saved terminal profile or **Add new terminal profile**. The initial profile is **Phat**. New names must be unique (ignoring case), printable, and 1–80 characters. A profile receives one random UUID when created; selecting it again never generates a new ID. Restart main chat to select a different terminal profile. Discord-created contacts are kept in the contact registry but do not automatically appear in this chooser. Creating a terminal profile is an explicit menu action; it receives its own UUID and is not linked to a Discord contact by matching names. Names remain unique across the registry.
 
 ## Saved mapping
 
@@ -8,7 +8,8 @@
 
 - `schema_version`: registry format version, currently 2 (shared by all records).
 - `owner_uuid`: the initial Phat profile's permanent UUID.
-- `profiles`: records with permanent `uuid`, display `name`, nullable `preferred_name`, nullable IANA `timezone` (such as `America/New_York`), `created_at`, `updated_at`, and `linked_accounts`.
+- `profiles`: records with permanent `uuid`, display `name`, nullable `preferred_name`, nullable IANA `timezone` (such as `America/New_York`), `created_at`, `updated_at`, `linked_accounts`, and optional boolean `terminal_enabled`.
+- `terminal_enabled`: new terminal profiles store `true`; automatically registered Discord contacts store `false`. The saved owner remains terminal-enabled. This optional schema-2 field controls terminal selection and resolution, not Discord admission.
 - `linked_accounts`: a list of `{ "service": "discord", "account_id": "123" }` mappings. IDs remain strings. Each service/account pair must belong to only one contact. Other service labels can be stored, but only terminal and Discord inputs are currently supported. Terminal identity remains the contact UUID rather than a duplicate account entry.
 
 New profiles receive UTC ISO timestamps with an offset for `created_at` and `updated_at`. Creation time means record creation, not first meeting. Saves through `ContactProfiles.save()` update `updated_at` only for changed profiles; ordinary startup and messages do not touch it. New preferred names and timezones are null until supplied; preferred name falls back to display name when sent to the model. The terminal selector continues to show the display name.
@@ -39,7 +40,7 @@ Selecting another terminal profile never transfers your Discord account to it. D
 
 ## What she receives
 
-`src/marionette/contacts.py` resolves the sender and prefixes each user message with a labeled JSON metadata block containing `source`, `sender_id`, `display_name`, `contact_uuid`, `preferred_name`, and `timezone`, followed by the original message. The conversation layer adds `conversation_id` and the current contact notes. Terminal sender IDs use the selected profile's UUID; Discord sender IDs use the Discord account number. Thus Phat has the same contact UUID across both sources. On a first Discord message, the main chat creates and saves a distinct UUID linked to that numeric account, named from the sender's Discord display name (with a numeric suffix if the name is taken). Invalid or absent names fall back to `Discord <account-id>`. The saved name stays fixed until explicitly edited; later Discord display-name changes do not overwrite it. Existing generated `Discord <account-id>` labels (including their numeric collision suffixes) are upgraded on the next DM with a valid display name. Owner and other explicitly named profiles are preserved. The generated-label match is based on its text; manually choosing that same placeholder text also makes it eligible for upgrade. It does not assume that matching names mean the same contact. These profiles also appear in the terminal selector. The configured owner account retains its existing mapping.
+`src/marionette/contacts.py` resolves the sender and prefixes each user message with a labeled JSON metadata block containing `source`, `sender_id`, `display_name`, `contact_uuid`, `preferred_name`, and `timezone`, followed by the original message. The conversation layer adds `conversation_id` and the current contact notes. Terminal sender IDs use the selected profile's UUID; Discord sender IDs use the Discord account number. Thus Phat has the same contact UUID across both sources. On a first Discord message, the main chat creates and saves a distinct UUID linked to that numeric account, named from the sender's Discord display name (with a numeric suffix if the name is taken). Invalid or absent names fall back to `Discord <account-id>`. The saved name stays fixed until explicitly edited; later Discord display-name changes do not overwrite it. Existing generated `Discord <account-id>` labels (including their numeric collision suffixes) are upgraded on the next DM with a valid display name. Owner and other explicitly named profiles are preserved. The generated-label match is based on its text; manually choosing that same placeholder text also makes it eligible for upgrade. It does not assume that matching names mean the same contact. These profiles do not appear in the terminal selector unless terminal access is explicitly enabled. The configured owner account retains its existing mapping.
 
 The main diagnostic logs record **Sender identity** with these fields; the normal transcript records profile selection, messages and replies. Metadata is counted before generation and retained with each user message. `/clear` resets only the originating conversation history without deleting profiles. The application interprets `/clear` before adding metadata; it is not sent as ordinary message content.
 
@@ -47,8 +48,10 @@ Each terminal profile and each Discord sender has a separate history, using the 
 
 ## Command permissions
 
-`/help` is available to everyone in terminal and Discord DMs. It lists all commands
-with descriptions and owner/terminal restrictions, without calling the model or
+`/help` is available to everyone in terminal and Discord DMs. Terminal help colors
+commands cyan, descriptions white, headings green and restriction labels orange
+when color output is supported; redirected output stays plain. Discord help stays
+plain and omits terminal-only commands. Both show descriptions and owner restrictions, without calling the model or
 changing active conversation history. Unknown terminal slash commands also show
 this help; unknown Discord commands retain their ordinary-message behavior.
 
@@ -66,6 +69,23 @@ Discord server admin roles are not mapped to Marionette ownership.
 `/status`, `/connections`, `/sync`, and `/cancel` also require the saved owner in
 terminal or Discord. `/context` reports only the requesting conversation’s retained
 context budget and is available to every admitted contact. See [operator commands](operator-commands.md).
+
+## Existing profiles and terminal enrollment
+
+Older schema-2 files lack `terminal_enabled`. Without rewriting the file, the
+chooser includes the saved owner and contacts without a Discord link; linked
+non-owner contacts stay out of the chooser. Old files do not record whether such
+a linked contact was originally created from terminal, so that case requires
+explicit enrollment rather than guessing from its name. UUIDs, names, links,
+notes and conversations are preserved. Schema 1 migration keeps its existing
+backup behavior; this optional field does not require a new schema migration.
+
+To give an existing contact terminal access while keeping its UUID and notes,
+stop main chat, set `terminal_enabled` to `true` on that profile in the private
+registry, update its `updated_at`, then restart. Alternatively use **Add new
+terminal profile** to create an independent identity with a distinct name. Setting
+`terminal_enabled` false excludes a non-owner from terminal use but does not block
+Discord; use `/ddm` rules for that. Invalid non-boolean values are rejected.
 
 ## Backup and maintenance
 

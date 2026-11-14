@@ -212,3 +212,34 @@ class ContactProfileTests(unittest.TestCase):
         self.assertEqual(self.profiles.resolve('discord', '654')['display_name'], 'Discord 654')
         restored = ContactProfiles(self.path)
         self.assertEqual(restored.resolve('discord', '456'), first)
+
+    def test_discord_contacts_are_not_terminal_profiles_and_creation_is_explicit(self):
+        self.profiles.register_discord('456', 'Discord Visitor')
+        visitor = next(p for p in self.profiles.profiles if p['name'] == 'Discord Visitor')
+        identifier = visitor['uuid']
+        self.assertFalse(visitor['terminal_enabled'])
+        with self.assertRaises(ValueError): self.profiles.resolve('terminal', identifier)
+        with patch('builtins.input', side_effect=['2', 'Terminal Visitor']), patch('sys.stdout', io.StringIO()) as output:
+            local = select_profile(self.profiles)
+        self.assertNotIn('Discord Visitor', output.getvalue())
+        self.assertTrue(local['terminal_enabled'])
+        self.assertNotEqual(local['uuid'], identifier)
+        restored = ContactProfiles(self.path)
+        self.assertEqual([p['name'] for p in restored.terminal_profiles], ['Phat', 'Terminal Visitor'])
+        self.assertEqual(restored.resolve('discord', '456')['contact_uuid'], identifier)
+
+    def test_legacy_terminal_eligibility_is_read_only_and_explicit_flag_is_validated(self):
+        self.profiles.register_discord('456', 'Remote')
+        local = self.profiles.add('Local')
+        for p in self.profiles.profiles: p.pop('terminal_enabled', None)
+        self.profiles.save()
+        before = self.path.read_bytes()
+        restored = ContactProfiles(self.path)
+        self.assertEqual([p['name'] for p in restored.terminal_profiles], ['Phat', 'Local'])
+        self.assertEqual(self.path.read_bytes(), before)
+        remote = next(p for p in restored.profiles if p['name'] == 'Remote')
+        remote['terminal_enabled'] = True
+        restored.save()
+        self.assertEqual(restored.resolve('terminal', remote['uuid'])['contact_uuid'], remote['uuid'])
+        remote['terminal_enabled'] = 'yes'
+        with self.assertRaises(ValueError): restored.save()

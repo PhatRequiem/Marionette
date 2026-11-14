@@ -57,15 +57,25 @@ class ContactProfiles:
             self.save()
 
     @staticmethod
-    def new_profile(name):
+    def new_profile(name, *, terminal_enabled=True):
         now = datetime.now(timezone.utc).isoformat()
         return {'uuid': str(uuid.uuid4()), 'name': name, 'preferred_name': None,
                 'timezone': None, 'created_at': now, 'updated_at': now,
-                'linked_accounts': []}
+                'linked_accounts': [], 'terminal_enabled': terminal_enabled}
 
     @property
     def profiles(self):
         return self.data['profiles']
+
+    def has_terminal(self, profile):
+        # Older records did not record creation source. Keep owner/unlinked
+        # profiles available; linked non-owners require explicit enrollment.
+        return profile['uuid'] == self.data['owner_uuid'] or profile.get(
+            'terminal_enabled', not any(a['service'] == 'discord' for a in profile['linked_accounts']))
+
+    @property
+    def terminal_profiles(self):
+        return [profile for profile in self.profiles if self.has_terminal(profile)]
 
     def validate(self):
         def require(condition):
@@ -80,6 +90,7 @@ class ContactProfiles:
                 uid, name = profile['uuid'], profile['name']
                 require(str(uuid.UUID(uid)) == uid and uid not in ids)
                 require(valid_name(name) and name.casefold() not in names)
+                require('terminal_enabled' not in profile or type(profile['terminal_enabled']) is bool)
                 require(profile['preferred_name'] is None or valid_name(profile['preferred_name']))
                 if profile['timezone'] is not None:
                     require(isinstance(profile['timezone'], str))
@@ -201,7 +212,7 @@ class ContactProfiles:
                         raise
                 return sender_id
         name = saved_name()
-        profile = self.new_profile(name)
+        profile = self.new_profile(name, terminal_enabled=False)
         profile['linked_accounts'] = [{'service': 'discord', 'account_id': sender_id}]
         self.profiles.append(profile)
         try:
@@ -218,8 +229,8 @@ class ContactProfiles:
             (p['uuid'] == sender_id if source == 'terminal' else
              any(link['service'] == source and str(int(link['account_id'])) == sender_id
                  for link in p['linked_accounts'] if link['service'] == 'discord'))), None)
-        if profile is None:
-            raise ValueError('Sender has no linked profile.')
+        if profile is None or (source == 'terminal' and not self.has_terminal(profile)):
+            raise ValueError('Sender has no enabled profile for this interface.')
         return {'source': source, 'sender_id': sender_id,
                 'display_name': profile['name'], 'contact_uuid': profile['uuid'],
                 'preferred_name': profile['preferred_name'] or profile['name'],

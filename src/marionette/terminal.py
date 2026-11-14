@@ -9,7 +9,7 @@ import os
 import codecs
 from contextlib import contextmanager
 
-from commands import HELP_TEXT, recognize
+from commands import render_help, recognize
 from style import COLORS, enabled, paint
 
 
@@ -41,15 +41,16 @@ class ReplyDisplay:
 def select_profile(profiles):
     while True:
         print('\nWho is chatting?', flush=True)
-        for number, profile in enumerate(profiles.profiles, 1):
+        choices = profiles.terminal_profiles
+        for number, profile in enumerate(choices, 1):
             print(f'{number}. {profile["name"]}')
-        print(f'{len(profiles.profiles) + 1}. Add new profile', flush=True)
+        print(f'{len(choices) + 1}. Add new terminal profile', flush=True)
         choice = input('Profile: ').strip()
         if choice.isascii() and choice.isdecimal():
             number = int(choice)
-            if 1 <= number <= len(profiles.profiles):
-                return profiles.profiles[number - 1]
-            if number == len(profiles.profiles) + 1:
+            if 1 <= number <= len(choices):
+                return choices[number - 1]
+            if number == len(choices) + 1:
                 try:
                     return profiles.add(input('Name: '))
                 except ValueError as error:
@@ -161,7 +162,7 @@ def run(conversation, *, external=False):
                 return
             continue
         if command == 'help':
-            print(HELP_TEXT)
+            print(render_help('terminal', colored=enabled()))
             continue
         try:
             try:

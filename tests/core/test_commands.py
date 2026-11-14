@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from commands import HELP_TEXT, execute_clear, recognize
+from commands import HELP_TEXT, render_help, execute_clear, recognize
 
 
 class CommandTests(unittest.TestCase):
@@ -117,7 +117,7 @@ class CommandTests(unittest.TestCase):
             conversation.history = [{'role': 'user', 'content': 'retain context'}]
             before = conversation.history.copy()
             answer, finish = conversation.turn(' /help ', source=source, sender_id='123')
-            self.assertEqual((answer, finish), (HELP_TEXT, 'stop'))
+            self.assertEqual((answer, finish), (render_help(source), 'stop'))
             self.assertEqual(conversation.history, before)
             self.assertIsNone(conversation.pending)
             api.reply.assert_not_called()
@@ -164,3 +164,18 @@ class CommandTests(unittest.TestCase):
             self.assertIn('ON', convo.turn('/ddm on', source='discord', sender_id='123')[0])
             api.reply.assert_not_called()
             self.assertIsNone(convo.pending)
+
+    def test_help_colors_terminal_only_and_filters_terminal_commands_for_discord(self):
+        import re
+        from style import COLORS
+        text = render_help('terminal', colored=True)
+        self.assertIn(COLORS['meta'] + '/help', text)
+        self.assertIn(COLORS['warning'] + ' (owner only)', text)
+        self.assertEqual(re.sub(r'\x1b\[[0-9;]*m', '', text), HELP_TEXT)
+        self.assertEqual(render_help('terminal'), HELP_TEXT)
+        discord = render_help('discord', colored=True)
+        self.assertNotIn('\x1b', discord)
+        for name in ('/startdiscord', '/stopdiscord', '/refreshsetup', '/exit'):
+            self.assertNotIn(name, discord)
+        self.assertIn('/status', discord)
+        self.assertIn('/help', discord)

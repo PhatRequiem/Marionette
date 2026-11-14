@@ -21,6 +21,24 @@ HELP_TEXT = """Available commands:
 /exit — Exit main chat and disconnect Discord; keep saved memory. (terminal only)"""
 
 
+def render_help(source='terminal', *, colored=False):
+    """Keep ANSI presentation in terminal output, never Discord replies."""
+    from style import paint
+    colored = colored and source == 'terminal'
+    lines = [paint('Available commands:', 'success', colored)]
+    for line in HELP_TEXT.splitlines()[1:]:
+        if source == 'discord' and 'terminal only)' in line:
+            continue
+        command, description = line.split(' — ', 1)
+        restriction = ''
+        if description.endswith(')') and ' (' in description:
+            description, restriction = description.rsplit(' (', 1)
+            restriction = ' (' + restriction
+        lines.append(paint(command, 'meta', colored) + ' — ' +
+                     paint(description, 'data', colored) + paint(restriction, 'warning', colored))
+    return '\n'.join(lines)
+
+
 def recognize(message, source):
     """Recognize shared commands while preserving terminal-only controls."""
     command = message.strip()

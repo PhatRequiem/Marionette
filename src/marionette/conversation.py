@@ -9,7 +9,7 @@ import diagnostics
 from context import Preparation, fit_history
 from contacts import message_with_identity
 from conversation_refs import conversation_reference
-from commands import HELP_TEXT, execute_clear, recognize
+from commands import render_help, execute_clear, recognize
 
 
 class Conversation:
@@ -130,7 +130,7 @@ class Conversation:
             except (ValueError, PermissionError):
                 return 'Discord DMs are currently limited to the owner.', 'blocked'
         if recognize(message, source) == 'help':
-            return HELP_TEXT, 'stop'
+            return render_help(source), 'stop'
         identity = None
         if self.profiles is not None:
             sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']

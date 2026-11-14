@@ -13,10 +13,12 @@ cd /home/phatkitty/Projects/Marionette
 ./scripts/native-linux/chat.sh
 ```
 
-This starts her and opens three windows: **Connections and requests**, **Model processing**, and **Reasoning**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/active/current-operation/contacts.md). You can now chat in this terminal. Reasoning streams in its separate window; chat shows messages and replies.
+This starts her and opens three windows: **Connections and requests**, **Model processing**, and **Reasoning**. Choose **Phat** (or **Add new terminal profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/active/current-operation/contacts.md). You can now chat in this terminal. Reasoning streams in its separate window; chat shows messages and replies.
 
 Type `/help` in the terminal or a Discord DM to list every command with a brief
-description and its owner/terminal restrictions. Help does not call the model.
+description and its owner/terminal restrictions. Terminal help is color-coded;
+Discord help omits terminal-only commands. Discord contacts do not automatically
+become selectable terminal profiles. Help does not call the model.
 Use `/status`, `/connections`, `/context`, `/sync`, and `/cancel` for
 [operator controls](docs/active/current-operation/operator-commands.md).
 

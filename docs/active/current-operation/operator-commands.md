@@ -1,6 +1,7 @@
 # Operator commands
 
-Type `/help` in terminal or a Discord DM for the complete command list and permission labels.
+Type `/help` in terminal or a Discord DM for command descriptions and permission labels. Terminal help is colored when
+supported; Discord help is plain and omits terminal-only commands.
 Commands are handled by application code, not the model. Terminal-only commands retain their
 existing restrictions. Discord admission rules apply before accepting non-owner commands.
 
