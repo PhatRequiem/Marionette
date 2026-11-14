@@ -5,6 +5,8 @@
 - [Current operation](active/current-operation/current-operation.md): how the implemented application works.
 - [Setup and maintenance](active/setup-and-maintenance/setup-and-maintenance.md): install, configure, run and maintain it.
 
+The [project-wide subsystem map](active/setup-and-maintenance/subsystem-map.md) defines source ownership and what subsystem replacements must preserve.
+
 Only `docs/active/` is mirrored under Self documentation in the private vault.
 The [Scarecrow connection guide](active/setup-and-maintenance/obsidian-connection.md) covers optional read-only model access to the mirror through a local Obsidian plugin.
 

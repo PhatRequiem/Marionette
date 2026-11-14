@@ -38,6 +38,8 @@ Start with the [documentation map](docs/documentation-map.md). [Current operatio
 
 ## Reviewing the code
 
+The [project-wide subsystem map](docs/active/setup-and-maintenance/subsystem-map.md) assigns source files, scripts and prompts to eight maintenance groups and records interfaces and replacement requirements. Use it to scope subsystem upgrades; the file index below provides entry points.
+
 Start with these files, in order:
 
 | File | Responsibility |
