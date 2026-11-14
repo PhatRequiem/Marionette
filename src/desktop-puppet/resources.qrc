@@ -1,3 +1,3 @@
 <RCC><qresource prefix="/">
-<file>Main.qml</file><file>assets/puppet.png</file><file>i18n/da.json</file>
+<file>Main.qml</file><file>PuppetAnimation.qml</file><file>assets/puppet-motion.png</file><file>assets/puppet.png</file><file>i18n/da.json</file>
 </qresource></RCC>

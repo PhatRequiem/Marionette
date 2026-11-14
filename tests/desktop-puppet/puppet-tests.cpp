@@ -50,6 +50,32 @@ private slots:
         QTRY_VERIFY(window->property("paused").toBool());
         QTest::keyClick(window, Qt::Key_Space);
         QTRY_VERIFY(!window->property("paused").toBool());
+        auto *character = window->findChild<QQuickItem *>("characterAnimation");
+        QVERIFY(character);
+        window->setProperty("paused", true);
+        const int stoppedFrame = character->property("frameIndex").toInt();
+        QTest::qWait(450);
+        QCOMPARE(character->property("frameIndex").toInt(), stoppedFrame);
+        window->setProperty("paused", false);
+        QVERIFY(QMetaObject::invokeMethod(character, "gesture"));
+        QTRY_COMPARE(character->property("frameIndex").toInt(), 3);
+        QTRY_COMPARE(character->property("frameIndex").toInt(), 0);
+        window->setProperty("paused", true);
+        QImage previous;
+        const QString captures = qEnvironmentVariable("PUPPET_TEST_CAPTURES");
+        for (int frame = 0; frame < 6; ++frame) {
+            character->setProperty("frameIndex", frame);
+            QTest::qWait(50);
+            const auto rendered = window->grabWindow();
+            QVERIFY(!rendered.isNull());
+            if (!previous.isNull()) QVERIFY(rendered != previous);
+            previous = rendered;
+            if (!captures.isEmpty()) {
+                QDir().mkpath(captures);
+                QVERIFY(rendered.save(captures + QString("/frame-%1.png").arg(frame)));
+            }
+        }
+        window->setProperty("paused", false);
         const auto oldX = puppet->x();
         QTest::mousePress(window, Qt::LeftButton, {}, inside);
         QTest::mouseMove(window, inside - QPoint(35, 0), 40);

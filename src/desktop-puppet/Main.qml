@@ -17,7 +17,7 @@ ApplicationWindow {
     property bool helpVisible: false
     function placeInitial() { puppet.x = Math.max(0, win.width - puppet.width - 44); puppet.y = Math.max(0, win.height - puppet.height - 44); updateInput() }
     function updateInput() { backend.inputArea(puppet.x, puppet.y, puppet.width, puppet.height) }
-    function greet() { greeting = true; greetingTimer.restart(); bounce.restart() }
+    function greet() { greeting = true; greetingTimer.restart(); character.gesture() }
     onWidthChanged: { puppet.x = Math.min(puppet.x, Math.max(0, width - puppet.width)); updateInput() }
     onHeightChanged: { puppet.y = Math.min(puppet.y, Math.max(0, height - puppet.height)); updateInput() }
     Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
@@ -50,23 +50,10 @@ ApplicationWindow {
                 text: win.helpVisible ? qsTr("Drag to move • Click to greet\nSpace: pause • Q / Esc: close") : qsTr("Hello! Here I am.")
             }
         }
-        Item {
-            id: figure
+        PuppetAnimation {
+            id: character
             y: 66; width: parent.width; height: 320
-            property real lift: 0
-            transform: [Rotation { origin.x: 140; origin.y: 290; angle: sway.angle }, Translate { y: figure.lift }]
-            QtObject { id: sway; property real angle: -1.3 }
-            SequentialAnimation {
-                running: !win.paused; loops: Animation.Infinite
-                NumberAnimation { target: sway; property: "angle"; from: -1.3; to: 1.3; duration: 1800; easing.type: Easing.InOutSine }
-                NumberAnimation { target: sway; property: "angle"; from: 1.3; to: -1.3; duration: 1800; easing.type: Easing.InOutSine }
-            }
-            SequentialAnimation {
-                id: bounce
-                NumberAnimation { target: figure; property: "lift"; to: -12; duration: 160; easing.type: Easing.OutQuad }
-                NumberAnimation { target: figure; property: "lift"; to: 0; duration: 320; easing.type: Easing.OutBounce }
-            }
-            Image { anchors.fill: parent; source: "qrc:/assets/puppet.png"; fillMode: Image.PreserveAspectFit; smooth: false; mipmap: false }
+            playing: !win.paused
         }
         MouseArea {
             id: moveArea
