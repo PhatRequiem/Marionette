@@ -115,11 +115,11 @@ Discord display names are carried as separate sender metadata over the local soc
 
 The saved owner can use `/ddm on`, `/ddm off`, or `/ddm` (show current setting)
 in terminal or a Discord DM. `/help` lists these commands. Off silently ignores
-non-owner DMs; the configured owner account remains admitted. This controls
+non-owner DMs except explicitly allowed users; the configured owner account remains admitted. This controls
 Marionette's processing and replies, not whether Discord lets someone send a DM.
 
 The setting is stored atomically with mode 600 in `data/discord/access.json`
-(`allow_other_dms`, a JSON boolean), under `MARIONETTE_DATA_DIR` when overridden.
+(`allow_other_dms`, a JSON boolean, plus optional `allowed` and `blocked` arrays of user-ID strings), under `MARIONETTE_DATA_DIR` when overridden.
 It survives application/Discord restarts and memory reset. A missing file preserves
 the existing open-access default; an unreadable or invalid file blocks non-owners.
 The owner can repair the setting with `/ddm on` or `/ddm off`. No credential edits
@@ -133,6 +133,11 @@ off does not erase earlier records or recall replies. Re-enabling does not fetch
 messages ignored while off. Owner authorization uses the saved UUID/account
 mapping, never a display name or Discord server role. The admission policy is
 shared by both foreground and background Discord launches.
+
+`/ddm allow <user>` and `/ddm block <user>` set persistent exceptions using a
+numeric Discord ID or mention. A new rule replaces the opposite rule; changing
+general access preserves exceptions. Owner access cannot be blocked. `/ddm`
+reports rule counts. See [operator commands and cancellation](../current-operation/operator-commands.md).
 
 ## Admin shutdown
 

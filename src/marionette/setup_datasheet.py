@@ -188,6 +188,8 @@ def application(api, conversation, store, bridge_bound):
     }
     access = getattr(conversation, 'discord_access', None)
     if access is not None:
+        policy = access.policy()
+        result['Discord DM exceptions'] = (f"{len(policy.get('allowed', []))} allowed; {len(policy.get('blocked', []))} blocked", 'Local admission policy; IDs omitted')
         result['Discord DMs from others'] = ('Allowed' if access.enabled() else 'Blocked', 'Local admission policy; owner remains allowed')
     purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',

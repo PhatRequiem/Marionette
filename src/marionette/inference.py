@@ -22,6 +22,8 @@ class API:
     def __init__(self, address, *, tools=()):
         self.address = address
         self.closing = threading.Event()
+        self.cancelled = threading.Event()
+        self.active_response = None
         self.worker = None
         self.capacity = 65536
         self.tools = tuple(tools)
@@ -30,6 +32,19 @@ class API:
         self.response_messages = None
         # Local traffic must not use an inherited HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def cancel_reply(self):
+        self.cancelled.set()
+        response = self.active_response
+        if response is not None:
+            try:
+                response.close()
+            except (OSError, RuntimeError):
+                pass  # Cancellation flag still stops the next stream/tool boundary.
+
+    def is_set(self):
+        # Coordinator checks this before executing each tool.
+        return self.closing.is_set() or self.cancelled.is_set()
 
     def open(self, path, body=None):
         if self.closing.is_set():
@@ -118,6 +133,7 @@ class API:
         diagnostics.log('Prepared cache timings: ' + json.dumps(result.get('timings', {})))
 
     def reply(self, messages, reserve, *, on_delta=None):
+        self.active_response = None
         self.response_messages = None
         messages = self.with_system(messages)
         # Qwen-Agent owns message conversion and streamed reasoning/answer assembly.
@@ -127,7 +143,7 @@ class API:
                 'max_retries': 0, 'seed': -1, 'max_tokens': reserve,
                 'stream_options': {'include_usage': True},
                 'extra_body': {'chat_template_kwargs': {'enable_thinking': True}}}})
-        coordinator = Coordinator(model, self.tools, self.closing)
+        coordinator = Coordinator(model, self.tools, self)
         finish = None
         answer, reasoning = '', ''
         # The framework drops finish/usage metadata. Observe SDK chunks without
@@ -141,7 +157,7 @@ class API:
 
             def create_request(**kwargs):
                 nonlocal finish
-                if self.closing.is_set():
+                if self.is_set():
                     raise RuntimeError('Session is closing.')
                 finish = None
                 requested_tool = False
@@ -160,8 +176,9 @@ class API:
                         raise ValueError('Tool request exceeds context budget; history is unchanged.')
                     diagnostics.log(f'Tool-loop prompt budget: {tokens} tokens + {reserve} reply allowance < {self.capacity}.')
                 with client.chat.completions.create(**kwargs) as response:
+                    self.active_response = response
                     for chunk in response:
-                        if self.closing.is_set():
+                        if self.is_set():
                             raise RuntimeError('Session is closing.')
                         for choice in chunk.choices:
                             requested_tool = requested_tool or bool(choice.delta.tool_calls)
@@ -193,6 +210,9 @@ class API:
                     answer, reasoning = text, thought
             except (OpenAIError, ModelServiceError, ToolServiceError, httpx.HTTPError) as error:
                 raise RuntimeError(f'Local model/tool request failed: {error}') from error
+        self.active_response = None
+        if self.cancelled.is_set():
+            raise RuntimeError('Generation cancelled.')
         if finish not in ('stop', 'length') or any(m.function_call for m in response[last_tool + 1:]):
             raise RuntimeError('Response ended without a completion status; partial reply was not kept.')
         if reasoning:

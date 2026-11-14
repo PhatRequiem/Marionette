@@ -4,6 +4,10 @@ import queue
 import select
 import sys
 import time
+import threading
+import os
+import codecs
+from contextlib import contextmanager
 
 from commands import HELP_TEXT, recognize
 from style import COLORS, enabled, paint
@@ -60,7 +64,7 @@ def show_ready(capacity, reserve):
           + ' tokens. /clear starts fresh; /resetmemory wipes memory (owner); /shutdown stops her (owner); /exit quits.')
 
 
-def display_discord(conversation):
+def display_discord(conversation, inputs=None):
     try:
         message, sender_id, future, queued_at, timings, message_id = conversation.incoming.get_nowait()
     except queue.Empty:
@@ -82,9 +86,12 @@ def display_discord(conversation):
     print(f'{message}\n', flush=True)
     color('data')
     try:
-        answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
-        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm'):
+        with (inputs or CancelInput()).watch(conversation):
+            answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
+        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
             color('meta')
+            print(answer)
+        if finish == 'cancelled':
             print(answer)
         if finish == 'length':
             color('warning')
@@ -111,6 +118,7 @@ def show_terminal_source(conversation):
 
 
 def run(conversation, *, external=False):
+    inputs = CancelInput()
     while True:
         try:
             print()
@@ -122,15 +130,15 @@ def run(conversation, *, external=False):
                     while True:
                         if getattr(conversation, 'setup_refresh', None):
                             conversation.setup_refresh()
-                        if display_discord(conversation):
+                        if display_discord(conversation, inputs):
                             if conversation.shutdown_requested:
                                 return
                             show_terminal_source(conversation)
                             color('input')
                             print('> ', end='', flush=True)
-                        if select.select([sys.stdin], [], [], .1)[0]:
+                        if not inputs.deferred.empty() or select.select([sys.stdin], [], [], .1)[0]:
                             break
-                message = input()
+                message = inputs.deferred.get_nowait() if not inputs.deferred.empty() else input()
             finally:
                 color('data')
         except EOFError:
@@ -141,7 +149,7 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'ddm'):
+        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
             try:
                 answer, finish = conversation.turn(message)
             except (ValueError, RuntimeError, OSError) as error:
@@ -157,7 +165,10 @@ def run(conversation, *, external=False):
             continue
         try:
             try:
-                answer, finish = conversation.turn(message, on_delta=ReplyDisplay())
+                with inputs.watch(conversation):
+                    answer, finish = conversation.turn(message, on_delta=ReplyDisplay())
+                if finish == 'cancelled':
+                    print(answer)
             finally:
                 color('data')
             print()
@@ -173,3 +184,40 @@ def run(conversation, *, external=False):
 
 def show_profile(profile):
     print(paint('Terminal profile: ', 'meta', enabled()) + paint(profile['name'], 'ids', enabled()))
+
+
+class CancelInput:
+    """Read interactive /cancel during a turn; preserve other typed lines in order."""
+    def __init__(self):
+        self.deferred = queue.Queue()
+
+    @contextmanager
+    def watch(self, conversation):
+        stop = threading.Event()
+        thread = None
+        if sys.stdin.isatty():
+            def read():
+                decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
+                buffered = ''
+                while not stop.is_set():
+                    if select.select([sys.stdin], [], [], .05)[0]:
+                        raw = os.read(sys.stdin.fileno(), 65536)
+                        if not raw:
+                            break
+                        buffered += decoder.decode(raw)
+                        while '\n' in buffered:
+                            line, buffered = buffered.split('\n', 1)
+                            if line.strip() == '/cancel':
+                                print('\n' + conversation.cancel(), flush=True)
+                            else:
+                                self.deferred.put(line)
+                if buffered:
+                    self.deferred.put(buffered)
+            thread = threading.Thread(target=read, name='terminal-cancel', daemon=True)
+            thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            if thread:
+                thread.join()

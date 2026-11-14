@@ -7,7 +7,8 @@ other Markdown editors.
 
 ## Refresh and open
 
-From the checkout:
+While chat is running, the owner can type `/sync` in terminal or Discord to refresh
+the full mirror immediately. From the checkout:
 
 ```bash
 ./scripts/native-linux/sync-conversation-vault.sh

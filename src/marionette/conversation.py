@@ -34,6 +34,9 @@ class Conversation:
         self.discord_control = None
         self.setup_refresh = None
         self.discord_access = None
+        self.started_at = time.monotonic()
+        self.generating = False
+        self.generation_lock = threading.Lock()
 
     def bind_log_query(self, identifier=None):
         if self.store is None or not self.session_id:
@@ -72,6 +75,8 @@ class Conversation:
         epoch = self.epoch if generation is None else generation
         if self.resetting or epoch != self.epoch:
             return 'Message discarded because memory was reset. Please send it again.', 'stop'
+        if recognize(message, 'discord') == 'cancel':
+            return self.cancel(source='discord', sender_id=str(sender_id)), 'stop'
         future = Future()
         future.memory_epoch = epoch
         future.discord_display_name = display_name
@@ -84,13 +89,26 @@ class Conversation:
                     return future.result()  # Also handle completion at the timeout boundary.
         raise RuntimeError('Session is closing.')
 
+    def cancel(self, source='terminal', sender_id=None):
+        from permissions import require_reset
+        try:
+            sender = str(sender_id) if source == 'discord' else self.terminal_profile['uuid']
+            require_reset(self.profiles.resolve(source, sender), self.profiles)
+        except (PermissionError, ValueError, TypeError, AttributeError, KeyError):
+            return 'Access Denied'
+        with self.generation_lock:
+            if not self.generating:
+                return 'No generation is running.'
+            self.api.cancel_reply()
+        return 'Cancellation requested. Completed tool actions are not undone.'
+
     def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None, display_name=None):
         identifier = diagnostics.message_id(message_id)
         with self.lock:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
-            if result[1] != 'blocked' and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help', 'ddm'):
+            if result[1] not in ('blocked', 'cancelled') and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
@@ -105,7 +123,7 @@ class Conversation:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
-        if source == 'discord' and self.discord_access is not None and not self.discord_access.enabled():
+        if source == 'discord' and self.discord_access is not None and not self.discord_access.admits(sender_id):
             from permissions import require_reset
             try:
                 require_reset(self.profiles.resolve(source, str(sender_id)) if self.profiles else None, self.profiles)
@@ -133,6 +151,9 @@ class Conversation:
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,
                                    sender_id, role, kind, content, status)
+        if recognize(message, source) in ('status', 'connections', 'context', 'sync', 'cancel'):
+            from commands import execute_operator
+            return execute_operator(self, recognize(message, source), identity), 'stop'
         if recognize(message, source) == 'ddm':
             from permissions import require_reset
             try:
@@ -140,13 +161,29 @@ class Conversation:
             except PermissionError as error:
                 return str(error), 'stop'
             parts = message.strip().split()
-            if len(parts) > 2 or (len(parts) == 2 and parts[1] not in ('on', 'off')):
-                return 'Usage: /ddm [on|off]', 'stop'
             if self.discord_access is None:
                 return 'Discord access controls are unavailable in this session.', 'stop'
+            usage = 'Usage: /ddm [on|off] or /ddm allow|block <Discord user ID or mention>'
+            if len(parts) == 3 and parts[1] in ('allow', 'block'):
+                import re
+                match = re.fullmatch(r'([0-9]+)|<@!?([0-9]+)>', parts[2])
+                if not match or not 0 < int(match[1] or match[2]) < 2**64:
+                    return usage, 'stop'
+                sender = str(int(match[1] or match[2]))
+                try:
+                    target = self.profiles.resolve('discord', sender)
+                except ValueError:
+                    target = None
+                if target and target['contact_uuid'] == self.profiles.data['owner_uuid']:
+                    return 'Owner access always stays open.', 'stop'
+                self.discord_access.set_rule(sender, parts[1] == 'allow')
+                return 'Discord user ' + sender + (' allowed.' if parts[1] == 'allow' else ' blocked.'), 'stop'
+            if len(parts) > 2 or (len(parts) == 2 and parts[1] not in ('on', 'off')):
+                return usage, 'stop'
             if len(parts) == 2:
                 self.discord_access.set_enabled(parts[1] == 'on')
-            state = 'ON — other people may DM her.' if self.discord_access.enabled() else 'OFF — other people’s DMs are ignored.'
+            policy = self.discord_access.policy()
+            state = ('ON' if policy['allow_other_dms'] else 'OFF') + ' — general access; allowed exceptions: ' + str(len(policy.get('allowed', []))) + '; blocked: ' + str(len(policy.get('blocked', []))) + '.'
             return 'Discord DMs: ' + state + ' Your access stays open.', 'stop'
         if recognize(message, source) in ('startdiscord', 'stopdiscord', 'refreshsetup'):
             from permissions import require_reset
@@ -216,8 +253,23 @@ class Conversation:
         finish = 'interrupted'
         self.api.response_messages = None
         try:
+            with self.generation_lock:
+                if hasattr(self.api, 'cancelled'):
+                    self.api.cancelled.clear()
+                self.generating = True
             answer, finish = self.api.reply(candidate, self.reserve, on_delta=record_delta if self.store is not None else on_delta)
+            with self.generation_lock:
+                if getattr(self.api, 'cancelled', None) is not None and self.api.cancelled.is_set() is True:
+                    raise RuntimeError('Generation cancelled.')
+                self.generating = False
+        except (RuntimeError, OSError) as error:
+            if getattr(self.api, 'cancelled', None) is not None and self.api.cancelled.is_set() is True:
+                finish = 'cancelled'
+                return 'Generation cancelled. Active history is unchanged; completed tool actions remain.', finish
+            raise
         finally:
+            with self.generation_lock:
+                self.generating = False
             if reasoning:
                 save('assistant', 'reasoning', ''.join(reasoning), finish)
         if not answer.strip():

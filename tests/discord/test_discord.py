@@ -73,6 +73,15 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
             await self.client.on_message(message(number=3, owner=123))
             self.request.assert_called_once()
 
+    async def test_cancel_reaches_main_chat_while_adapter_turn_lock_is_held(self):
+        self.request.side_effect = None
+        self.request.return_value = {'answer':'Cancellation requested', 'finish':'stop'}
+        incoming = message(owner=123, content='/cancel')
+        async with self.client.turn_lock:
+            await asyncio.wait_for(self.client.on_message(incoming), 1)
+        self.request.assert_awaited_once()
+        self.assertEqual(incoming.channel.send.await_args.args[0], 'Cancellation requested')
+
     async def asyncSetUp(self):
         self.api = FakeAPI()
         temporary = tempfile.TemporaryDirectory()

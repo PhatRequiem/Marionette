@@ -144,7 +144,11 @@ class DMChat(discord.Client):
         # Filter before reading/logging content or touching conversation history.
         if (message.author.bot or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
             return
-        if message.author.id != self.owner and not self.access.enabled():
+        if message.author.id != self.owner and not self.access.admits(message.author.id):
+            return
+        if message.content.strip() == '/cancel':
+            result = await request(self.address, '/cancel', message.author.id)
+            await self.send_parts(message.channel, result['answer'], {'message_id': str(message.id)}, kind='notice')
             return
         memory_epoch = current_generation(self.address)
         received = datetime.datetime.now(datetime.timezone.utc)
@@ -156,7 +160,7 @@ class DMChat(discord.Client):
             receipt_delay_ms=round((received - message.created_at).total_seconds() * 1000, 2),
             heartbeat_ms=self.heartbeat_ms())
         async with self.turn_lock:
-            if message.author.id != self.owner and not self.access.enabled():
+            if message.author.id != self.owner and not self.access.admits(message.author.id):
                 return
             if memory_epoch != current_generation(self.address):
                 return  # A queued pre-reset DM must not repopulate cleared memory.

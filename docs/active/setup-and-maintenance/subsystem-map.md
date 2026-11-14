@@ -114,9 +114,9 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 **Current connections:** terminal drives the main processing loop; Discord submits through the local socket and Conversation's queue. `LocalConnection` is currently a Discord-shaped protocol, including sender ID validation, not a generic transport API. Discord lifecycle and status are connected to Application core and diagnostic probes. Shared style functions are also used by diagnostic views.
 
-**Preserve on replacement:** identity and correlation metadata; queueing/serialization; reset-generation rejection; owner authorization for controls; persistent DM admission policy with owner access preserved and checks before content processing and after queue waits; final-answer-only Discord delivery; delivery/error observations distinct from generation success; supported background start/stop and recorder shutdown; no credential disclosure. Preserve one-to-one human DM scope unless expanding it is separately authorized.
+**Preserve on replacement:** identity and correlation metadata; queueing/serialization; reset-generation rejection; owner authorization for controls; responsive cancellation without shutdown or partial-history commits; persistent DM admission policy with owner access preserved and checks before content processing and after queue waits; final-answer-only Discord delivery; delivery/error observations distinct from generation success; supported background start/stop and recorder shutdown; no credential disclosure. Preserve one-to-one human DM scope unless expanding it is separately authorized.
 
-**Checks:** `tests/core/test_connection.py`, `test_discord_control.py`, `test_client.py`, `test_message_logs.py`, and `tests/discord/test_discord.py`, `test_launcher.py`. See [Discord operation](discord.md) and root `STARTUP.md`. Mocked transport tests do not prove live Discord delivery or reconnect reliability.
+**Checks:** `tests/core/test_connection.py`, `test_discord_control.py`, `test_client.py`, `test_operator_commands.py`, `test_message_logs.py`, and `tests/discord/test_discord.py`, `test_launcher.py`. See [Discord operation](discord.md) and root `STARTUP.md`. Mocked transport tests do not prove live Discord delivery or reconnect reliability.
 
 ## Scarecrow
 

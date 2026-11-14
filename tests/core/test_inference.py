@@ -69,3 +69,20 @@ class InferenceTests(unittest.TestCase):
             self.assertEqual(content.count('## ' + name), 1)
         api.tools = ()
         self.assertEqual(api.with_system(message)[0]['content'], api.system_prompt)
+
+    def test_cancel_stream_does_not_commit_partial_response_or_close_session(self):
+        events = [
+            {'choices': [{'delta': {'content': 'Partial'}}]},
+            {'choices': [{'delta': {'content': ' answer'}, 'finish_reason': 'stop'}]},
+        ]
+        payload = (''.join('data: ' + json.dumps(e) + '\n\n' for e in events) + 'data: [DONE]\n\n').encode()
+        sdk = OpenAI(base_url='http://127.0.0.1:1/v1', api_key='EMPTY',
+            http_client=httpx.Client(transport=httpx.MockTransport(lambda request:
+                httpx.Response(200, headers={'content-type':'text/event-stream'}, content=payload))))
+        api = API('http://127.0.0.1:1')
+        with patch('inference.OpenAI', return_value=sdk), patch('diagnostics.log'):
+            with self.assertRaises(RuntimeError):
+                api.reply([{'role':'user','content':'test'}], 100, on_delta=lambda *_: api.cancel_reply())
+        self.assertTrue(api.cancelled.is_set())
+        self.assertFalse(api.closing.is_set())
+        self.assertIsNone(api.response_messages)

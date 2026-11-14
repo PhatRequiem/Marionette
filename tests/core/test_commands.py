@@ -123,7 +123,8 @@ class CommandTests(unittest.TestCase):
             api.reply.assert_not_called()
             api.count.assert_not_called()
         commands = ('help', 'ddm [on|off]', 'clear', 'resetmemory', 'shutdown', 'startdiscord',
-                    'stopdiscord', 'refreshsetup', 'exit')
+                    'stopdiscord', 'refreshsetup', 'exit', 'status', 'connections', 'context', 'sync', 'cancel',
+                    'ddm allow <user>', 'ddm block <user>')
         self.assertEqual(len(HELP_TEXT.splitlines()), len(commands) + 1)
         for command in commands:
             self.assertIn('/' + command + ' — ', HELP_TEXT)

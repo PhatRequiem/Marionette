@@ -16,3 +16,5 @@ For installation and upkeep, see [Setup and maintenance](../setup-and-maintenanc
 - [Reset memory from chat](reset-memory.md)
 - [Soul](soul.md)
 - [Conversation and diagnostic storage](storage.md)
+
+- [Operator commands](operator-commands.md): status, context, connections, sync, cancellation and per-user DM rules.
