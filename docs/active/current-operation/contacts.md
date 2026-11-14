@@ -56,6 +56,9 @@ this help; unknown Discord commands retain their ordinary-message behavior.
 
 `/resetmemory` separately requires the resolved contact UUID and source/account to match the saved owner. It resets all local memory; see [live reset](reset-memory.md). `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
 
+`/ddm [on|off]` uses saved-owner authorization in terminal and Discord to control
+other people’s DM access; `/ddm` reports the setting. See [DM access control](../setup-and-maintenance/discord.md#dm-access-control).
+
 `/shutdown` uses the same saved-owner authorization as `/resetmemory`, on both
 terminal and Discord, but performs an orderly stop without deleting memory.
 Discord server admin roles are not mapped to Marionette ownership.

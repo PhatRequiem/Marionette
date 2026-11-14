@@ -111,6 +111,29 @@ status endpoint does not expose a model tool.
 
 Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Name capture occurs when a message arrives. See [name preservation and fallback rules](../current-operation/contacts.md).
 
+## DM access control
+
+The saved owner can use `/ddm on`, `/ddm off`, or `/ddm` (show current setting)
+in terminal or a Discord DM. `/help` lists these commands. Off silently ignores
+non-owner DMs; the configured owner account remains admitted. This controls
+Marionette's processing and replies, not whether Discord lets someone send a DM.
+
+The setting is stored atomically with mode 600 in `data/discord/access.json`
+(`allow_other_dms`, a JSON boolean), under `MARIONETTE_DATA_DIR` when overridden.
+It survives application/Discord restarts and memory reset. A missing file preserves
+the existing open-access default; an unreadable or invalid file blocks non-owners.
+The owner can repair the setting with `/ddm on` or `/ddm off`. No credential edits
+or bot restart are needed after a command. Setup snapshots and their existing
+Obsidian copies refresh after the command.
+
+The adapter checks before reading/logging message content and again after its
+queue wait. Main chat checks the saved owner mapping before registering contacts
+or processing a queued DM. Already admitted/in-progress work can finish; turning
+off does not erase earlier records or recall replies. Re-enabling does not fetch
+messages ignored while off. Owner authorization uses the saved UUID/account
+mapping, never a display name or Discord server role. The admission policy is
+shared by both foreground and background Discord launches.
+
 ## Admin shutdown
 
 The saved owner can send `/shutdown` in a DM or main terminal. Code resolves the

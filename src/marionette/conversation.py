@@ -33,6 +33,7 @@ class Conversation:
         self.shutdown_requested = False
         self.discord_control = None
         self.setup_refresh = None
+        self.discord_access = None
 
     def bind_log_query(self, identifier=None):
         if self.store is None or not self.session_id:
@@ -89,12 +90,12 @@ class Conversation:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
-            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help'):
+            if result[1] != 'blocked' and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help', 'ddm'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
             if self.setup_refresh is not None:
-                self.setup_refresh(reason='command' if result[0] != 'Access Denied' and recognize(message, source) in ('startdiscord', 'stopdiscord', 'resetmemory') else None)
+                self.setup_refresh(reason='command' if result[0] != 'Access Denied' and recognize(message, source) in ('startdiscord', 'stopdiscord', 'resetmemory', 'ddm') else None)
             return result
 
     def _turn(self, message, *, on_delta, source, sender_id, identifier, display_name=None):
@@ -104,6 +105,12 @@ class Conversation:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
+        if source == 'discord' and self.discord_access is not None and not self.discord_access.enabled():
+            from permissions import require_reset
+            try:
+                require_reset(self.profiles.resolve(source, str(sender_id)) if self.profiles else None, self.profiles)
+            except (ValueError, PermissionError):
+                return 'Discord DMs are currently limited to the owner.', 'blocked'
         if recognize(message, source) == 'help':
             return HELP_TEXT, 'stop'
         identity = None
@@ -126,6 +133,21 @@ class Conversation:
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,
                                    sender_id, role, kind, content, status)
+        if recognize(message, source) == 'ddm':
+            from permissions import require_reset
+            try:
+                require_reset(identity, self.profiles)
+            except PermissionError as error:
+                return str(error), 'stop'
+            parts = message.strip().split()
+            if len(parts) > 2 or (len(parts) == 2 and parts[1] not in ('on', 'off')):
+                return 'Usage: /ddm [on|off]', 'stop'
+            if self.discord_access is None:
+                return 'Discord access controls are unavailable in this session.', 'stop'
+            if len(parts) == 2:
+                self.discord_access.set_enabled(parts[1] == 'on')
+            state = 'ON — other people may DM her.' if self.discord_access.enabled() else 'OFF — other people’s DMs are ignored.'
+            return 'Discord DMs: ' + state + ' Your access stays open.', 'stop'
         if recognize(message, source) in ('startdiscord', 'stopdiscord', 'refreshsetup'):
             from permissions import require_reset
             try:

@@ -186,6 +186,9 @@ def application(api, conversation, store, bridge_bound):
         'Conversation storage': ('SQLite open; schema ' + str(store.db.execute('PRAGMA user_version').fetchone()[0]) if store is not None else 'Not attached', 'Open database connection'),
         'Thinking template': ('Enabled', 'Configured: application request'),
     }
+    access = getattr(conversation, 'discord_access', None)
+    if access is not None:
+        result['Discord DMs from others'] = ('Allowed' if access.enabled() else 'Blocked', 'Local admission policy; owner remains allowed')
     purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',
                 'query_logs': 'Read setup, status and current-conversation diagnostics',

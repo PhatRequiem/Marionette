@@ -52,6 +52,8 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     api.prepare([])
     conversation = Conversation(api, capacity, profiles, selected, ContactNotes(data / 'contact_notes'),
                                 store, session_id, soul=soul)
+    from discord_access import DiscordAccess
+    conversation.discord_access = DiscordAccess(data)
     conversation.bind_log_query()
     diagnostics.log(f'Context policy: capacity={capacity}, reply_budget={conversation.reserve}, '
         f'next_message_allowance={min(2048, capacity // 8)}; no setup report.')

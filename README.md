@@ -10,7 +10,7 @@ For quick experiments, the owner can send [`/resetmemory`](docs/active/current-o
 
 For a new installation, see [local setup](docs/active/setup-and-maintenance/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 
-Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then type `/startdiscord` as the owner to attach Discord in the background. `/stopdiscord` disconnects it; connection events appear in Connections and requests. It accepts human one-to-one DMs, sends only final answers to Discord, and displays messages and replies in main chat, with reasoning in its separate terminal and local logs. Discord requires an account and internet access; the terminal mode remains offline.
+Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/discord.md). Launch her first, then type `/startdiscord` as the owner to attach Discord in the background. `/stopdiscord` disconnects it; connection events appear in Connections and requests. The owner can use `/ddm off` or `/ddm on` to control other people’s DM access. It accepts human one-to-one DMs, sends only final answers to Discord, and displays messages and replies in main chat, with reasoning in its separate terminal and local logs. Discord requires an account and internet access; the terminal mode remains offline.
 
 ## Status and architecture
 
@@ -46,6 +46,7 @@ Start with these files, in order:
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and three live views |
 | [setup_datasheet.py](src/marionette/setup_datasheet.py) | Refresh the marked [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md) section from startup and observed configuration changes |
+| [discord_access.py](src/marionette/discord_access.py) | Persist Discord DM admission policy shared by main chat and the adapter |
 | [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
 | [conversation.py](src/marionette/conversation.py) | Separate histories, sequential turns, identity resolution, and permission checks |

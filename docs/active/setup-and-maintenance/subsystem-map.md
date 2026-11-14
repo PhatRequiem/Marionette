@@ -16,7 +16,7 @@ Paths in the Python column are relative to `src/marionette/`. Script paths are r
 | **Personal memory** | `contacts.py`, `contact_notes.py`, `soul.py`, `data_migration.py` | `contact-notes.md`, `soul.md` prompts |
 | **Conversation archive** | `storage.py`, `conversation_refs.py`, `conversation_vault.py` | `storage.sh`, `sync-conversation-vault.sh` |
 | **Diagnostics** | `diagnostics.py`, `ram_logs.py`, `retention.py`, `log_router.py`, `log_metadata.py`, `log_view.py`, `log_query.py`, `log_tool.py`, `setup_datasheet.py` | `view-log.sh`, `log-query.sh`; `log-queries.md`, `log-results.md` prompts |
-| **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt` |
+| **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `discord_access.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt` |
 | **Scarecrow** | `vault_tool.py`, `vault_diagnostics.py` | All of `plugins/scarecrow/`: `main.js`, `server.js`, `operations.js`, `search.js`, `passages.js`, `manifest.json`, `LICENSE`; `setup-scarecrow.py`; `vault.md` prompt |
 
 Application-wide rules remain in root `AGENTS.md`; repository navigation remains in root `README.md`. Active guides describe behavior and maintenance, while development reports are historical evidence. Neither an experiment nor an idea changes subsystem ownership or authorizes implementation.
@@ -114,7 +114,7 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 **Current connections:** terminal drives the main processing loop; Discord submits through the local socket and Conversation's queue. `LocalConnection` is currently a Discord-shaped protocol, including sender ID validation, not a generic transport API. Discord lifecycle and status are connected to Application core and diagnostic probes. Shared style functions are also used by diagnostic views.
 
-**Preserve on replacement:** identity and correlation metadata; queueing/serialization; reset-generation rejection; owner authorization for controls; final-answer-only Discord delivery; delivery/error observations distinct from generation success; supported background start/stop and recorder shutdown; no credential disclosure. Preserve one-to-one human DM scope unless expanding it is separately authorized.
+**Preserve on replacement:** identity and correlation metadata; queueing/serialization; reset-generation rejection; owner authorization for controls; persistent DM admission policy with owner access preserved and checks before content processing and after queue waits; final-answer-only Discord delivery; delivery/error observations distinct from generation success; supported background start/stop and recorder shutdown; no credential disclosure. Preserve one-to-one human DM scope unless expanding it is separately authorized.
 
 **Checks:** `tests/core/test_connection.py`, `test_discord_control.py`, `test_client.py`, `test_message_logs.py`, and `tests/discord/test_discord.py`, `test_launcher.py`. See [Discord operation](discord.md) and root `STARTUP.md`. Mocked transport tests do not prove live Discord delivery or reconnect reliability.
 

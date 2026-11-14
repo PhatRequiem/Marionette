@@ -13,6 +13,7 @@ import sys
 import discord
 
 from connection import request
+from discord_access import DiscordAccess
 from reset_boundary import current_generation, marker
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,6 +90,7 @@ class DMChat(discord.Client):
         super().__init__(intents=intents, allowed_mentions=discord.AllowedMentions.none(),
                          max_messages=None)
         self.address, self.owner = address, owner
+        self.access = DiscordAccess(Path(address).parent.parent)
         self.turn_lock = asyncio.Lock()
         self.last_message_ids = {}
         self.disconnected_at = None
@@ -142,6 +144,8 @@ class DMChat(discord.Client):
         # Filter before reading/logging content or touching conversation history.
         if (message.author.bot or message.guild is not None or not isinstance(message.channel, discord.DMChannel)):
             return
+        if message.author.id != self.owner and not self.access.enabled():
+            return
         memory_epoch = current_generation(self.address)
         received = datetime.datetime.now(datetime.timezone.utc)
         started = time.monotonic()
@@ -152,6 +156,8 @@ class DMChat(discord.Client):
             receipt_delay_ms=round((received - message.created_at).total_seconds() * 1000, 2),
             heartbeat_ms=self.heartbeat_ms())
         async with self.turn_lock:
+            if message.author.id != self.owner and not self.access.enabled():
+                return
             if memory_epoch != current_generation(self.address):
                 return  # A queued pre-reset DM must not repopulate cleared memory.
             if memory_epoch:
@@ -183,6 +189,9 @@ class DMChat(discord.Client):
                     local_start = time.monotonic()
                     result = await request(self.address, text, message.author.id, message_id=context['log_message_id'], generation=memory_epoch, display_name=message.author.display_name)
                     answer, finish = result['answer'], result['finish']
+                    if finish == 'blocked':
+                        outcome = 'blocked'
+                        return
                     if finish == 'resetmemory':
                         memory_epoch = current_generation(self.address)
                         sys.stdout.buffer.write(marker(memory_epoch)+b'\n')

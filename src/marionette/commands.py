@@ -4,6 +4,7 @@ from permissions import require_command
 
 HELP_TEXT = """Available commands:
 /help — Show all commands and their descriptions.
+/ddm [on|off] — Allow or ignore other people’s Discord DMs; omit on/off to check. Your access stays open. (owner only)
 /clear — Clear this conversation's active context; keep saved records and notes.
 /resetmemory — Reset personal memory, conversations and logs; keep permanent IDs and owner mapping. Model stays loaded. (owner only)
 /shutdown — Shut down Marionette and disconnect Discord; keep saved memory. (owner only)
@@ -16,6 +17,8 @@ HELP_TEXT = """Available commands:
 def recognize(message, source):
     """Recognize shared commands while preserving terminal-only controls."""
     command = message.strip()
+    if command.split()[:1] == ['/ddm']:
+        return 'ddm'
     if command == '/help':
         return 'help'
     if command == '/shutdown':

@@ -51,6 +51,28 @@ class FakeAPI:
 
 
 class DMTests(unittest.IsolatedAsyncioTestCase):
+    async def test_dm_access_blocks_before_content_and_rechecks_queued_messages(self):
+        from discord_access import DiscordAccess
+        with tempfile.TemporaryDirectory() as directory:
+            self.client.access = DiscordAccess(directory)
+            self.client.access.set_enabled(False)
+            blocked = message(owner=456)
+            await self.client.on_message(blocked)
+            self.request.assert_not_called()
+            blocked.channel.send.assert_not_called()
+            self.events.assert_not_called()
+            self.transcript.assert_not_called()
+            self.client.access.set_enabled(True)
+            await self.client.turn_lock.acquire()
+            queued = asyncio.create_task(self.client.on_message(message(number=2, owner=456)))
+            await asyncio.sleep(0)
+            self.client.access.set_enabled(False)
+            self.client.turn_lock.release()
+            await queued
+            self.request.assert_not_called()
+            await self.client.on_message(message(number=3, owner=123))
+            self.request.assert_called_once()
+
     async def asyncSetUp(self):
         self.api = FakeAPI()
         temporary = tempfile.TemporaryDirectory()

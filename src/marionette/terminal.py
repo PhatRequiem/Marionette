@@ -83,7 +83,7 @@ def display_discord(conversation):
     color('data')
     try:
         answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
-        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help'):
+        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm'):
             color('meta')
             print(answer)
         if finish == 'length':
@@ -141,7 +141,7 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup'):
+        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'ddm'):
             try:
                 answer, finish = conversation.turn(message)
             except (ValueError, RuntimeError, OSError) as error:

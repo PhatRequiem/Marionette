@@ -34,6 +34,10 @@ are owner-only and terminal-only; they do not call the model.
 The existing `./scripts/native-linux/discord.sh` foreground launch remains
 available if you want a dedicated Discord terminal instead.
 
+Use `/ddm off` to ignore DMs from everyone except you, `/ddm on` to allow
+other people again, or `/ddm` to check. These owner-only commands work in terminal
+and Discord; the setting survives restarts.
+
 Wait for **Discord ready**, then DM her. Connections and requests shows the Discord connection logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal displays messages and answers; the Reasoning terminal shows reasoning for both chat sources.
 
 ## Stop or start fresh

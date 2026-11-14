@@ -122,8 +122,44 @@ class CommandTests(unittest.TestCase):
             self.assertIsNone(conversation.pending)
             api.reply.assert_not_called()
             api.count.assert_not_called()
-        commands = ('help', 'clear', 'resetmemory', 'shutdown', 'startdiscord',
+        commands = ('help', 'ddm [on|off]', 'clear', 'resetmemory', 'shutdown', 'startdiscord',
                     'stopdiscord', 'refreshsetup', 'exit')
         self.assertEqual(len(HELP_TEXT.splitlines()), len(commands) + 1)
         for command in commands:
             self.assertIn('/' + command + ' — ', HELP_TEXT)
+
+    def test_ddm_owner_policy_persists_and_blocks_queued_nonowner_before_registration(self):
+        import tempfile
+        import threading
+        from contacts import ContactProfiles
+        from conversation import Conversation
+        from discord_access import DiscordAccess
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
+            profiles = ContactProfiles(Path(directory) / 'profiles.json')
+            owner = profiles.profiles[0]
+            owner['linked_accounts'] = [{'service': 'discord', 'account_id': '123'}]
+            profiles.save()
+            guest = profiles.add('Guest')
+            api = Mock(closing=threading.Event())
+            convo = Conversation(api, 8192, profiles, owner)
+            convo.discord_access = DiscordAccess(directory)
+            self.assertTrue(convo.discord_access.enabled())
+            self.assertIn('OFF', convo.turn('/ddm off')[0])
+            self.assertFalse(DiscordAccess(directory).enabled())
+            self.assertEqual(convo.discord_access.path.stat().st_mode & 0o777, 0o600)
+            before = len(profiles.profiles)
+            self.assertIn('limited to the owner', convo.turn('private input', source='discord', sender_id='456')[0])
+            self.assertEqual(len(profiles.profiles), before)
+            self.assertIn('OFF', convo.turn('/ddm', source='discord', sender_id='123')[0])
+            self.assertIn('ON', convo.turn('/ddm on', source='discord', sender_id='123')[0])
+            self.assertIn('Usage:', convo.turn('/ddm maybe')[0])
+            self.assertTrue(convo.discord_access.enabled())
+            convo.terminal_profile = guest
+            self.assertEqual(convo.turn('/ddm off')[0], 'Access Denied')
+            self.assertEqual(convo.turn('/ddm off', source='discord', sender_id='456')[0], 'Access Denied')
+            self.assertTrue(convo.discord_access.enabled())
+            convo.discord_access.path.write_text('invalid')
+            self.assertFalse(convo.discord_access.enabled())
+            self.assertIn('ON', convo.turn('/ddm on', source='discord', sender_id='123')[0])
+            api.reply.assert_not_called()
+            self.assertIsNone(convo.pending)
