@@ -103,8 +103,11 @@ Conversation commands are checked by [command permissions](../current-operation/
 The [operator query handler](../current-operation/log-queries.md) can request fresh Discord status
 from a same-user private socket in the existing bot process. The response is
 `online`, `connecting`, or `offline`; an unreachable probe means `unknown`.
-Restart the adapter after updating code to enable this endpoint. It neither
-updates the startup datasheet nor exposes a model tool.
+Restart the adapter after updating code to enable this endpoint. Adapter startup and
+orderly exit notify main chat to refresh the setup datasheet and its existing Obsidian
+copy. Owned background-process exit also triggers refresh. The sheet records process
+presence, not Discord network health; transient reconnects do not rewrite it. The
+status endpoint does not expose a model tool.
 
 Discord display names are carried as separate sender metadata over the local socket, never parsed from message text. Saved names are retained after initial capture; legacy generated numeric labels are filled on the next DM. Numeric Discord IDs and permanent contact UUIDs still identify senders and route conversations. Name capture occurs when a message arrives. See [name preservation and fallback rules](../current-operation/contacts.md).
 

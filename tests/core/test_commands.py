@@ -86,3 +86,23 @@ class CommandTests(unittest.TestCase):
                 api.reply.assert_not_called()
                 self.assertIsNone(conversation.pending)
                 self.assertFalse(api.closing.is_set())  # UI returns through normal cleanup.
+
+    def test_manual_setup_refresh_is_owner_terminal_only_and_never_generates(self):
+        import tempfile
+        import threading
+        from contacts import ContactProfiles
+        from conversation import Conversation
+        self.assertEqual(recognize('/refreshsetup','terminal'),'refreshsetup')
+        self.assertIsNone(recognize('/refreshsetup','discord'))
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
+            profiles=ContactProfiles(Path(directory)/'profiles.json')
+            owner=profiles.profiles[0];guest=profiles.add('Guest')
+            for selected in (owner,guest):
+                api=Mock(closing=threading.Event())
+                convo=Conversation(api,8192,profiles,selected)
+                convo.setup_refresh=Mock(return_value='updated')
+                answer,_=convo.turn('/refreshsetup')
+                forced=[c for c in convo.setup_refresh.call_args_list if c.kwargs.get('force')]
+                self.assertEqual(len(forced),1 if selected is owner else 0)
+                self.assertEqual(answer,'Setup datasheet: updated' if selected is owner else 'Access Denied')
+                api.reply.assert_not_called();self.assertIsNone(convo.pending)

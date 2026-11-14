@@ -100,7 +100,7 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 ## Diagnostics
 
-**Responsibility:** event identities/scopes, rolling RAM capture, protected error evidence, shutdown saving, operator views, searchable diagnostic metadata and the scoped log-query tool. Startup observations belong here even though Application core triggers their capture.
+**Responsibility:** event identities/scopes, rolling RAM capture, protected error evidence, shutdown saving, operator views, searchable diagnostic metadata and the scoped log-query tool. Setup observations and their existing Obsidian copy belong here even though Application core and Communication trigger their capture. Preserve event-driven refresh, owner-only manual refresh, and the rule that refresh cannot recreate a reset vault; see [refresh triggers](setup-datasheet.md#refresh-triggers).
 
 **Current connections:** `diagnostics.write/log` is the common emission interface. RAM recording, retention and log queries also use shared SQL schemas and each other's helpers; `storage.py` and `ram_logs.py` have mutual dependencies. Queries combine durable/live events and Communication/Scarecrow status probes. `log_view.py` uses Communication's style helpers. There is no complete replaceable recorder/storage interface yet.
 

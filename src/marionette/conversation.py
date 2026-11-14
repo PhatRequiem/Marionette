@@ -32,6 +32,7 @@ class Conversation:
         self.resetting = False
         self.shutdown_requested = False
         self.discord_control = None
+        self.setup_refresh = None
 
     def bind_log_query(self, identifier=None):
         if self.store is None or not self.session_id:
@@ -88,10 +89,12 @@ class Conversation:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
-            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord'):
+            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
+            if self.setup_refresh is not None:
+                self.setup_refresh(reason='command' if result[0] != 'Access Denied' and recognize(message, source) in ('startdiscord', 'stopdiscord', 'resetmemory') else None)
             return result
 
     def _turn(self, message, *, on_delta, source, sender_id, identifier, display_name=None):
@@ -121,12 +124,14 @@ class Conversation:
             if self.store is not None:
                 self.store.message(self.session_id, identifier, self.key, identity, source,
                                    sender_id, role, kind, content, status)
-        if recognize(message, source) in ('startdiscord', 'stopdiscord'):
+        if recognize(message, source) in ('startdiscord', 'stopdiscord', 'refreshsetup'):
             from permissions import require_reset
             try:
                 require_reset(identity, self.profiles)
             except PermissionError as error:
                 return str(error), 'stop'
+            if recognize(message, source) == 'refreshsetup':
+                return ('Setup datasheet: ' + self.setup_refresh(force=True) if self.setup_refresh else 'Setup refresh unavailable.'), 'stop'
             if self.discord_control is None:
                 return 'Discord controls are unavailable in this session.', 'stop'
             action = self.discord_control.start if recognize(message, source) == 'startdiscord' else self.discord_control.stop

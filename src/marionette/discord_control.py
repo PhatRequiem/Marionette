@@ -15,6 +15,7 @@ class DiscordControl:
         self.database, self.session = database, session
         self.root = Path(root) if root else Path(__file__).resolve().parents[2]
         self.bot = self.recorder = self.watcher = None
+        self.on_setup_change = None
 
     def start(self):
         if self.watcher and self.watcher.is_alive():
@@ -70,6 +71,8 @@ class DiscordControl:
                 diagnostics.log(f'Discord background stopped: bot_status={bot_code}; recorder_status={recorder_code}.')
             finally:
                 lock.close()
+                if self.on_setup_change:
+                    self.on_setup_change()
         self.watcher = threading.Thread(target=finished, daemon=True)
         self.watcher.start()
         diagnostics.log('Discord background starting; connection status appears in Connections and requests.')
@@ -97,6 +100,17 @@ class DiscordControl:
         if self.address and request_stop(self.address):
             return 'Discord disconnect requested. Watch Connections and requests for shutdown.'
         return 'Discord is not running, or its control connection is unavailable.'
+
+    def observed_state(self):
+        from operator_status import probe
+        if self.address and probe(self.address):
+            return 'Running'
+        if self.bot is not None:
+            code = self.bot.poll()
+            if code is None:
+                return 'Starting (process alive)'
+            return 'Stopped' if code == 0 else 'Stopped after process failure'
+        return 'Not observed running'
 
     def close(self):
         if self.watcher and self.watcher.is_alive():

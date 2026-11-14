@@ -241,14 +241,16 @@ def main():
                         async with bot.turn_lock:
                             await bot.close()
                         return
-            from operator_status import start as start_status
+            from operator_status import start as start_status, notify_setup
             status_server = await start_status(bot, ADDRESS)
+            await asyncio.to_thread(notify_setup, ADDRESS)
             watcher = asyncio.create_task(watch_session())
             try:
                 await bot.start(token)
             finally:
                 status_server.close()
                 await status_server.wait_closed()
+                await asyncio.to_thread(notify_setup, ADDRESS)
                 watcher.cancel()
                 await asyncio.gather(watcher, return_exceptions=True)
     asyncio.run(serve())

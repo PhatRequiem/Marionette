@@ -72,7 +72,7 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
                     'processing': 'busy' if conversation.lock.locked() else 'idle',
                     'cache_preparation': bool(api.worker and api.worker.is_alive()),
                     'observed_at': datetime.now(timezone.utc).isoformat()}
-        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status)
+        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status, setup_changed=lambda: getattr(conversation, 'setup_signal', lambda: None)())
     else:
         connection = nullcontext()
     from discord_control import DiscordControl
@@ -80,9 +80,12 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     conversation.discord_control = DiscordControl(data, address, database, session_id)
     try:
         from vault_diagnostics import VaultDiagnostics
-        with connection, VaultDiagnostics(data):
+        with connection, VaultDiagnostics(data, on_setup_change=lambda: getattr(conversation, 'setup_signal', lambda: None)()) as monitor:
             if on_startup is not None:
                 on_startup(conversation, bool(address))
+                if getattr(conversation, 'setup_controller', None):
+                    conversation.setup_controller.monitor = monitor
+                    conversation.discord_control.on_setup_change = conversation.setup_controller.signal
             terminal.show_ready(capacity, conversation.reserve)
             terminal.run(conversation, external=bool(address))
     finally:
@@ -99,8 +102,9 @@ def run(command):
     def refresh(status, capacity=None):
         try:
             setup_datasheet.update(datasheet, status, setup_facts, capacity=capacity, details=setup_details)
-        except (OSError, ValueError) as error:
-            diagnostics.log(f'Setup datasheet update failed ({type(error).__name__}); previous file left intact.')
+            setup_datasheet.mirror_copy(datasheet, os.environ.get('MARIONETTE_LOG_DB'))
+        except (OSError, ValueError, sqlite3.Error) as error:
+            diagnostics.log(f'Setup datasheet update failed ({type(error).__name__}); source or mirror may be stale.')
     refresh('starting')
     startup_verified = False
     api = None
@@ -157,8 +161,13 @@ def run(command):
         with closing(Store(database)) if database else nullcontext() as store:
             def capture_application(conversation, bridge_bound):
                 nonlocal startup_verified
-                setup_details.update(setup_datasheet.application(api, conversation, store, bridge_bound))
-                refresh('ready', capacity)
+                controller = setup_datasheet.SetupRefresh(datasheet, setup_facts, setup_details,
+                    conversation, bridge_bound, Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2]/'data')),
+                    database, command)
+                conversation.setup_controller = controller
+                conversation.setup_refresh = controller.refresh
+                conversation.setup_signal = controller.signal
+                controller.refresh(reason='startup')
                 startup_verified = True
             chat(api, capacity, store, os.environ.get('MARIONETTE_LOG_SESSION'), on_startup=capture_application)
         return 0

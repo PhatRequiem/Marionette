@@ -8,7 +8,7 @@ For implemented behavior and feature limits, see [Current operation](../current-
 - [Browse saved conversations in Obsidian](conversation-vault.md)
 - [Discord DMs](discord.md)
 - [Active software and model licenses](licenses.md)
-- [Setup datasheet](setup-datasheet.md): the last startup attempt, not live status
+- [Setup datasheet](setup-datasheet.md): startup evidence and latest observed configuration, not live health
 - [Native Linux terminal chat](setup.md)
 
 - [Scarecrow Obsidian connection](obsidian-connection.md)

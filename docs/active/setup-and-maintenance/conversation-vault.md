@@ -34,6 +34,11 @@ For a completed session export, stop chat and Discord cleanly first. `MARIONETTE
 selects an alternate database directory; the vault stays beside that database.
 Alternate log locations require operator review for memory reset, as before.
 
+The [setup datasheet](setup-datasheet.md) also updates its existing mirror immediately
+after setup/configuration refreshes, at the next safe main-chat boundary. This copies
+only that document, not conversations or other pages. Missing mirrors are not
+created by this path, including after memory reset; use the sync command above.
+
 ## Contents and ownership
 
 - `Generated/Contacts/<name>-<ID hash>/<name>.md`: contact name/ID and links to

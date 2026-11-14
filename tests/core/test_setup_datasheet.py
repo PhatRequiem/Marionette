@@ -127,3 +127,97 @@ class DatasheetTests(unittest.TestCase):
         self.assertEqual(details['Registered tools'][0],'None')
         self.assertEqual(details['Conversation storage'][0],'Not attached')
         self.assertEqual(details['Discord bridge'][0],'Disabled')
+
+
+class RefreshTests(unittest.TestCase):
+    def setUp(self):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        import sqlite3
+        temp=tempfile.TemporaryDirectory();self.addCleanup(temp.cleanup)
+        self.root=Path(temp.name);self.path=self.root/'setup.md'
+        self.path.write_text('intro\n'+sheet.START+'\nold\n'+sheet.END+'\nend\n')
+        self.database=self.root/'conversations/test.sqlite3';self.database.parent.mkdir()
+        sqlite3.connect(self.database).close()
+        self.vault=self.database.parent/'obsidian-vault'
+        self.marker=self.vault/'Generated/.marionette-managed'
+        self.target=self.vault/'Generated/Self documentation/active/setup-and-maintenance/setup-datasheet.md'
+        self.target.parent.mkdir(parents=True);self.target.write_text('old mirror');self.marker.write_text('managed')
+        self.c=SimpleNamespace(api=SimpleNamespace(tools=(),json=Mock(return_value={'default_generation_settings':{'params':{'temp':0.8}}})),
+            capacity=8192,epoch='initial',store=None,contact_notes=None,soul=None,
+            discord_control=Mock(),finish_preparation=Mock())
+        self.c.discord_control.observed_state.return_value='Not observed running'
+        self.controller=sheet.SetupRefresh(self.path,{}, {},self.c,True,self.root,self.database,['runtime','--temp','1'])
+        self.status=patch('vault_diagnostics.current_status',return_value={'status':'ready','version':'0.3.0'}).start()
+        self.addCleanup(patch.stopall)
+        patch('diagnostics.log').start()
+
+    def test_events_and_manual_refresh_skip_unchanged_state_and_remove_old_tools(self):
+        from types import SimpleNamespace
+        self.assertEqual(self.controller.refresh(reason='startup'),'updated')
+        self.assertEqual(self.target.read_bytes(),self.path.read_bytes())
+        original=self.path.read_bytes()
+        for _ in range(3):
+            self.controller.signal()
+            self.assertEqual(self.controller.refresh(),'unchanged')
+        self.assertEqual(self.path.read_bytes(),original)
+        self.c.discord_control.observed_state.return_value='Running';self.controller.signal()
+        self.assertEqual(self.controller.refresh(),'updated')
+        self.assertIn('| Discord | Running |',self.path.read_text())
+        self.c.api.tools=(SimpleNamespace(name='synthetic_tool'),)
+        self.controller.refresh()
+        self.assertIn('Tool: synthetic_tool',self.path.read_text())
+        self.c.api.tools=();self.controller.refresh()
+        self.assertNotIn('Tool: synthetic_tool',self.path.read_text())
+        self.status.return_value={'status':'ready','version':'0.4.0'};self.controller.signal();self.controller.refresh()
+        self.assertIn('0.4.0',self.path.read_text())
+        self.assertEqual(self.controller.refresh(force=True),'updated')
+        self.assertIn('| Temperature | 0.8 | Server defaults (/props)',self.path.read_text())
+        self.assertEqual(self.path.read_bytes(),self.target.read_bytes())
+
+    def test_config_change_rebinds_access_without_credentials_in_report(self):
+        import json
+        config=self.root/'scarecrow/connection.json';config.parent.mkdir()
+        config.write_text(json.dumps({'enabled':True,'token':'PRIVATE_TOKEN','port':27124,'vault':str(self.vault),'vault_id':'PRIVATE_ID'}))
+        self.controller.refresh()
+        self.assertEqual([t.name for t in self.c.api.tools],['read_vault'])
+        config.write_text('{"enabled":false}');self.status.return_value={'status':'disabled'}
+        self.controller.refresh()
+        self.assertEqual(self.c.api.tools,())
+        report=self.path.read_text()
+        self.assertIn('| Scarecrow configuration | Disabled |',report)
+        self.assertNotIn('Tool: read_vault',report)
+        for private in ('PRIVATE_TOKEN','PRIVATE_ID',str(self.root)):
+            self.assertNotIn(private,report)
+
+    def test_reset_does_not_recreate_mirror_and_clears_loaded_version(self):
+        import shutil
+        self.controller.refresh(reason='startup')
+        shutil.rmtree(self.vault)
+        self.c.epoch='reset';self.status.return_value={'status':'unavailable'}
+        self.assertIn('mirror absent',self.controller.refresh(reason='reset'))
+        self.assertFalse(self.vault.exists())
+        self.assertIn('| Scarecrow loaded version | Unverified |',self.path.read_text())
+
+    def test_mirror_symlink_refusal_and_partial_failure_are_explicit(self):
+        self.target.unlink();self.target.symlink_to(self.path)
+        result=self.controller.refresh(reason='startup')
+        self.assertIn('source updated; mirror failed',result)
+        self.assertIn('Startup status: **ready**',self.path.read_text())
+        self.target.unlink();self.target.write_text('old')
+        self.assertEqual(self.controller.refresh(force=True),'updated')
+        self.assertEqual(self.path.read_bytes(),self.target.read_bytes())
+
+    def test_marker_removed_during_lock_acquisition_is_not_recreated(self):
+        import sqlite3
+        original=sqlite3.connect
+        marker=self.marker
+        class Connection(sqlite3.Connection):
+            def execute(self, sql, *args):
+                result=super().execute(sql,*args)
+                if sql=='BEGIN IMMEDIATE':marker.unlink()
+                return result
+        with patch.object(sqlite3,'connect',side_effect=lambda *a,**kw:original(*a,**kw,factory=Connection)):
+            self.assertEqual(sheet.mirror_copy(self.path,self.database),'absent')
+        self.assertEqual(self.target.read_text(),'old mirror')
+        self.assertFalse(self.marker.exists())

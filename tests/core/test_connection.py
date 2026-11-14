@@ -23,6 +23,18 @@ from style import COLORS
 
 
 class ConnectionTests(unittest.TestCase):
+    def test_setup_notification_signals_without_a_conversation_turn(self):
+        from operator_status import notify_setup
+        changed = threading.Event()
+        turns = []
+        with tempfile.TemporaryDirectory() as directory:
+            address = Path(directory) / 'chat.sock'
+            with connection.LocalConnection(address, lambda *a, **k: turns.append(a),
+                                            lambda _: None, setup_changed=changed.set):
+                notify_setup(address)
+                self.assertTrue(changed.wait(1))
+                self.assertEqual(turns, [])
+
     def test_separate_histories_clear_and_detach(self):
         class API:
             closing = threading.Event()

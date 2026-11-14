@@ -40,9 +40,10 @@ def clean_event(data):
 
 class VaultDiagnostics:
     """One reader thread inside main chat; no helper process or replay storage."""
-    def __init__(self, data, *, retry=2):
+    def __init__(self, data, *, retry=2, on_setup_change=None):
         self.path = Path(data) / 'scarecrow/connection.json'
         self.retry = retry
+        self.on_setup_change = on_setup_change
         self.stop = threading.Event()
         self.connection = None
         self.thread = None
@@ -83,7 +84,10 @@ class VaultDiagnostics:
                     if not raw or len(raw) > 8192:
                         raise ValueError('Diagnostic stream ended')
                     if raw.strip():
-                        record(**clean_event(json.loads(raw)))
+                        event = clean_event(json.loads(raw))
+                        record(**event)
+                        if self.on_setup_change and event['event'] in ('listener_observed', 'ready', 'mirror_unavailable'):
+                            self.on_setup_change()
             except (OSError, ValueError, TypeError, KeyError, AttributeError, http.client.HTTPException):
                 if not self.stop.is_set() and state != 'unavailable':
                     record('Obsidian', 'unavailable')
@@ -133,6 +137,9 @@ def current_status(data):
         fields = json.loads(raw)
         if response.status == 200 and fields.get('vault_id') == config['vault_id'] and fields.get('status') == 'ok':
             result['status'] = 'ready'
+            loaded = fields.get('version')
+            if isinstance(loaded, str) and re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?', loaded):
+                result['version'] = loaded
         else:
             result['status'] = 'unavailable'
     except (OSError, ValueError, TypeError, KeyError, AttributeError, http.client.HTTPException):

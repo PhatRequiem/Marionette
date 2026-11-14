@@ -50,7 +50,7 @@ Defaults point to this checkout's normal paths. Run `--help` for all options.
 
 ## Results and limits
 
-- `setup` reads only the marked, dated startup section. It is not current status.
+- `setup` reads only the marked, dated setup section: startup evidence plus the latest observed application configuration. It is not current health. See [refresh triggers](../setup-and-maintenance/setup-datasheet.md#refresh-triggers).
 - `status` probes model health and processing/tools through main chat, and Discord
   through its existing bot process. Restart main chat and Discord after updating
   code to enable these endpoints. Unreachable probes return `unknown`, not

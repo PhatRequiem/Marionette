@@ -2,7 +2,7 @@
 import diagnostics
 from permissions import require_command
 
-HELP_TEXT = 'Available commands: /clear, /resetmemory and /shutdown (owner only), /startdiscord and /stopdiscord (owner, terminal only), and /exit.'
+HELP_TEXT = 'Available commands: /clear, /resetmemory and /shutdown (owner only), /startdiscord, /stopdiscord and /refreshsetup (owner, terminal only), and /exit.'
 
 
 def recognize(message, source):
@@ -15,7 +15,7 @@ def recognize(message, source):
     if command == '/clear':
         return 'clear'
     if source == 'terminal':
-        if command in ('/startdiscord', '/stopdiscord'):
+        if command in ('/startdiscord', '/stopdiscord', '/refreshsetup'):
             return command[1:]
         if command == '/exit':
             return 'exit'

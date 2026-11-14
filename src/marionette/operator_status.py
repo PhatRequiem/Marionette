@@ -69,3 +69,15 @@ def request_stop(chat_socket):
                 return json.loads(reader.readline(1025)) == {'stopping':True}
     except (OSError,ValueError):
         return False
+
+
+def notify_setup(chat_socket):
+    """Wake the existing chat thread after bot lifecycle changes; no payload data."""
+    try:
+        with socket.socket(socket.AF_UNIX) as client:
+            client.settimeout(2)
+            client.connect(str(chat_socket))
+            client.sendall(b'{"event":"setup_changed"}\n')
+            client.recv(128)
+    except OSError:
+        pass  # Main chat may already be stopping.

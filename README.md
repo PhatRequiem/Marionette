@@ -45,7 +45,7 @@ Start with these files, in order:
 | File | Responsibility |
 |---|---|
 | [chat.sh](scripts/native-linux/chat.sh) | Launch options, private session files, recorder, and three live views |
-| [setup_datasheet.py](src/marionette/setup_datasheet.py) | Refresh the marked [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md) section from startup observations |
+| [setup_datasheet.py](src/marionette/setup_datasheet.py) | Refresh the marked [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md) section from startup and observed configuration changes |
 | [session.py](src/marionette/session.py) | Component startup, server lifetime, readiness, and shutdown |
 | [terminal.py](src/marionette/terminal.py) | Profile selector, typed input, colors, and display of terminal/Discord exchanges |
 | [conversation.py](src/marionette/conversation.py) | Separate histories, sequential turns, identity resolution, and permission checks |
@@ -117,7 +117,7 @@ Start with these files, in order:
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.
 
-See [native Linux setup and operation](docs/active/setup-and-maintenance/setup.md), the [latest-startup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md), and [licenses](docs/active/setup-and-maintenance/licenses.md).
+See [native Linux setup and operation](docs/active/setup-and-maintenance/setup.md), the [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md), and [licenses](docs/active/setup-and-maintenance/licenses.md).
 
 ## Archives
 
