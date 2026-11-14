@@ -18,3 +18,5 @@ For installation and upkeep, see [Setup and maintenance](../setup-and-maintenanc
 - [Conversation and diagnostic storage](storage.md)
 
 - [Operator commands](operator-commands.md): status, context, connections, sync, cancellation and per-user DM rules.
+
+- [Desktop puppet prototype](desktop-puppet.md): optional standalone visual companion; not connected to chat.

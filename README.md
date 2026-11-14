@@ -30,6 +30,8 @@ See [context policy and limitations](docs/active/current-operation/context.md) f
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/active/current-operation/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/development/history/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
+Optional visual experiment: [desktop puppet prototype](docs/active/current-operation/desktop-puppet.md), a standalone draggable animated overlay. It is not connected to chat or memory.
+
 ## Documentation
 
 Start with the [documentation map](docs/documentation-map.md). [Current operation](docs/active/current-operation/current-operation.md) explains implemented behavior; [Setup and maintenance](docs/active/setup-and-maintenance/setup-and-maintenance.md) covers installation and upkeep. These Active guides are mirrored into Obsidian.
@@ -91,6 +93,8 @@ Start with these files, in order:
 - `data/scarecrow/`: private local connection configuration and credentials; ignored by Git.
 - `prompts/`: versioned feature instructions, explicitly bound to the system prompt separately from the soul.
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
+- `src/desktop-puppet/`: native Qt Quick desktop puppet prototype and embedded character art.
+- `tests/desktop-puppet/`: isolated Qt/QML interaction checks for the prototype.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.
 - `docs/`: [documentation map](docs/documentation-map.md).

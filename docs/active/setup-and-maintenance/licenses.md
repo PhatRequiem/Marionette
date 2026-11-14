@@ -172,3 +172,18 @@ Obsidian 1.15.1 (installer 1.14.4; installed package 1.14.4-2) is proprietary, n
 ## Scarecrow local vault plugin
 
 Scarecrow 0.4.0 is project-owned JavaScript under `plugins/scarecrow/`, licensed MIT (see that directory's LICENSE). It uses Obsidian's public plugin APIs and the Node.js HTTP, filesystem, path and crypto modules bundled with the Obsidian desktop runtime. No external npm packages, standalone Node server, hosted service or paid plugin features are required. Obsidian remains proprietary as described above; its bundled runtime notices apply. The Python HTTP adapter uses the existing Python standard library and Qwen-Agent installation. Setup assembles the fixed versioned JavaScript modules using Python; there are no downloaded plugin assets or new third-party lockfiles.
+
+## Optional desktop puppet prototype
+
+The [desktop puppet](../current-operation/desktop-puppet.md) runs locally without an account, subscription or paid Qt features. Its C++/QML source is MIT (`src/desktop-puppet/LICENSE`); theme/translator templates retain attribution to David Heinemeier Hansson's Omacut/Monologue patterns. The generated character art and its provenance/checksum are described in that guide.
+
+| Component | Verified installed version | License evidence |
+|---|---|---|
+| Qt Base (Core, Gui, OpenGL, Network and qmake/resource tools) | 6.12.0-3 | LGPL-3.0 / GPL-3.0 / commercial alternatives; installed `/usr/share/licenses/qt6-base/` |
+| Qt Declarative (QML, Quick, Quick Controls/Material) | 6.12.0-2 | LGPL-3.0 / GPL-3.0 / commercial alternatives; installed `/usr/share/licenses/qt6-declarative/` |
+| Qt Wayland client/platform integration | 6.12.0-1 | LGPL-3.0 / GPL-3.0 / commercial alternatives; installed `/usr/share/licenses/qt6-wayland/` |
+| Layer Shell Qt interface | 6.8.1-1 | Header `/usr/include/LayerShellQt/window.h`: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL |
+| GCC build toolchain | 16.2.1+r23+gd564253eb6c8-1 | GPL-3.0-or-later; runtime exception for linked runtime as above |
+| GNU Make | 4.4.1-3 | GPL-3.0-or-later |
+
+Qt libraries are dynamically linked under the open-source LGPL option; source/build instructions are retained. System graphics, Wayland, font and Qt platform dependencies remain distribution-managed; their package notices apply. No Qt commercial license is required. The existing Bash/coreutils/systemd tools provide launch and transient user-service management. No bundled inference engine or model dependency changes.

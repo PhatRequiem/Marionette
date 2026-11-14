@@ -16,7 +16,7 @@ Paths in the Python column are relative to `src/marionette/`. Script paths are r
 | **Personal memory** | `contacts.py`, `contact_notes.py`, `soul.py`, `data_migration.py` | `contact-notes.md`, `soul.md` prompts |
 | **Conversation archive** | `storage.py`, `conversation_refs.py`, `conversation_vault.py` | `storage.sh`, `sync-conversation-vault.sh` |
 | **Diagnostics** | `diagnostics.py`, `ram_logs.py`, `retention.py`, `log_router.py`, `log_metadata.py`, `log_view.py`, `log_query.py`, `log_tool.py`, `setup_datasheet.py` | `view-log.sh`, `log-query.sh`; `log-queries.md`, `log-results.md` prompts |
-| **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `discord_access.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt` |
+| **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `discord_access.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt`; `desktop-puppet.sh` and `src/desktop-puppet/` visual prototype |
 | **Scarecrow** | `vault_tool.py`, `vault_diagnostics.py` | All of `plugins/scarecrow/`: `main.js`, `server.js`, `operations.js`, `search.js`, `passages.js`, `manifest.json`, `LICENSE`; `setup-scarecrow.py`; `vault.md` and `vault-results.md` prompts |
 
 Application-wide rules remain in root `AGENTS.md`; repository navigation remains in root `README.md`. Active guides describe behavior and maintenance, while development reports are historical evidence. Neither an experiment nor an idea changes subsystem ownership or authorizes implementation.
@@ -148,3 +148,7 @@ These are current limitations, not approved refactoring work:
 - Scarecrow and the archive exporter share a Markdown-format contract. Changing either requires checking the other.
 
 A future folder reorganization should follow these ownership groups incrementally while preserving supported entry points. This map does not claim that moving files alone makes the systems replaceable.
+
+## Standalone desktop visual prototype
+
+Communication owns the optional [desktop puppet](../current-operation/desktop-puppet.md): `src/desktop-puppet/`, `scripts/native-linux/desktop-puppet.sh` and `tests/desktop-puppet/`. It currently has no connection to the conversation engine or personal data. Its Qt/Wayland UI is an independently replaceable process.
