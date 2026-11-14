@@ -83,7 +83,7 @@ def display_discord(conversation):
     color('data')
     try:
         answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
-        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown'):
+        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help'):
             color('meta')
             print(answer)
         if finish == 'length':

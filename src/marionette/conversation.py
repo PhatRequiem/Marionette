@@ -9,7 +9,7 @@ import diagnostics
 from context import Preparation, fit_history
 from contacts import message_with_identity
 from conversation_refs import conversation_reference
-from commands import execute_clear, recognize
+from commands import HELP_TEXT, execute_clear, recognize
 
 
 class Conversation:
@@ -89,7 +89,7 @@ class Conversation:
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
-            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup'):
+            if recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
@@ -104,6 +104,8 @@ class Conversation:
             raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
+        if recognize(message, source) == 'help':
+            return HELP_TEXT, 'stop'
         identity = None
         if self.profiles is not None:
             sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']

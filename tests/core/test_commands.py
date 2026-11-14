@@ -6,12 +6,13 @@ import unittest
 from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'src/marionette'))
-from commands import execute_clear, recognize
+from commands import HELP_TEXT, execute_clear, recognize
 
 
 class CommandTests(unittest.TestCase):
     def test_interface_specific_recognition(self):
         for source in ('terminal', 'discord'):
+            self.assertEqual(recognize(' /help \n', source), 'help')
             self.assertEqual(recognize(' /clear \n', source), 'clear')
             self.assertEqual(recognize(' /shutdown \n', source), 'shutdown')
             self.assertIsNone(recognize('hello', source))
@@ -106,3 +107,23 @@ class CommandTests(unittest.TestCase):
                 self.assertEqual(len(forced),1 if selected is owner else 0)
                 self.assertEqual(answer,'Setup datasheet: updated' if selected is owner else 'Access Denied')
                 api.reply.assert_not_called();self.assertIsNone(convo.pending)
+
+    def test_help_is_available_without_owner_and_preserves_history_without_model(self):
+        import threading
+        from conversation import Conversation
+        for source in ('terminal', 'discord'):
+            api = Mock(closing=threading.Event())
+            conversation = Conversation(api, 8192)
+            conversation.history = [{'role': 'user', 'content': 'retain context'}]
+            before = conversation.history.copy()
+            answer, finish = conversation.turn(' /help ', source=source, sender_id='123')
+            self.assertEqual((answer, finish), (HELP_TEXT, 'stop'))
+            self.assertEqual(conversation.history, before)
+            self.assertIsNone(conversation.pending)
+            api.reply.assert_not_called()
+            api.count.assert_not_called()
+        commands = ('help', 'clear', 'resetmemory', 'shutdown', 'startdiscord',
+                    'stopdiscord', 'refreshsetup', 'exit')
+        self.assertEqual(len(HELP_TEXT.splitlines()), len(commands) + 1)
+        for command in commands:
+            self.assertIn('/' + command + ' — ', HELP_TEXT)

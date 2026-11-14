@@ -2,12 +2,22 @@
 import diagnostics
 from permissions import require_command
 
-HELP_TEXT = 'Available commands: /clear, /resetmemory and /shutdown (owner only), /startdiscord, /stopdiscord and /refreshsetup (owner, terminal only), and /exit.'
+HELP_TEXT = """Available commands:
+/help — Show all commands and their descriptions.
+/clear — Clear this conversation's active context; keep saved records and notes.
+/resetmemory — Reset personal memory, conversations and logs; keep permanent IDs and owner mapping. Model stays loaded. (owner only)
+/shutdown — Shut down Marionette and disconnect Discord; keep saved memory. (owner only)
+/startdiscord — Start the Discord connection in the background. (owner, terminal only)
+/stopdiscord — Disconnect Discord; keep main chat running. (owner, terminal only)
+/refreshsetup — Recheck setup and refresh the setup sheet and its existing Obsidian copy. (owner, terminal only)
+/exit — Exit main chat and disconnect Discord; keep saved memory. (terminal only)"""
 
 
 def recognize(message, source):
-    """Preserve terminal-only exit/help; Discord also accepts owner-only reset and shutdown."""
+    """Recognize shared commands while preserving terminal-only controls."""
     command = message.strip()
+    if command == '/help':
+        return 'help'
     if command == '/shutdown':
         return 'shutdown'
     if command == '/resetmemory':

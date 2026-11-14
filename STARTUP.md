@@ -15,6 +15,9 @@ cd /home/phatkitty/Projects/Marionette
 
 This starts her and opens three windows: **Connections and requests**, **Model processing**, and **Reasoning**. Choose **Phat** (or **Add new profile**) when prompted, then wait for **Ready** and the `>` prompt. ContactProfiles persist between launches; see [identities](docs/active/current-operation/contacts.md). You can now chat in this terminal. Reasoning streams in its separate window; chat shows messages and replies.
 
+Type `/help` in the terminal or a Discord DM to list every command with a brief
+description and its owner/terminal restrictions. Help does not call the model.
+
 The log-query tool is connected. Setup and configuration changes refresh the
 [setup datasheet](docs/active/setup-and-maintenance/setup-datasheet.md) and its existing
 Obsidian copy. As the owner, type `/refreshsetup` in the terminal to request a fresh

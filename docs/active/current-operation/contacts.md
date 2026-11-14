@@ -47,6 +47,11 @@ Each terminal profile and each Discord sender has a separate history, using the 
 
 ## Command permissions
 
+`/help` is available to everyone in terminal and Discord DMs. It lists all commands
+with descriptions and owner/terminal restrictions, without calling the model or
+changing active conversation history. Unknown terminal slash commands also show
+this help; unknown Discord commands retain their ordinary-message behavior.
+
 `permissions.py` authorizes `/clear` only when the resolved sender's source/account matches the selected conversation key. Every contact can clear their own DM. Terminal `/clear` clears only that terminal conversation, even when its contact also uses Discord. No user-supplied target ID is accepted. Missing identities, mismatched targets, and unknown commands are denied. `conversation.py` finishes the previous preparation before switching conversations; `commands.py` then performs the authorized clear. The owner UUID still identifies the owner in the registry, but is no longer required to clear one's own history.
 
 `/resetmemory` separately requires the resolved contact UUID and source/account to match the saved owner. It resets all local memory; see [live reset](reset-memory.md). `/exit`, Ctrl+C, and closing the terminal remain local lifecycle controls; selecting a profile is still not a secure login. Future service adapters must resolve identity and invoke the same permission check for privileged commands.
