@@ -21,11 +21,11 @@ Build after changing source or assets; stop a running preview before rebuilding.
 |---|---|
 | Drag the character | Move within her current monitor |
 | Click the character | Replay the arm/leg gesture and blink, plus a brief scripted greeting |
-| Pause / Resume or Space | Freeze/resume the current animation frame |
+| Pause / Resume or Space | Freeze/resume sprite frames and vertical hover |
 | Help or `?` | Toggle shortcut help |
 | Close, Q or Escape | Exit the preview |
 
-Keyboard shortcuts apply when the companion has keyboard focus. Her animation uses six transparent sprite frames: arm/hand poses, knee/foot movement, half-closed eyes and a closed-eye blink. The motion lasts 690 ms followed by a 2.3-second resting pose. The closed-eye frame lasts 110 ms. This is a short frame-based animation, not a skeletal rig; no whole-image sway remains. Clicking replays the gesture when animation is not paused. Position is temporary and resets on launch. The overlay occupies one monitor; dragging between monitors is not implemented.
+Keyboard shortcuts apply when the companion has keyboard focus. Her animation uses six transparent sprite frames: open-arm sweeps, both knees tucking underneath her, pointed feet, half-closed eyes and a closed-eye blink. The reference-inspired floating gesture lasts 1.19 seconds followed by a 1.8-second resting pose; a gentle 10-pixel vertical hover runs over the same 2.99-second cycle. The closed-eye frame lasts 110 ms. This is a short frame-based animation, not a skeletal rig; no whole-image sway remains. Clicking replays the gesture when animation is not paused. Position is temporary and resets on launch. The overlay occupies one monitor; dragging between monitors is not implemented.
 
 The transparent Wayland layer uses an input region limited to the character/control rectangle (including space for the help bubble). Outside that rectangle clicks pass through; transparent gaps inside the rectangle still intercept clicks. It does not reserve desktop workspace. Its top layer remains above ordinary windows; fullscreen behavior follows compositor policy. Removing the selected output closes the companion.
 
@@ -63,8 +63,10 @@ SHA-256: `9c94a75f7ebf6f91a06af6b256207f93685bc8739fa8f1a599fd260f4ec9d8f7`.
 
 ### Arm, leg and blink animation
 
-`assets/puppet-motion.png` is a built-in imagegen edit derived from `puppet.png`, followed by a transparent-background cleanup pass. Prompt: preserve the plain purple hat, outfit, cyan eyes/joints and character identity; create a three-column/two-row sheet of six equally sized, aligned full-body poses, progressively raising/lowering the hand, bending/straightening the legs, and briefly closing both eyes. Remove all background haze, strings, crossbar, particles and labels. The original concept remains a design reference; runtime displays the new sheet.
+`src/desktop-puppet/assets/puppet-hover.png` is a built-in imagegen edit derived from `puppet.png`, with movement direction informed by the user-provided 36.63-second reference recording. The private recording is not included in the repository. Prompt: preserve the plain purple hat, outfit, cyan eyes/joints and character identity; create a three-column/two-row sheet of six equally sized, aligned full-body poses, gracefully opening/lowering both arms with relaxed wrists, tucking both knees beneath her and extending pointed feet, and briefly closing both eyes. Remove all background haze, strings, crossbar, particles and labels. The original concept remains a design reference; runtime displays the new sheet.
 
-The sheet is 1536 × 1024, with six 512 × 512 cells. SHA-256: `a1613dea90d22061ba6600261f37f1a3010a82664d1a2a06e10147d48ae82637`. `PuppetAnimation.qml` owns frame selection and timing; it requires no new dependency or model service. The imagegen tool was used during authoring only.
+The sheet is 1536 × 1024, with six 512 × 512 cells. SHA-256: `f447aa9aacf712d9e75dfa074cbd08196c3bba405bcf1d7558aa2f7dc4e8b72b`. `PuppetAnimation.qml` owns frame selection and timing; it requires no new dependency or model service. The imagegen tool was used during authoring only.
 
-Animation verification on 2026-11-14: the QML interaction test passed with all six frames rendered and checked for distinct output; pause froze frame selection, resume advanced, and the replay reached the closed-eye frame then returned to rest. Rendered open/closed-eye poses were visually inspected for actual arm/leg changes and clean transparency. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` when running `desktop-puppet.sh test` to retain those synthetic offscreen renders.
+Animation verification on 2026-11-14: the QML interaction test passed with all six frames rendered and checked for distinct output; pause froze frame selection and hover displacement, resume advanced both, and the replay reached the closed-eye frame then returned to rest. Rendered open/closed-eye poses were visually inspected for actual arm/leg changes and clean transparency. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` when running `desktop-puppet.sh test` to retain those synthetic offscreen renders.
+
+The reference's full turns and inverted flourish are not implemented. They require additional side/back views; this version adapts the front-facing float, arm opening and knee tuck only.

@@ -54,11 +54,14 @@ private slots:
         QVERIFY(character);
         window->setProperty("paused", true);
         const int stoppedFrame = character->property("frameIndex").toInt();
+        const auto stoppedHover = character->property("hoverOffset").toReal();
         QTest::qWait(450);
         QCOMPARE(character->property("frameIndex").toInt(), stoppedFrame);
+        QCOMPARE(character->property("hoverOffset").toReal(), stoppedHover);
         window->setProperty("paused", false);
         QVERIFY(QMetaObject::invokeMethod(character, "gesture"));
         QTRY_COMPARE(character->property("frameIndex").toInt(), 3);
+        QVERIFY(character->property("hoverOffset").toReal() != stoppedHover);
         QTRY_COMPARE(character->property("frameIndex").toInt(), 0);
         window->setProperty("paused", true);
         QImage previous;
