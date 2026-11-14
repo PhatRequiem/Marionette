@@ -8,7 +8,7 @@ class RequestError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
 const fields = {
-  list: ['path'], search: ['query', 'folder', 'tag', 'mode'], read: ['path', 'section', 'passage_id', 'context'],
+  list: ['path'], search: ['query', 'folder', 'tag', 'mode', 'limit', 'offset'], read: ['path', 'section', 'passage_id', 'context'],
   inspect: ['path'], links: ['path'], tags: [], open: ['path']
 };
 function validate(form) {
@@ -16,11 +16,16 @@ function validate(form) {
       !Object.hasOwn(fields, form.action)) throw new RequestError('Unknown action.');
   for (const [key, value] of Object.entries(form)) {
     if (key !== 'action' && !fields[form.action].includes(key)) throw new RequestError('Unexpected field: ' + key);
+    if (['limit','offset'].includes(key)) {
+      if (!Number.isSafeInteger(value) || value < (key==='limit'?1:0) || value > (key==='limit'?10:1000000)) throw new RequestError('Invalid search pagination.');
+      continue;
+    }
     if (typeof value !== 'string') throw new RequestError('Fields must be strings.');
   }
   if (['read', 'inspect', 'links', 'open'].includes(form.action) && !form.path) throw new RequestError('An exact note path is required.');
   if (form.action === 'search' && ![form.query, form.folder, form.tag].some(Boolean)) throw new RequestError('Search needs query, folder or tag.');
   for (const key of ['path', 'folder']) if (form[key] !== undefined) checkPath(form[key]);
+  if (form.query && form.query.length>256) throw new RequestError('Search query must be at most 256 characters.');
   if (form.mode !== undefined && !['exact','prefix','fuzzy'].includes(form.mode)) throw new RequestError('Search mode must be exact, prefix or fuzzy.');
   if (form.passage_id !== undefined && (!/^[a-f0-9]{24}:\d+-\d+$/.test(form.passage_id) || form.section !== undefined)) throw new RequestError('Use a returned passage_id without section.');
   if (form.context !== undefined && (!form.passage_id || !['none','neighbors'].includes(form.context))) throw new RequestError('Context requires passage_id and must be none or neighbors.');
@@ -105,8 +110,34 @@ class Operations {
           grouped.get(hit.path).passages.push(passage);
         }
       }
-      return {matches:[...grouped.values()], total:grouped.size, total_passages:terms.length ? ranked.length : 0,
-        matching:'Passages ranked independently and grouped by note (best passage score), using field-weighted BM25 plus exact-term proximity and phrase bonuses. Mode: ' + (form.mode || 'exact') + '. Inspect term_matches for expansions. Scores are lexical evidence, not confidence. Folder and exact-tag filters apply.'};
+      const offset=form.offset || 0, limit=form.limit || 5, all=[...grouped.values()];
+      const clip=(text,n)=>String(text||'').slice(0,n);
+      const compact=hit=>{
+        const text=hit.matching_lines.filter(line=>line.line>0 && !line.text.startsWith('>')).map(line=>line.text).join(' ');
+        const preview=text || hit.excerpt || '';
+        return {passage_id:hit.passage_id,start_line:hit.start_line,end_line:hit.end_line,
+          heading:clip(hit.heading,100),preview:clip(preview,240),preview_truncated:preview.length>240,
+          matched_terms:hit.matched_terms,missing_terms:hit.missing_terms,
+          term_matches:hit.term_matches.slice(0,12),term_matches_truncated:hit.term_matches.length>12,
+          messages:hit.messages};
+      };
+      const result={matches:[],total:all.length,total_passages:terms.length?ranked.length:0,
+        offset,next_offset:null,truncated:false,
+        next_action:'Previews locate evidence, not full context. Read a selected path + passage_id before answering. Use neighbors only if context is missing. modified_ms is mirror file time, not event time.'};
+      for(const hit of all.slice(offset,offset+limit)) {
+        const note={path:hit.path,modified_ms:hit.modified_ms,score:hit.score,
+          matched_terms:hit.matched_terms,missing_terms:hit.missing_terms,
+          matched_phrases:hit.matched_phrases,nearby_pairs:hit.nearby_pairs,
+          matching_lines:hit.matching_lines.slice(0,2).map(line=>({line:line.line,text:clip(line.text,160)})),
+          passages_total:hit.passages.length,passages:hit.passages.slice(0,2).map(compact)};
+        result.matches.push(note);
+        // Reserve room for pagination fields; never silently cut source references.
+        if(Buffer.byteLength(JSON.stringify(result),'utf8')>12000) {result.matches.pop();break;}
+      }
+      if(!result.matches.length && offset<all.length) throw new RequestError('Search result exceeds preview budget; narrow query or folder.');
+      result.truncated=offset+result.matches.length<all.length;
+      result.next_offset=result.truncated?offset+result.matches.length:null;
+      return result;
     }
 
     const file = await this.note(form.path), base = {path:file.path, modified_ms:file.stat.mtime};

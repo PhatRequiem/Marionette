@@ -41,3 +41,5 @@ these internal destinations on sync; the model does not construct filenames or
 gain write access. See [contact-note citations](../docs/active/current-operation/contact-notes.md#optional-conversation-links).
 
 These files are application inputs, not part of the `docs/active/` mirror. Current tool behavior is documented in [Qwen-Agent coordination](../docs/active/current-operation/qwen-agent.md); test reports and retired guidance belong in [Development](../docs/development/development-index.md) or Git history. Only Active documentation is mirrored into Obsidian.
+
+`vault-results.md` is appended to follow-up system messages after `read_vault`, before exact token counting. It requests focused passage verification and source-date handling without treating tool output as instructions. Sender metadata provides `current_time_utc` on each new identified message; older messages retain their original timestamps. These reminders guide behavior; they do not guarantee factual answers.

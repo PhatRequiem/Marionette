@@ -20,7 +20,9 @@ class ReadVault(BaseTool):
     parameters = {'type': 'object', 'properties': {
         'action': {'type': 'string', 'enum': ['list', 'search', 'read', 'inspect', 'tags', 'links', 'open']},
         'path': {'type': 'string', 'description': 'Exact returned vault-relative path. Required for read, inspect, links, open; optional folder for list.'},
-        'query': {'type': 'string', 'description': 'Search words; passages are ranked independently and grouped by note. Check matched/missing terms and source lines.'},
+        'query': {'type': 'string', 'maxLength': 256, 'description': 'Search words. Returns compact previews, not full evidence. Read a returned passage before answering.'},
+        'limit': {'type': 'integer', 'minimum': 1, 'maximum': 10, 'description': 'Search only: notes per page, default 5.'},
+        'offset': {'type': 'integer', 'minimum': 0, 'maximum': 1000000, 'description': 'Search only: use returned next_offset with the same query/filters for more notes.'},
         'mode': {'type': 'string', 'enum': ['exact', 'prefix', 'fuzzy'], 'description': 'Search only. Default exact whole tokens; prefix expands tokens of 3+ characters, fuzzy allows one edit for tokens of 4+ characters. Inspect term_matches.'},
         'folder': {'type': 'string', 'description': 'Search only within this vault folder.'},
         'tag': {'type': 'string', 'description': 'Search filter: exact tag.'},

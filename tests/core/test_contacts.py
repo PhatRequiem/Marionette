@@ -243,3 +243,15 @@ class ContactProfileTests(unittest.TestCase):
         self.assertEqual(restored.resolve('terminal', remote['uuid'])['contact_uuid'], remote['uuid'])
         remote['terminal_enabled'] = 'yes'
         with self.assertRaises(ValueError): restored.save()
+
+    def test_sender_metadata_supplies_current_utc_without_mutating_identity(self):
+        from contacts import message_with_identity
+        from datetime import datetime, timezone
+        identity = self.profiles.resolve('terminal', self.profiles.data['owner_uuid'])
+        before = datetime.now(timezone.utc)
+        text = message_with_identity('hello', identity)
+        metadata = json.loads(text.split('\n', 1)[1].split('\n\nMessage:', 1)[0])
+        stamp = datetime.fromisoformat(metadata['current_time_utc'])
+        self.assertGreaterEqual(stamp, before)
+        self.assertLessEqual(stamp, datetime.now(timezone.utc))
+        self.assertNotIn('current_time_utc', identity)

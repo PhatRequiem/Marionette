@@ -17,7 +17,7 @@ Paths in the Python column are relative to `src/marionette/`. Script paths are r
 | **Conversation archive** | `storage.py`, `conversation_refs.py`, `conversation_vault.py` | `storage.sh`, `sync-conversation-vault.sh` |
 | **Diagnostics** | `diagnostics.py`, `ram_logs.py`, `retention.py`, `log_router.py`, `log_metadata.py`, `log_view.py`, `log_query.py`, `log_tool.py`, `setup_datasheet.py` | `view-log.sh`, `log-query.sh`; `log-queries.md`, `log-results.md` prompts |
 | **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `discord_access.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt` |
-| **Scarecrow** | `vault_tool.py`, `vault_diagnostics.py` | All of `plugins/scarecrow/`: `main.js`, `server.js`, `operations.js`, `search.js`, `passages.js`, `manifest.json`, `LICENSE`; `setup-scarecrow.py`; `vault.md` prompt |
+| **Scarecrow** | `vault_tool.py`, `vault_diagnostics.py` | All of `plugins/scarecrow/`: `main.js`, `server.js`, `operations.js`, `search.js`, `passages.js`, `manifest.json`, `LICENSE`; `setup-scarecrow.py`; `vault.md` and `vault-results.md` prompts |
 
 Application-wide rules remain in root `AGENTS.md`; repository navigation remains in root `README.md`. Active guides describe behavior and maintenance, while development reports are historical evidence. Neither an experiment nor an idea changes subsystem ownership or authorizes implementation.
 

@@ -12,7 +12,7 @@ function literal(value){const runs=value.match(/`+/g)||[];const fence='`'.repeat
 function message(id,kind,correlation,body) {
  const role=kind==='input'?'user':'assistant';
  return `## ${role} — time\n\nRecord ${id}\n\n`+literal(body)+'\n> [!info]- Message identifiers and status\n'+
- literal(JSON.stringify({id,message_id:correlation,role,kind},null,2)).trimEnd().split('\n').map(line=>'> '+line).join('\n')+'\n\n';
+ literal(JSON.stringify({id,message_id:correlation,role,kind,recorded_at:'2026-11-12T19:00:00+00:00'},null,2)).trimEnd().split('\n').map(line=>'> '+line).join('\n')+'\n\n';
 }
 const header='---\nsession_id: "s"\nconversation_id: "c"\n---\n\n# Conversation\n\n';
 test('export-shaped messages pair by correlation ID and retain source identifiers',()=>{
@@ -21,6 +21,7 @@ test('export-shaped messages pair by correlation ID and retain source identifier
  const passages=splitPassages(conversationPath,content);
  assert.equal(passages.length,3);
  assert.deepEqual(passages[0].messages.map(m=>m.record_id),[1,2]);
+ assert.equal(passages[0].messages[0].recorded_at,'2026-11-12T19:00:00+00:00');
  assert.ok(passages[0].excerpt.includes('Use Vulkan'));
  assert.ok(!passages[0].excerpt.includes('Dinner'));
  for(const p of passages) assert.equal(content.split('\n').slice(p.start_line-1,p.end_line).join('\n'),p.excerpt);
@@ -55,14 +56,43 @@ test('passage ranking isolates scattered matches, groups hits, and reads exact o
  const scattered=result.matches.find(m=>m.path==='Scattered.md');
  assert.ok(scattered.passages.every(p=>p.matched_terms.length===1));
  assert.equal(scattered.matched_terms.length,1);
- assert.ok(focused.passages[0].matching_lines.every(line=>line.line>=focused.passages[0].start_line));
+ assert.ok(focused.passages[0].preview.includes('GPU server'));
+ assert.equal(focused.passages[0].excerpt,undefined);
  const hit=focused.passages[0];
  const read=await ops.run({action:'read',path:focused.path,passage_id:hit.passage_id});
- assert.equal(read.content,hit.excerpt);
+ assert.equal(read.content,(await data.app.vault.cachedRead(data.files.get(focused.path))).split('\n').slice(hit.start_line-1,hit.end_line).join('\n'));
  const neighbors=await ops.run({action:'read',path:focused.path,passage_id:hit.passage_id,context:'neighbors'});
  assert.ok(neighbors.content.includes('dinner recipe'));
  await assert.rejects(ops.run({action:'read',path:focused.path,context:'neighbors'}),/Context/);
  await assert.rejects(ops.run({action:'read',path:focused.path,passage_id:hit.passage_id,section:'Hardware'}),/without section/);
  add('Focused.md','Changed');
  await assert.rejects(ops.run({action:'read',path:focused.path,passage_id:hit.passage_id}),/stale/);
+});
+
+test('compact search bounds previews, paginates without duplicate notes, and retains complete reads',async t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'compact-test-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const data=fixture(root),ops=new Operations(data.app);
+ for(let i=0;i<14;i++) {
+  const name=`Note${String(i).padStart(2,'0')}.md`;
+  const content=Array.from({length:5},(_,j)=>`# Topic ${j}\nneedle ${'detail '.repeat(150)}END-${i}-${j}`).join('\n');
+  fs.writeFileSync(path.join(root,name),content);data.files.set(name,{path:name,extension:'md',stat:{mtime:1}});data.cache[name]={};
+ }
+ let offset=0, paths=[];
+ do {
+  const result=await ops.run({action:'search',query:'needle',offset});
+  assert.equal(result.total,14);assert.ok(result.matches.length<=5);
+  assert.ok(Buffer.byteLength(JSON.stringify(result))<=12288);
+  for(const note of result.matches) {
+   assert.equal(note.excerpt,undefined);assert.equal(note.passages_total,5);assert.equal(note.passages.length,2);
+   for(const p of note.passages) {assert.ok(p.preview.length<=240);assert.equal(p.excerpt,undefined);assert.equal(p.preview_truncated,true);}
+   const p=note.passages[0];const read=await ops.run({action:'read',path:note.path,passage_id:p.passage_id});
+   assert.ok(read.content.length>p.preview.length);assert.ok(read.content.includes('END-'));
+   paths.push(note.path);
+  }
+  offset=result.next_offset;
+ } while(offset!==null);
+ assert.equal(new Set(paths).size,14);assert.equal(paths.length,14);
+ for(const form of [{limit:0},{limit:11},{offset:-1},{limit:'5'},{query:'x'.repeat(257)}])
+  await assert.rejects(ops.run({action:'search',query:'needle',...form}));
+ assert.equal((await ops.run({action:'search',query:'needle',offset:100})).matches.length,0);
 });

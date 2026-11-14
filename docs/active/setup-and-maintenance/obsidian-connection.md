@@ -24,7 +24,7 @@ The model calls one explicit Qwen-Agent tool, `read_vault`. Native tool schemas 
 | Action | Fields | Result |
 |---|---|---|
 | `list` | Optional `path` folder; omit for root | Immediate child files and folders |
-| `search` | `query`, optional `mode`, `folder` and/or `tag` | Ranked Markdown paths, match evidence and source lines |
+| `search` | `query`, optional `mode`, `folder`, `tag`, `limit` and `offset` | Compact ranked previews, source references and pagination |
 | `read` | Exact `path`; optional `section`, or returned `passage_id` with optional `context` | Whole note, heading section, or passage with optional neighbors |
 | `inspect` | Exact `path` | Heading names/lines, tags, frontmatter properties |
 | `tags` | None | Tags and number of notes using each |
@@ -59,7 +59,7 @@ BM25 uses `k1=1.2`, `b=0.75`, and positive inverse-document-frequency `ln(1 + (N
 
 For each query token, only its best-scoring exact or expanded token contributes to the BM25 sum, avoiding a bonus just for containing many completions. Each distinct pair of **exact query tokens** within 12 token positions on one line adds half the smaller IDF. Adjacent ordered pairs from the deduplicated query add the smaller IDF again. Pair bonuses count once per passage and do not cross lines. Shared note paths do not receive passage phrase/proximity bonuses. Expansions never invent phrase/proximity evidence. Scores descend; path order breaks ties. Filter-only results retain path order with zero scores.
 
-Results expose `score`, `matched_terms`, `missing_terms`, `term_matches` (query token, source token and exact/prefix/fuzzy kind), `nearby_pairs`, `matched_phrases`, and original `matching_lines` with one-based line numbers. Matched query terms can include expansions; inspect `term_matches` to distinguish them. All matching variants are reported even though only the best per query token contributes to BM25. Scores are relative lexical relevance, not probabilities or factual confidence. A passage can rank highly with only part of the query. Read the original evidence before answering.
+Results expose `score`, `matched_terms`, `missing_terms`, `term_matches` (query token, source token and exact/prefix/fuzzy kind), `nearby_pairs`, `matched_phrases`, and original `matching_lines` with one-based line numbers. Matched query terms can include expansions; inspect `term_matches` to distinguish them. Only the best variant per query token contributes to BM25. Compact previews report up to 12 matching variants and indicate omitted variants; group matching lines are shortened as described below. Scores are relative lexical relevance, not probabilities or factual confidence. A passage can rank highly with only part of the query. Read the original evidence before answering.
 
 The engine has add/replace/remove operations, but production constructs a fresh **request-local RAM index** from passages of eligible notes for each search. No cached index survives a request and none is written to disk. This preserves current mirror/reset behavior and avoids stale cached entries after edits, renames or deletion. It still reads and tokenizes the eligible collection on each request; prefix/fuzzy modes additionally scan its vocabulary. Index memory grows with the collection, and concurrent requests may build separate indexes. A long-lived incremental index would require separate lifecycle and reset coordination work. No diagnostic retention policy changes or background processes are introduced.
 
@@ -67,7 +67,7 @@ Ranking is at passage level; each note group uses its best passage score, never 
 
 ### Passage boundaries and reading context
 
-Query searches return note groups in `matches`. Each group carries its best passage's score and evidence for compatibility, and a `passages` array sorted by relevance. `total` counts notes and `total_passages` counts matching passages. Each passage includes an excerpt, `passage_id`, source `start_line`/`end_line` (one-based, inclusive), heading, and available `messages` containing record IDs, correlation IDs, roles and kinds. Matching-line numbers refer to the original note. Folder/tag-only browsing continues to return one entry per note without passage extraction.
+Query searches return note groups in `matches`. Each group carries its best passage score and compact matching evidence, and up to two `passages` previews sorted by relevance. `total` counts notes and `total_passages` counts matching passages. Each preview includes up to 240 characters of matching text (or a fallback snippet), `passage_id`, source `start_line`/`end_line` (one-based, inclusive), heading, and available `messages` containing record IDs, correlation IDs, roles, kinds and source `recorded_at` timestamps when present. Note headings are limited to 100 characters; group matching lines to two lines of 160 characters; expanded term evidence to 12 variants with an explicit truncation flag. Full excerpts and duplicate top-level passage payloads are omitted. `passages_total` counts all matching passages for that note. Matching-line numbers refer to the original note. Folder/tag-only browsing continues to return one entry per note without passage extraction.
 
 For generated `Generated/Contacts/.../Conversations/` pages with conversation frontmatter, the parser recognizes message headings and the exporter's quoted JSON metadata. It pairs an input with its immediately following assistant answer only when both have the same nonempty correlation ID. Missing/mismatched metadata leaves messages separate; it never pairs by speaker name or inferred meaning. Generated navigation/frontmatter before the first message is not a conversation passage. Full-note reads still expose it. Message bodies remain literal; fenced headings cannot create new exchanges. Long exchanges stay intact to preserve question/answer context.
 
@@ -82,7 +82,7 @@ Use a returned path and passage ID to read the exact source range:
 
 `context` defaults to `none`. `neighbors` returns the complete selected exchange/section plus its preceding and following logical units within the same note, including all paragraph chunks of those sections. Context can therefore be substantially larger than the original hit. `section` and `passage_id` are mutually exclusive. IDs combine a content fingerprint and source range: any note text edit invalidates them, returning HTTP 409 with instructions to search again. A rename requires the new returned path. They are temporary retrieval references, not permanent memory identities. Original SQLite records, exporter format, vault files and reset behavior are unchanged.
 
-Results carry exact vault-relative paths and note modification timestamps where applicable. No application-level query/result byte budgets or pagination are imposed. Large results consume model context and memory; existing conversation context limits still apply. Search scans visible Markdown notes on demand, so performance at large vault sizes is not established. There is a 60-second HTTP inactivity timeout in the Python client and listener, plus Node's 60-second request/header reception timeouts; these are not a guaranteed total execution deadline for a long scan. Transport-level Node defaults still apply.
+Results carry exact vault-relative paths and note modification timestamps where applicable. Search queries are limited to 256 characters. Search returns at most five notes by default (`limit`: integer 1–10), and its data payload is capped below 12 KiB. `offset` and `next_offset` paginate note groups; `total` and `total_passages` count all matches, and `truncated` indicates more notes. Use the same query/filters when paging; edits between requests can change ranking. Narrow the query/folder for other passages within a note. Oversized single-note metadata returns an explicit budget error rather than damaged references. These are preview limits, not ranking/index or full-read limits. Full-note, focused and neighboring reads can still be large; start with a single passage. Search scans visible Markdown notes on demand, so performance at large vault sizes is not established. There is a 60-second HTTP inactivity timeout in the Python client and listener, plus Node's 60-second request/header reception timeouts; these are not a guaranteed total execution deadline for a long scan. Transport-level Node defaults still apply.
 
 ## Boundaries and lifecycle
 
@@ -106,7 +106,7 @@ runtime/agent/bin/python -m unittest discover -s tests/core
 runtime/discord/bin/python -m unittest discover -s tests/discord
 ```
 
-Version 0.3.0 verification: 17 search/plugin tests and 200 core tests passed, including the bundled-loader check. Checks include synthetic exporter-shaped exchange pairing, literal fenced headings, source line ranges and message identifiers, section chunking, focused-versus-scattered ranking, multiple hits per note, neighboring context, and stale-reference rejection. Existing scoring, authorization, symlink, reset, diagnostics and installer checks remain applicable. These tests do not establish real-conversation answer quality or large-vault performance. Reload Obsidian and restart Marionette after installing to activate the bundle and tool schema.
+Version 0.4.0 introduces compact search previews and pagination, source dates on parsed message metadata, and focused-read/date guidance. Regression tests cover byte limits, paging, full passage reads, stale references and the bundled loader. Earlier 0.3.0 verification had 17 search/plugin tests and 200 core tests. Checks include synthetic exporter-shaped exchange pairing, literal fenced headings, source line ranges and message identifiers, section chunking, focused-versus-scattered ranking, multiple hits per note, neighboring context, and stale-reference rejection. Existing scoring, authorization, symlink, reset, diagnostics and installer checks remain applicable. These tests do not establish real-conversation answer quality or large-vault performance. Reload Obsidian and restart Marionette after installing to activate the bundle and tool schema.
 
 Node is needed to run plugin tests, not as a separate production server. Tests use temporary synthetic vaults; public Obsidian API fixtures do not establish real app compatibility or model answer quality. See [the Scarecrow verification report](../../development/experiments/scarecrow-2026-11-13.md) for what has actually been exercised.
 
@@ -123,3 +123,21 @@ The stream reports the listener and vault state observed at connection, then liv
 Only metadata is forwarded: no bearer tokens, query text, note paths, note contents or response bodies. The stream has no replay queue or disk log; events during disconnection are not recoverable. Slow subscribers are disconnected rather than accumulating a backlog. The reader stops before main chat's recorder shuts down. Events share the existing 500 MB RAM budget and shutdown save; no helper process or additional storage system is introduced. This captures Scarecrow integration events, not Obsidian's entire developer console.
 
 After a code update, rerun setup and reload the vault to load the new plugin bundle; restart Marionette to start the diagnostic subscriber.
+
+## Evidence and date handling
+
+The model tool schema describes previews as navigation and requests an exact
+`path` + `passage_id` read before factual answers. An application-authored reminder
+is added to follow-up system messages after vault calls, before token counting.
+It requests a focused read, adds neighbors only when needed, and distinguishes
+unavailable transport from empty search results. This is model guidance, not an
+enforced proof-checker; passing transport/prompt tests does not establish reliable
+answer quality across real conversations.
+
+New user-message metadata includes `current_time_utc`. The model is instructed to
+compare source message dates with that current timestamp, honor explicit
+corrections, treat undated plans as uncertain and never use mirror file modification
+time as an event date. Contact-note guidance avoids retaining temporary plans and
+requires supported explicit dates for worthwhile dated events. Existing personal
+notes are not rewritten by this update. Search scores measure lexical relevance,
+not truth; cite the selected dated source and omit unnecessary internal IDs.

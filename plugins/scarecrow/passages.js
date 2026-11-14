@@ -29,7 +29,7 @@ function message(lines,start,end) {
     const data=JSON.parse(match[2].split('\n').map(line=>line.replace(/^> ?/,'')).join('\n'));
     const record=text.match(/^## [^\n]+\n\nRecord (\d+)\n/);
     if(!record || String(data.id)!==record[1] || !['input','answer'].includes(data.kind)) return null;
-    return {record_id:data.id,message_id:data.message_id,role:data.role,kind:data.kind};
+    return {record_id:data.id,message_id:data.message_id,role:data.role,kind:data.kind,recorded_at:typeof data.recorded_at==='string' ? data.recorded_at : null};
   } catch {return null;}
 }
 function splitPassages(path,content) {

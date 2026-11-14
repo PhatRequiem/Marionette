@@ -164,11 +164,14 @@ class API:
                 # Qwen-Agent 0.0.34 emits legacy tool `id`/`extra` fields.
                 # Normalize its tool results to the OpenAI-compatible wire schema.
                 kwargs['messages'] = self.wire_messages(kwargs['messages'])
-                if coordinator.log_result_received:
+                if coordinator.log_result_received or coordinator.vault_result_received:
                     # Qwen requires one initial system message. Amend a copy for
                     # this follow-up only; keep instructions out of tool data/history.
                     system = dict(kwargs['messages'][0])
-                    system['content'] += '\n\n' + self.feature_prompt('log-results.md')
+                    if coordinator.log_result_received:
+                        system['content'] += '\n\n' + self.feature_prompt('log-results.md')
+                    if coordinator.vault_result_received:
+                        system['content'] += '\n\n' + self.feature_prompt('vault-results.md')
                     kwargs['messages'] = [system, *kwargs['messages'][1:]]
                 if self.tools:
                     tokens = self.count(kwargs['messages'])

@@ -209,3 +209,31 @@ class CoordinationTests(unittest.TestCase):
             chat.turn('separate sender', source='discord', sender_id='987')
             self.assertFalse(any(m['role']=='tool' for m in sent[-1]['messages']))
             self.assertEqual(chat.histories['terminal:local'], terminal_history)
+
+    def test_vault_followup_guidance_precedes_counting_and_focused_read(self):
+        class Vault(EchoTool):
+            name = 'read_vault'
+            parameters = {'type':'object','properties':{'action':{'type':'string'}},'required':['action']}
+            def call(self, params, **kwargs):
+                return json.dumps({'status':'ok','data':{'source_date':'2026-11-12'}})
+        api = API('http://localhost', tools=[Vault()])
+        counted=[];sent=[]
+        api.count = lambda messages: (counted.append(messages) or 20)
+        def handle(request):
+            sent.append(json.loads(request.content))
+            if len(sent)<=2:
+                return response({'tool_calls':[{'index':0,'id':f'call_{len(sent)}','type':'function',
+                    'function':{'name':'read_vault','arguments':json.dumps({'action':'search' if len(sent)==1 else 'read'})}}]}, 'tool_calls')
+            return response({'content':'The dated passage supports this answer.'}, 'stop')
+        sdk=OpenAI(base_url='http://localhost/v1',api_key='EMPTY',http_client=httpx.Client(transport=httpx.MockTransport(handle)))
+        with patch('inference.OpenAI',return_value=sdk),patch('diagnostics.log'):
+            answer,_=api.reply([{'role':'user','content':'Review a memory.'}],100)
+        self.assertIn('dated passage',answer)
+        self.assertNotIn('# Use returned vault evidence',sent[0]['messages'][0]['content'])
+        for request in sent[1:]:
+            prompt=request['messages'][0]['content']
+            self.assertEqual(prompt.count('# Use returned vault evidence'),1)
+            self.assertIn('path and passage_id before',prompt)
+            self.assertIn('not the event',prompt)
+            self.assertIn('current explicit correction',api.feature_prompt('contact-notes.md'))
+        self.assertTrue(any('# Use returned vault evidence' in m[0]['content'] for m in counted))

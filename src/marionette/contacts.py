@@ -238,5 +238,7 @@ class ContactProfiles:
 
 
 def message_with_identity(message, identity):
-    return ('Sender metadata (provided by Marionette):\n' + json.dumps(identity, ensure_ascii=False)
+    metadata = dict(identity or {})
+    metadata['current_time_utc'] = datetime.now(timezone.utc).isoformat()
+    return ('Sender metadata (provided by Marionette):\n' + json.dumps(metadata, ensure_ascii=False)
             + '\n\nMessage:\n' + message)

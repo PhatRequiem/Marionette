@@ -91,3 +91,14 @@ Read or edit the Markdown locally while chat is stopped. Keep edits within the l
 For a backup, stop chat and copy both `data/contacts/profiles.json` and the entire `data/contact_notes/` directory to private storage. Restore them together, preserving UUID filenames and file permissions, before launching again. Do not overwrite newer data without first saving it. Markdown is the portable storage format; the contact registry supplies contact/account provenance, and dated session logs record tool activity. There is no per-fact source ledger or automatic revision history.
 
 Cross-database migration is not applicable to this Markdown file store. Back up the matching contact registry separately.
+
+## Dates and corrections
+
+Current sender metadata includes `current_time_utc`. Contact-note guidance treats
+stored notes as historical evidence: old or undated “today”, “tomorrow” and weekend
+plans must not automatically become current plans. Explicit user corrections take
+precedence; planned events are not evidence of completion. Prefer lasting facts;
+when a dated event is worth saving, use an explicit date supported by the source.
+This guidance does not automatically rewrite existing notes or guarantee model
+compliance. Source dates in vault passages and mirror refresh times have different
+meanings; see [vault evidence handling](../setup-and-maintenance/obsidian-connection.md#evidence-and-date-handling).
