@@ -59,6 +59,7 @@ DATA="$(cd -- "$DATA" && pwd)"
 export MARIONETTE_DATA_DIR="$DATA"
 exec 9>"$ROOT/data/.chat.lock"
 flock -n 9 || { echo 'A chat is already running. Stop it before starting another.' >&2; exit 1; }
+python "$ROOT/src/marionette/reset_boundary.py" "$DATA"
 LOG_DIR="${MARIONETTE_LOG_DIR:-$DATA/conversations}"
 mkdir -p -- "$LOG_DIR"
 LOG_DIR="$(cd -- "$LOG_DIR" && pwd)"
@@ -82,7 +83,10 @@ finish() {
     python "$ROOT/src/marionette/storage.py" "$MARIONETTE_LOG_DB" end "$MARIONETTE_LOG_SESSION" || status=1
     # Both main recorders have drained; publish the final saved conversation state.
     local data_root="$DATA"
-    if python "$ROOT/src/marionette/conversation_vault.py" "$MARIONETTE_LOG_DB" \
+    if [[ -e "$DATA/memory-reset-incomplete.json" || -L "$DATA/memory-reset-incomplete.json" ]]; then
+        echo 'Memory reset is incomplete; vault refresh skipped. Finish the stopped maintenance reset before restarting.' >&2
+        status=1
+    elif python "$ROOT/src/marionette/conversation_vault.py" "$MARIONETTE_LOG_DB" \
         --profiles "$data_root/contacts/profiles.json" \
         --contact-notes "$data_root/contact_notes" --docs "$ROOT/docs" >/dev/null; then
         printf 'Conversation vault refreshed.\n'

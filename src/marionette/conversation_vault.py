@@ -44,7 +44,10 @@ def atomic_write(path, content):
 
 
 def sync(database, profiles=None, contact_notes=None, docs=None):
+    from reset_boundary import require_complete
     database = Path(database).absolute()
+    data = Path(profiles).absolute().parent.parent if profiles else database.parent.parent
+    require_complete(data)
     vault = database.parent / 'obsidian-vault'
     # Destination is deliberately fixed under the reset-managed conversations folder.
     for path in (database, *database.parents):
@@ -55,15 +58,16 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
     notes_directory = Path(contact_notes).absolute() if contact_notes else None
     if notes_directory and any(p.is_symlink() for p in (notes_directory, *notes_directory.parents)):
         raise ValueError('Contact notes source refuses symbolic links.')
-    names = {}
-    if profiles and Path(profiles).exists():
-        names = {p['uuid']: p['name'] for p in json.loads(Path(profiles).read_text())['profiles']}
     # Reserve the SQLite writer while reading/publishing. No database data is changed.
     # This serializes with reset_memory's deletion transaction: an old export cannot
     # finish after reset has deleted the database's old messages and their copies.
     with closing(sqlite3.connect(database.as_uri() + '?mode=rw', uri=True, timeout=10)) as db:
         db.row_factory = sqlite3.Row
         db.execute('BEGIN IMMEDIATE')
+        require_complete(data)
+        names = {}
+        if profiles and Path(profiles).exists():
+            names = {p['uuid']: p['name'] for p in json.loads(Path(profiles).read_text())['profiles']}
         if db.execute('PRAGMA user_version').fetchone()[0] not in (3, 4, 5):
             raise ValueError('Conversation vault requires schema 3–5.')
         groups = defaultdict(list)
@@ -157,8 +161,12 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
                 documentation_count += 1
             pages['Self documentation.md'] = index
         generated = vault / 'Generated'
+        reset_marker = generated / '.marionette-reset'
         if generated.exists() and not (generated / '.marionette-managed').is_file():
-            raise ValueError('Refusing to overwrite an unrecognized Generated directory.')
+            cleared = (reset_marker.is_file() and reset_marker.read_text() == 'Marionette cleared mirror v1\n'
+                       and all(p.is_dir() or p == reset_marker for p in generated.rglob('*')))
+            if not cleared:
+                raise ValueError('Refusing to overwrite an unrecognized Generated directory.')
         for directory in (vault, generated, vault / 'Annotations', generated / 'Contacts', generated / 'Groups'):
             directory.mkdir(mode=0o700, parents=True, exist_ok=True)
         atomic_write(generated / '.marionette-managed', 'Marionette conversation mirror v2\n')
@@ -175,9 +183,8 @@ def sync(database, profiles=None, contact_notes=None, docs=None):
             managed_document = old.is_relative_to(generated / 'Self documentation')
             if old.is_file() and (old.suffix == '.md' or managed_document) and old.relative_to(generated).as_posix() not in pages:
                 old.unlink()
-        for old in sorted(generated.rglob('*'), key=lambda p: len(p.parts), reverse=True):
-            if old.is_dir() and old not in (generated / 'Contacts', generated / 'Groups') and not any(old.iterdir()):
-                old.rmdir()
+        # Keep the existing directory structure, including empty folders after reset.
+        reset_marker.unlink(missing_ok=True)
         welcome = '# Welcome to Marionette’s vault\n\nBrowse Marionette’s saved records and reference material.\n\n- [[Generated/Contacts|Contacts]] — profiles, contact notes and conversations, organized by contact with their own date indexes.\n'
         if docs is not None:
             welcome += '- [[Generated/Self documentation|Self documentation]] — current operation, setup and maintenance guides. Experiments, history and ideas stay outside the vault.\n'

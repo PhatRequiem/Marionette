@@ -6,7 +6,7 @@ Local terminal chat with Qwen3.5 4B using a small Python terminal client and lla
 
 Follow [STARTUP.md](STARTUP.md) to launch her in the terminal and optionally connect Discord. It lists the steps in order and explains how to stop each part.
 
-For quick experiments, the owner can send [`/resetmemory`](docs/active/current-operation/reset-memory.md) from terminal or Discord to reset personal memory and all chat histories without reloading the model.
+For quick experiments, the owner can send [`/resetmemory`](docs/active/current-operation/reset-memory.md) from terminal or Discord to clear saved memory and chat histories while preserving the full owner profile, permanent IDs, tools, folders, and loaded model.
 
 For a new installation, see [local setup](docs/active/setup-and-maintenance/setup.md). Setup downloads and verifies the pinned runtime and model; subsequent terminal chat runs are offline.
 

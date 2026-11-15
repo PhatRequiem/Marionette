@@ -30,6 +30,7 @@ class Conversation:
         self.incoming = queue.Queue()
         self.epoch = store.generation if store else ''
         self.resetting = False
+        self.reset_input = None
         self.shutdown_requested = False
         self.discord_control = None
         self.setup_refresh = None
@@ -102,12 +103,16 @@ class Conversation:
             self.api.cancel_reply()
         return 'Cancellation requested. Completed tool actions are not undone.'
 
-    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None, display_name=None):
+    def turn(self, message, *, on_delta=None, source="terminal", sender_id=None, message_id=None, display_name=None, generation=None):
         identifier = diagnostics.message_id(message_id)
         with self.lock:
+            if generation is not None and generation != self.epoch:
+                return 'Message discarded because memory was reset. Please send it again.', 'stop'
             self.finish_preparation()
             with diagnostics.message_scope(identifier, 'processing'):
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
+                if source == 'discord':
+                    diagnostics.log('Discord answer: ' + json.dumps(result[0], ensure_ascii=False))
             if result[1] not in ('blocked', 'cancelled') and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
@@ -120,7 +125,7 @@ class Conversation:
         if self.shutdown_requested:
             raise RuntimeError('Session is shutting down.')
         if self.resetting:
-            raise RuntimeError('Memory reset incomplete; restart the application before continuing.')
+            raise RuntimeError('Memory reset incomplete; stop and finish the maintenance reset before continuing.')
         if self.api.closing.is_set():
             raise RuntimeError('Session is closing.')
         if source == 'discord' and self.discord_access is not None and not self.discord_access.admits(sender_id):
@@ -143,6 +148,9 @@ class Conversation:
         self.key = source + ':' + (str(sender_id) if sender_id is not None else 'local')
         diagnostics.log(f'Conversation selected: {self.key}.')
         diagnostics.log('Message input: ' + json.dumps(message, ensure_ascii=False))
+        if source == 'discord':
+            # Payload logging shares the turn/reset lock. Socket workers log metadata only.
+            diagnostics.log(f'Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
         if identity is not None:
             identity['conversation_id'] = self.key
             if self.store is not None and self.session_id:

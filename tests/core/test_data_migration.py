@@ -28,6 +28,7 @@ class MigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root/'identities').mkdir()
+            (root/'identities/profiles.json').write_text('synthetic legacy profile')
             (root/'contacts').mkdir()
             with self.assertRaises(ValueError): migrate_personal_paths(root)
             self.assertTrue((root/'identities').exists())
@@ -35,6 +36,19 @@ class MigrationTests(unittest.TestCase):
             (root/'characters').symlink_to(root/'identities')
             with self.assertRaises(ValueError): migrate_personal_paths(root)
             self.assertTrue((root/'identities').exists())
+
+    def test_empty_legacy_trees_survive_without_conflicting_with_current_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory)
+            for old,new in [('identities','contacts'),('characters','contact_notes'),('self','soul')]:
+                (root/old/'archive/nested').mkdir(parents=True)
+                (root/new).mkdir()
+                (root/new/'profile.json').write_text('synthetic current record')
+            migrate_personal_paths(root)
+            migrate_personal_paths(root)
+            for old,new in [('identities','contacts'),('characters','contact_notes'),('self','soul')]:
+                self.assertTrue((root/old/'archive/nested').is_dir())
+                self.assertEqual((root/new/'profile.json').read_text(),'synthetic current record')
 
     def test_legacy_database_keeps_contact_and_message(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -13,7 +13,7 @@ HELP_TEXT = """Available commands:
 /sync — Refresh the full Obsidian mirror now. (owner only)
 /cancel — Stop current generation without clearing history or shutting down. (owner only)
 /clear — Clear this conversation's active context; keep saved records and notes.
-/resetmemory — Reset personal memory, conversations and logs; keep permanent IDs and owner mapping. Model stays loaded. (owner only)
+/resetmemory — Clear saved memory, conversations and logs; preserve your owner profile, IDs, tools and folders. Model stays loaded. (owner only)
 /shutdown — Shut down Marionette and disconnect Discord; keep saved memory. (owner only)
 /startdiscord — Start the Discord connection in the background. (owner, terminal only)
 /stopdiscord — Disconnect Discord; keep main chat running. (owner, terminal only)

@@ -1,7 +1,9 @@
 """Live reset with synthetic identities and real recorder subprocesses."""
 import io
+import copy
 import json
 import os
+import socket
 from pathlib import Path
 import subprocess
 import sys
@@ -21,6 +23,12 @@ from conversation_vault import sync
 from reset_boundary import BoundaryReader, marker
 from commands import recognize
 from ram_logs import RamLogs
+from clock_tool import GetCurrentTime
+from contact_profile import UpdateContactProfile
+from contact_notes import UpdateContactNotes
+from connection import LocalConnection
+from data_migration import migrate_personal_paths
+from reset_boundary import INCOMPLETE, require_complete
 
 
 class MemoryResetTests(unittest.TestCase):
@@ -68,8 +76,13 @@ class MemoryResetTests(unittest.TestCase):
                 (root/'session').mkdir()
                 profiles=ContactProfiles(root/'contacts/profiles.json')
                 owner=profiles.profiles[0]
-                owner['linked_accounts']=[{'service':'discord','account_id':'123'}]
+                owner['linked_accounts']=[{'service':'discord','account_id':'123'},
+                                          {'service':'discord','account_id':'456'},
+                                          {'service':'example','account_id':'owner'}]
+                owner['preferred_name']='Owner nickname'
+                owner['timezone']='America/New_York'
                 profiles.save()
+                saved_owner=copy.deepcopy(owner)
                 profiles.add('Other')
                 notes=ContactNotes(root/'contact_notes')
                 identity=profiles.resolve('terminal',owner['uuid'])
@@ -95,8 +108,19 @@ class MemoryResetTests(unittest.TestCase):
                 (vault/'.obsidian/app.json').write_text('{"vimMode":true}')
                 preserved = {p.relative_to(vault): p.read_bytes()
                              for p in (vault/'.obsidian').rglob('*') if p.is_file()}
+                for name in ('contacts','contact_notes','soul','conversations','session',
+                             'identities','characters','self'):
+                    backup=root/name/'archive/nested'
+                    backup.mkdir(parents=True)
+                    (backup/'private-copy.json').write_text('OLD_SECRET')
+                directories={p for p in root.rglob('*') if p.is_dir()}
                 api=Mock(closing=threading.Event(), tools=())
+                custom=Mock();custom.name='synthetic_tool'
+                api.tools=(soul.bind(api),GetCurrentTime(),custom,
+                           UpdateContactProfile(profiles,identity),UpdateContactNotes(notes,identity,'OLD_SECRET'))
                 conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul)
+                conversation.bind_log_query()
+                tool_names={t.name for t in api.tools}
                 conversation.histories={'terminal:test':[{'role':'user','content':'OLD_SECRET'}], 'discord:123':[{'role':'user','content':'old'}]}
                 capture=Path(__file__).resolve().parents[2]/'src/marionette/storage.py'
                 processes=[]
@@ -111,26 +135,65 @@ class MemoryResetTests(unittest.TestCase):
                     while not store.db.execute('SELECT count(*) FROM events').fetchone()[0]:
                         if time.monotonic()>deadline: self.fail('Recorder did not start')
                         time.sleep(.02)
-                    with patch('diagnostics.log'),patch('diagnostics.write',side_effect=lambda raw:(diag.stdin.write(raw),diag.stdin.flush())),patch('sys.stdout',Mock(buffer=terminal.stdin)):
-                        answer,finish=conversation.turn('/resetmemory',source=source,sender_id='123' if source=='discord' else None)
+                    paused,release=threading.Event(),threading.Event()
+                    replies=[]
+                    address=root/'session/chat.sock'
+                    def delayed_log(line):
+                        if 'Discord local request received.' in line:
+                            paused.set()
+                            if not release.wait(5):
+                                raise RuntimeError('Synthetic handler gate timed out')
+                        import diagnostics
+                        diagnostics.log(line)
+                    def request():
+                        with socket.socket(socket.AF_UNIX) as client:
+                            client.settimeout(10)
+                            client.connect(str(address))
+                            client.sendall((json.dumps({'sender_id':'123','message':'OLD_SECRET delayed request','generation':''})+'\n').encode())
+                            with client.makefile('rb') as stream:
+                                replies.append(json.loads(stream.readline()))
+                    with patch('diagnostics.write',side_effect=lambda raw:(diag.stdin.write(raw),diag.stdin.flush())),patch('sys.stdout',Mock(buffer=terminal.stdin)):
+                        with LocalConnection(address,conversation.submit_discord,delayed_log):
+                            worker=threading.Thread(target=request)
+                            worker.start()
+                            try:
+                                self.assertTrue(paused.wait(5))
+                                answer,finish=conversation.turn('/resetmemory',source=source,sender_id='123' if source=='discord' else None)
+                            finally:
+                                release.set()
+                                worker.join(5)
+                            self.assertFalse(worker.is_alive())
+                            self.assertIn('discarded',replies[0]['answer'])
                     self.assertEqual(finish,'resetmemory')
                     self.assertIn('Memory reset',answer)
                     self.assertIn('get_current_time', [t.name for t in api.tools])
+                    self.assertEqual({t.name for t in api.tools},tool_names)
+                    self.assertIn(custom,api.tools)
+                    self.assertIsNone(next(t for t in api.tools if t.name=='update_contact_notes').content)
+                    self.assertEqual(next(t for t in api.tools if t.name=='update_soul').current['content'],'')
+                    api.prepare.assert_called_once_with([])
+                    self.assertIsNone(api.system_prompt)
                     api.reply.assert_not_called()
                     self.assertFalse(api.closing.is_set())
                     self.assertEqual(conversation.histories,{})
                     self.assertEqual(len(profiles.profiles),1)
                     self.assertEqual(profiles.profiles[0]['uuid'],owner['uuid'])
+                    self.assertEqual(profiles.profiles,[saved_owner])
+                    self.assertEqual(json.loads(profiles.path.read_text())['profiles'],[saved_owner])
                     self.assertEqual(profiles.resolve('discord','123')['contact_uuid'],owner['uuid'])
                     self.assertEqual(soul.read()['uuid'],uid)
                     self.assertEqual(soul.read()['revisions'][-1]['content'],'')
                     self.assertEqual(len(soul.read()['revisions']),1)
-                    self.assertEqual(list(notes.directory.iterdir()),[])
+                    self.assertFalse(any(p.is_file() for p in notes.directory.rglob('*')))
                     self.assertFalse((root/'soul/export.json').exists())
-                    self.assertEqual([p.name for p in vault.iterdir()], ['.obsidian'])
+                    self.assertTrue(all(p.is_dir() for p in directories))
+                    self.assertFalse(any(p.name=='private-copy.json' for p in root.rglob('*')))
+                    self.assertFalse((root/INCOMPLETE).exists())
+                    migrate_personal_paths(root)
                     self.assertEqual(preserved, {p.relative_to(vault): p.read_bytes()
                         for p in (vault/'.obsidian').rglob('*') if p.is_file()})
                     sync(dbpath)
+                    self.assertTrue(all(p.is_dir() for p in directories))
                     self.assertTrue((vault/'Generated/.marionette-managed').is_file())
                     self.assertFalse(any('OLD_SECRET' in p.read_text()
                         for p in vault.rglob('*.md')))
@@ -150,6 +213,42 @@ class MemoryResetTests(unittest.TestCase):
                         if not proc.stdin.closed:proc.stdin.close()
                         proc.stderr.close()
                     old_writer.close();store.close()
+
+    def test_prepare_failure_preserves_tools_and_blocks_restart_and_export(self):
+        import session
+        with tempfile.TemporaryDirectory() as directory,patch('diagnostics.log'):
+            root=Path(directory)
+            (root/'session').mkdir()
+            (root/'session/log-session.json').write_text('{}')
+            profiles=ContactProfiles(root/'contacts/profiles.json')
+            owner=copy.deepcopy(profiles.profiles[0])
+            soul=Soul(root/'soul/profile.json')
+            notes=ContactNotes(root/'contact_notes')
+            store=Store(root/'conversations/marionette.sqlite3')
+            self.addCleanup(store.close)
+            api=Mock(closing=threading.Event(),tools=())
+            api.tools=(soul.bind(api),GetCurrentTime())
+            api.prepare.side_effect=RuntimeError('Synthetic preparation failure')
+            convo=Conversation(api,8192,profiles,profiles.profiles[0],notes,store,store.start(),soul)
+            with self.assertRaisesRegex(RuntimeError,'Synthetic preparation failure'):
+                convo.turn('/resetmemory')
+            self.assertTrue(convo.resetting)
+            self.assertEqual({t.name for t in api.tools},{'update_soul','get_current_time'})
+            self.assertEqual(profiles.profiles,[owner])
+            self.assertTrue((root/INCOMPLETE).exists())
+            with self.assertRaisesRegex(RuntimeError,'reset incomplete'):
+                convo.turn('must not run')
+            with self.assertRaisesRegex(RuntimeError,'reset is incomplete'):
+                require_complete(root)
+            with self.assertRaisesRegex(RuntimeError,'reset is incomplete'):
+                sync(root/'conversations/marionette.sqlite3')
+            with patch.dict(os.environ,{'MARIONETTE_DATA_DIR':str(root)}),patch('session.subprocess.Popen') as start:
+                with self.assertRaisesRegex(RuntimeError,'reset is incomplete'):
+                    session.run(['synthetic-model'])
+                start.assert_not_called()
+                with self.assertRaisesRegex(RuntimeError,'reset is incomplete'):
+                    session.chat(api,8192)
+            api.reply.assert_not_called()
 
     def test_nonowner_cannot_reset_or_invoke_model(self):
         with tempfile.TemporaryDirectory() as directory,patch('diagnostics.log'):

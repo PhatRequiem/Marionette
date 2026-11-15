@@ -96,7 +96,7 @@ Plugin load starts the listener; unload closes it and active connections and unr
 
 The source remains SQLite conversations, contact notes and Active docs. The existing mirror refreshes on orderly shutdown or manually, not every message. Scarecrow reads that mirror; `query_logs` remains the source for live status. Tool calls/results stay in conversation context and trim with the exchange.
 
-Memory reset clears vault content but preserves `.obsidian/`, including Scarecrow's installed plugin, settings and credentials. Close the vault before a reset so Obsidian cannot recreate cached notes. The adapter and listener refuse a missing managed-mirror marker. After reset, run `/sync` or the manual mirror sync and reopen the vault; plugin reinstallation is unnecessary. Source code and the setup script survive reset. No synthetic test data is written to real profiles.
+Memory reset clears vault files but preserves every existing folder and `.obsidian/`, including Scarecrow's installed plugin, settings and credentials. Tool registrations remain present. Close the vault before a reset so Obsidian cannot recreate cached notes. The adapter and listener refuse a missing managed-mirror marker. After a successful reset, run `/sync` or the manual mirror sync and reopen the vault; plugin reinstallation is unnecessary. An incomplete reset blocks export until [maintenance recovery](../current-operation/reset-memory.md#completion-and-failure-recovery) is verified. Source code and the setup script survive reset. No synthetic test data is written to real profiles.
 
 ## Verification and references
 

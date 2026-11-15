@@ -159,9 +159,7 @@ class LauncherTests(unittest.TestCase):
         data = self.root/'alternate data'
         self.env['MARIONETTE_DATA_DIR'] = str(data)
         self.env.pop('MARIONETTE_LOG_DIR', None)
-        result = subprocess.run(['bash',str(self.launcher)],
-            input='1\nold sentinel\n/resetmemory\nnew sentinel\n/exit\n', text=True,
-            capture_output=True, env=self.env, cwd='/tmp', timeout=25)
+        result = self.run_reset_chat('old sentinel','new sentinel')
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('Memory reset. Soul, contact notes',result.stdout)
         self.assertTrue((data/'contacts/profiles.json').exists())
@@ -220,9 +218,7 @@ class LauncherTests(unittest.TestCase):
     def test_live_reset_through_launcher_keeps_server_and_clears_previous_turn(self):
         self.logs = self.root / 'data/conversations'
         self.env['MARIONETTE_LOG_DIR'] = str(self.logs)
-        result = subprocess.run(['bash', str(self.launcher)],
-            input='1\nOLD_RESET_SENTINEL\n/resetmemory\nnew turn\n/exit\n', text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env, cwd='/tmp', timeout=25)
+        result = self.run_reset_chat('OLD_RESET_SENTINEL','new turn')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Memory reset. Soul, contact notes', result.stdout)
         self.assertNotIn('MARIONETTE_RESET:', result.stdout)
@@ -231,6 +227,45 @@ class LauncherTests(unittest.TestCase):
             self.assertEqual([r[0] for r in db.execute("SELECT content FROM messages WHERE kind='input'")], ['new turn'])
             self.assertFalse(any(b'OLD_RESET_SENTINEL' in bytes(r[0]) for r in db.execute('SELECT raw FROM events')))
             self.assertEqual(db.execute('PRAGMA integrity_check').fetchone()[0],'ok')
+
+    def run_reset_chat(self,old,fresh):
+        """Only submit the new turn after reset acknowledges its input boundary."""
+        import select
+        command=['bash',str(self.launcher)]
+        with subprocess.Popen(command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                              env=self.env,cwd='/tmp',start_new_session=True) as process:
+            try:
+                process.stdin.write(('1\n'+old+'\n/resetmemory\n').encode())
+                process.stdin.flush()
+                output=b''
+                deadline=time.monotonic()+20
+                while b'Memory reset. Soul, contact notes' not in output:
+                    if time.monotonic()>deadline:
+                        self.fail('Synthetic launcher did not finish reset: '+output.decode(errors='replace'))
+                    if select.select([process.stdout],[],[],.1)[0]:
+                        chunk=os.read(process.stdout.fileno(),65536)
+                        if not chunk:
+                            self.fail('Synthetic launcher stopped before reset: '+output.decode(errors='replace'))
+                        output+=chunk
+                rest,errors=process.communicate((fresh+'\n/exit\n').encode(),timeout=15)
+                return subprocess.CompletedProcess(command,process.returncode,(output+rest).decode(),errors.decode())
+            finally:
+                if process.poll() is None:
+                    os.killpg(process.pid,signal.SIGKILL)
+                    process.wait()
+
+    def test_incomplete_reset_blocks_launcher_before_opening_database(self):
+        data=self.root/'alternate data'
+        data.mkdir()
+        (data/'memory-reset-incomplete.json').write_text('{"state":"incomplete"}')
+        self.env['MARIONETTE_DATA_DIR']=str(data)
+        self.env.pop('MARIONETTE_LOG_DIR',None)
+        result=subprocess.run(['bash',str(self.launcher)],input='',text=True,capture_output=True,
+                              env=self.env,cwd='/tmp',timeout=10)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Memory reset is incomplete',result.stderr)
+        self.assertFalse((data/'conversations').exists())
+        self.assertFalse((data/'session').exists())
 
     def test_private_pairs_separation_quoting_and_viewer_failure(self):
         marker = self.root / 'must-not-exist'

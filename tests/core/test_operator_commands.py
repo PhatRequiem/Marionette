@@ -108,18 +108,47 @@ class OperatorTests(unittest.TestCase):
         from terminal import CancelInput
         reader, writer = os.pipe()
         cancelled = threading.Event()
-        control = Mock()
+        control = Mock(epoch='test-generation',resetting=False)
         control.cancel.side_effect = lambda: (cancelled.set() or 'Cancellation requested')
         try:
             with os.fdopen(reader) as stream, patch('sys.stdin', stream), patch.object(stream, 'isatty', return_value=True), patch('sys.stdout', io.StringIO()):
                 inputs = CancelInput()
                 with inputs.watch(control):
                     os.write(writer, b'next message\n/cancel\n')
-                    self.assertEqual(inputs.deferred.get(timeout=2), 'next message')
+                    self.assertEqual(inputs.deferred.get(timeout=2), ('test-generation','next message'))
                     self.assertTrue(cancelled.wait(2))
                 control.cancel.assert_called_once_with()
         finally:
             os.close(writer)
+
+    def test_reset_discards_queued_lines_and_partial_utf8_input(self):
+        import os
+        import time
+        import tty
+        from terminal import CancelInput
+        master,slave=os.openpty()
+        tty.setcbreak(slave)
+        control=Mock(epoch='old',resetting=False)
+        try:
+            with os.fdopen(slave) as stream,patch('sys.stdin',stream):
+                inputs=CancelInput()
+                with inputs.watch(control):
+                    os.write(master,b'OLD_SECRET\nold partial \xe2\x82')
+                    deadline=time.monotonic()+2
+                    while inputs.deferred.empty() and time.monotonic()<deadline:
+                        time.sleep(.01)
+                    self.assertFalse(inputs.deferred.empty())
+                    control.resetting=True
+                    inputs.discard()
+                    control.epoch='new'
+                    inputs.discard()
+                    control.resetting=False
+                    self.assertTrue(inputs.deferred.empty())
+                    os.write(master,b'fresh input\n')
+                    self.assertEqual(inputs.deferred.get(timeout=2),('new','fresh input'))
+                self.assertTrue(inputs.deferred.empty())
+        finally:
+            os.close(master)
 
     def test_interactive_terminal_cancel_then_queued_exit(self):
         import os

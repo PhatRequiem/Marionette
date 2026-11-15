@@ -23,6 +23,7 @@ from contact_notes import ContactNotes
 from soul import Soul
 from inference import API
 from storage import Store
+from reset_boundary import require_complete
 
 
 def observe(line, facts):
@@ -38,6 +39,7 @@ def observe(line, facts):
 
 def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     data = Path(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
+    require_complete(data)
     migrate_personal_paths(data)
     profiles = ContactProfiles(data / 'contacts/profiles.json')
     profiles.link_owner(data / 'discord/.env')
@@ -97,6 +99,7 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
 
 
 def run(command):
+    require_complete(os.environ.get('MARIONETTE_DATA_DIR', Path(__file__).resolve().parents[2] / 'data'))
     facts = {}
     setup_facts = {}
     setup_details = {}

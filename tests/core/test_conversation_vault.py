@@ -206,7 +206,8 @@ class ConversationVaultTests(unittest.TestCase):
         sync(self.database, docs=docs_root)
         self.assertFalse((target / 'schema.json').exists())
         self.assertFalse((target / 'current-operation/README.md').exists())
-        self.assertFalse((vault / 'Generated/Self documentation/docs').exists())
+        self.assertTrue(legacy.is_dir())
+        self.assertFalse(any(p.is_file() for p in (vault / 'Generated/Self documentation/docs').rglob('*')))
         self.assertEqual((target / 'guide.md').read_text(), '# Updated guide')
         (docs / 'unsafe.md').symlink_to(self.profiles)
         with self.assertRaises(ValueError):

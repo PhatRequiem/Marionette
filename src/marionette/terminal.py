@@ -7,6 +7,7 @@ import time
 import threading
 import os
 import codecs
+import termios
 from contextlib import contextmanager
 
 from commands import render_help, recognize
@@ -88,7 +89,7 @@ def display_discord(conversation, inputs=None):
     color('data')
     try:
         with (inputs or CancelInput()).watch(conversation):
-            answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None))
+            answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None), generation=getattr(future, 'memory_epoch', conversation.epoch))
         if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
             color('meta')
             print(answer)
@@ -120,6 +121,7 @@ def show_terminal_source(conversation):
 
 def run(conversation, *, external=False):
     inputs = CancelInput()
+    conversation.reset_input = inputs.discard
     while True:
         try:
             print()
@@ -139,7 +141,13 @@ def run(conversation, *, external=False):
                             print('> ', end='', flush=True)
                         if not inputs.deferred.empty() or select.select([sys.stdin], [], [], .1)[0]:
                             break
-                message = inputs.deferred.get_nowait() if not inputs.deferred.empty() else input()
+                if not inputs.deferred.empty():
+                    generation, message = inputs.deferred.get_nowait()
+                    if generation != conversation.epoch:
+                        print('\nQueued input discarded because memory was reset. Please send it again.')
+                        continue
+                else:
+                    message = input()
             finally:
                 color('data')
         except EOFError:
@@ -191,6 +199,17 @@ class CancelInput:
     """Read interactive /cancel during a turn; preserve other typed lines in order."""
     def __init__(self):
         self.deferred = queue.Queue()
+        self.lock = threading.Lock()
+        self.revision = 0
+
+    def discard(self):
+        """Discard queued lines, decoder fragments and unread interactive keystrokes."""
+        with self.lock:
+            self.revision += 1
+            while not self.deferred.empty():
+                self.deferred.get_nowait()
+            if sys.stdin.isatty():
+                termios.tcflush(sys.stdin.fileno(), termios.TCIFLUSH)
 
     @contextmanager
     def watch(self, conversation):
@@ -200,20 +219,35 @@ class CancelInput:
             def read():
                 decoder = codecs.getincrementaldecoder('utf-8')(errors='replace')
                 buffered = ''
+                revision = self.revision
                 while not stop.is_set():
                     if select.select([sys.stdin], [], [], .05)[0]:
-                        raw = os.read(sys.stdin.fileno(), 65536)
-                        if not raw:
-                            break
-                        buffered += decoder.decode(raw)
-                        while '\n' in buffered:
-                            line, buffered = buffered.split('\n', 1)
-                            if line.strip() == '/cancel':
-                                print('\n' + conversation.cancel(), flush=True)
-                            else:
-                                self.deferred.put(line)
-                if buffered:
-                    self.deferred.put(buffered)
+                        with self.lock:
+                            if revision != self.revision:
+                                decoder.reset()
+                                buffered = ''
+                                revision = self.revision
+                            # Reset may have flushed the TTY since select() woke us.
+                            if not select.select([sys.stdin], [], [], 0)[0]:
+                                continue
+                            raw = os.read(sys.stdin.fileno(), 65536)
+                            if not raw:
+                                break
+                            generation = conversation.epoch
+                            if conversation.resetting:
+                                decoder.reset()
+                                buffered = ''
+                                continue
+                            buffered += decoder.decode(raw)
+                            while '\n' in buffered:
+                                line, buffered = buffered.split('\n', 1)
+                                if line.strip() == '/cancel':
+                                    print('\n' + conversation.cancel(), flush=True)
+                                else:
+                                    self.deferred.put((generation, line))
+                with self.lock:
+                    if buffered and revision == self.revision and not conversation.resetting:
+                        self.deferred.put((generation, buffered))
             thread = threading.Thread(target=read, name='terminal-cancel', daemon=True)
             thread.start()
         try:

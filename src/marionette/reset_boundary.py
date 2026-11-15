@@ -5,6 +5,15 @@ import uuid
 
 PREFIX = b'\x1eMARIONETTE_RESET:'
 SUFFIX = b'\x1f'
+INCOMPLETE = 'memory-reset-incomplete.json'
+
+
+def require_complete(root):
+    """A restart must not silently resume a partially completed memory wipe."""
+    path = Path(root) / INCOMPLETE
+    if path.exists() or path.is_symlink():
+        raise RuntimeError('Memory reset is incomplete. Finish the stopped maintenance reset '
+                           'and verify it before removing memory-reset-incomplete.json.')
 
 
 def marker(generation):
@@ -55,3 +64,11 @@ def current_generation(address):
         return json.loads(Path(address).with_name('log-session.json').read_text()).get('generation', '')
     except FileNotFoundError:
         return ''
+
+
+if __name__ == '__main__':
+    import sys
+    try:
+        require_complete(sys.argv[1])
+    except RuntimeError as error:
+        raise SystemExit(str(error))

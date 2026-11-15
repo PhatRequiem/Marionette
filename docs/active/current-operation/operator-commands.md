@@ -30,7 +30,8 @@ See [mirror ownership and refresh](../setup-and-maintenance/conversation-vault.m
 
 In an interactive terminal, type `/cancel` and press Enter while generation is running. The
 input watcher passes cancellation directly to the owner-checked handler. Other complete lines
-typed during a turn are queued in order for the normal input loop. This watcher is not enabled
+typed during a turn are queued in order for the normal input loop. Memory reset discards queued
+lines and partial interactive input; send the next message after reset succeeds. This watcher is not enabled
 for piped/non-interactive stdin. Owner Discord `/cancel` bypasses both the adapter’s turn queue
 and main chat’s turn queue, so it can interrupt a reply already running.
 

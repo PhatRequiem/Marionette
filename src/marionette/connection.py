@@ -45,7 +45,7 @@ class LocalConnection:
                             or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
                         raise ValueError('A numeric Discord sender ID is required.')
                     message_id = diagnostics.message_id(request.get('message_id'))
-                    log(f'[message {message_id}] Discord input [{sender_id}]: ' + json.dumps(message, ensure_ascii=False))
+                    log(f'[message {message_id}] Discord local request received.')
                     display_name = request.get('display_name')
                     if display_name is not None and not isinstance(display_name, str):
                         raise ValueError('Discord display name must be text.')
@@ -54,10 +54,10 @@ class LocalConnection:
                     answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id, generation=generation, **names)
                     if finish != 'resetmemory' and generation != current_generation(self.server.server_address):
                         answer, finish = 'Message discarded because memory was reset. Please send it again.', 'stop'
-                    log(f'[message {message_id}] Discord answer: ' + json.dumps(answer, ensure_ascii=False))
+                    log(f'[message {message_id}] Discord local request completed.')
                     result = {'answer': answer, 'finish': finish, 'timings': timings}
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
-                    log(f'[message {message_id or "unassigned"}] Discord local request failed: {error}')
+                    log(f'[message {message_id or "unassigned"}] Discord local request failed: {type(error).__name__}')
                     result = {'error': 'Local chat could not finish this turn; check model logs.'}
                 try:
                     self.wfile.write((json.dumps(result) + '\n').encode())
