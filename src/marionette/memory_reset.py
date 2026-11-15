@@ -77,7 +77,16 @@ def reset_memory(conversation):
             for path in directory.iterdir():
                 if path in keep:
                     continue
-                if path.is_dir(): shutil.rmtree(path)
+                if path == root/'conversations/obsidian-vault' and path.is_dir():
+                    # Vault content is memory; editor configuration and installed
+                    # plugins are infrastructure. Remove the managed marker too,
+                    # so reads stay unavailable until the next full mirror sync.
+                    for entry in path.iterdir():
+                        if entry.name == '.obsidian' and entry.is_dir():
+                            continue
+                        if entry.is_dir(): shutil.rmtree(entry)
+                        else: entry.unlink()
+                elif path.is_dir(): shutil.rmtree(path)
                 else: path.unlink()
             if name in ('identities','characters','self'): directory.rmdir()
         for path in (root/'session').iterdir():

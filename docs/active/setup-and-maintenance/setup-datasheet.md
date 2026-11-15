@@ -72,6 +72,6 @@ external process crashes may need a manual refresh.
 Each successful source update atomically copies this document to the existing
 managed Obsidian mirror beside the conversation database. It uses the database lock
 shared with reset/export and never creates missing directories or pages. After
-reset, the cleared vault stays absent until a normal full mirror sync. Other pages
+reset, the cleared generated mirror stays absent until a normal full mirror sync. Other pages
 still follow the full export schedule. Source/mirror failures are diagnosed;
 `/refreshsetup` can retry. Runtime refreshes never commit or push generated facts.

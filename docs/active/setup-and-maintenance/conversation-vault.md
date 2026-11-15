@@ -97,8 +97,8 @@ The vault is a replaceable mirror, **not a backup or a new memory database**.
 ## Reset, consistency and limits
 
 The whole vault lives under the existing reset-managed `data/conversations/`
-folder and is ignored by Git. Memory reset deletes it, including annotations and
-Obsidian settings and documentation copies. The original project `docs/` remains
+folder and is ignored by Git. Memory reset clears its content, including annotations and documentation copies,
+but preserves the vault folder and `.obsidian/` settings and installed plugins. The original project `docs/` remains
 untouched and can be mirrored again. Close the vault during resets so Obsidian does not recreate
 cached edits. Copies outside the project remain outside automatic reset scope.
 

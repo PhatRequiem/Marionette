@@ -87,6 +87,14 @@ class MemoryResetTests(unittest.TestCase):
                 store.message(session,'local:00000000-0000-0000-0000-000000000001','terminal:test',identity,'terminal','test','user','input','OLD_SECRET','received')
                 vault=Path(sync(dbpath)['vault'])
                 (vault/'Annotations/private.md').write_text('OLD_SECRET')
+                settings = vault/'.obsidian/plugins/scarecrow/data.json'
+                settings.parent.mkdir(parents=True)
+                settings.write_text('{"token":"synthetic-credential"}')
+                plugin = settings.with_name('main.js')
+                plugin.write_text('// synthetic plugin')
+                (vault/'.obsidian/app.json').write_text('{"vimMode":true}')
+                preserved = {p.relative_to(vault): p.read_bytes()
+                             for p in (vault/'.obsidian').rglob('*') if p.is_file()}
                 api=Mock(closing=threading.Event(), tools=())
                 conversation=Conversation(api,8192,profiles,owner,notes,store,session,soul)
                 conversation.histories={'terminal:test':[{'role':'user','content':'OLD_SECRET'}], 'discord:123':[{'role':'user','content':'old'}]}
@@ -118,7 +126,15 @@ class MemoryResetTests(unittest.TestCase):
                     self.assertEqual(len(soul.read()['revisions']),1)
                     self.assertEqual(list(notes.directory.iterdir()),[])
                     self.assertFalse((root/'soul/export.json').exists())
-                    self.assertFalse(vault.exists())
+                    self.assertEqual([p.name for p in vault.iterdir()], ['.obsidian'])
+                    self.assertEqual(preserved, {p.relative_to(vault): p.read_bytes()
+                        for p in (vault/'.obsidian').rglob('*') if p.is_file()})
+                    sync(dbpath)
+                    self.assertTrue((vault/'Generated/.marionette-managed').is_file())
+                    self.assertFalse(any('OLD_SECRET' in p.read_text()
+                        for p in vault.rglob('*.md')))
+                    for path, content in preserved.items():
+                        self.assertEqual((vault/path).read_bytes(), content)
                     self.assertIsNone(old_writer.event(session,'discord',b'OLD_SECRET delayed'))
                     self.assertEqual(store.db.execute('SELECT count(*) FROM messages').fetchone()[0],0)
                     for proc in processes:proc.stdin.close()
