@@ -1,1 +1,22 @@
-{"Marionette puppet preview":"Marionette-dukkeforhåndsvisning","Hello! Here I am.":"Hej! Her er jeg.","Pause":"Pause","Resume":"Fortsæt","Help":"Hjælp","Close":"Luk","Greet Marionette; drag to move":"Hils på Marionette; træk for at flytte","Drag to move • Click to greet\nSpace: pause • Q / Esc: close":"Træk for at flytte • Klik for at hilse\nMellemrum: pause • Q / Esc: luk"}
+{
+  "Marionette": "Marionette",
+  "Pause": "Pause",
+  "Resume": "Fortsæt",
+  "Help": "Hjælp",
+  "Close": "Luk",
+  "Send": "Send",
+  "Message Marionette…": "Skriv til Marionette…",
+  "Dismiss bubble": "Luk taleboble",
+  "Click Marionette to giggle; drag to move": "Klik på Marionette for at fnise; træk for at flytte",
+  "Enter: send • Shift+Enter: new line\nClick her to giggle • Drag her to move\nOutside text: Space pauses, Q / Esc closes\nClose detaches the puppet; main chat keeps running.": "Enter: send • Shift+Enter: ny linje\nKlik for at fnise • Træk for at flytte\nUden for tekst: Mellemrum pauser, Q / Esc lukker\nLuk skjuler dukken; hovedchatten fortsætter.",
+  "Could not connect. Start the main chat and try again.": "Kunne ikke oprette forbindelse. Start hovedchatten, og prøv igen.",
+  "Could not send the message. Check the main chat.": "Kunne ikke sende beskeden. Kontrollér hovedchatten.",
+  "Chat disconnected. Check the main chat before sending again.": "Chatforbindelsen blev afbrudt. Kontrollér hovedchatten, før du sender igen.",
+  "Memory reset is incomplete. Finish recovery before chatting.": "Nulstillingen af hukommelsen er ufuldstændig. Afslut gendannelsen før chat.",
+  "Start Marionette's main chat, select a profile, then send your message.": "Start Marionettes hovedchat, vælg en profil, og send din besked.",
+  "Message is too long. Shorten it and try again.": "Beskeden er for lang. Forkort den, og prøv igen.",
+  "Chat returned an oversized reply. Check the main chat.": "Chatten returnerede et for stort svar. Kontrollér hovedchatten.",
+  "Chat returned an invalid reply. Check the main chat.": "Chatten returnerede et ugyldigt svar. Kontrollér hovedchatten.",
+  "Chat could not finish this message. Check the main chat before retrying.": "Chatten kunne ikke afslutte denne besked. Kontrollér hovedchatten, før du prøver igen.",
+  "\n\n[Reply reached its length limit.]": "\n\n[Svaret nåede sin længdegrænse.]"
+}

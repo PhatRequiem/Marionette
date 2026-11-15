@@ -187,3 +187,5 @@ The [desktop puppet](../current-operation/desktop-puppet.md) runs locally withou
 | GNU Make | 4.4.1-3 | GPL-3.0-or-later |
 
 Qt libraries are dynamically linked under the open-source LGPL option; source/build instructions are retained. System graphics, Wayland, font and Qt platform dependencies remain distribution-managed; their package notices apply. No Qt commercial license is required. The existing Bash/coreutils/systemd tools provide launch and transient user-service management. No bundled inference engine or model dependency changes.
+
+Desktop chat explicitly links the existing Qt Network module for `QLocalSocket`; it is supplied by the same `qt6-base` package and adds no new downloaded dependency or paid feature. The module offers the LGPL-3.0 open-source option ([Qt Network licensing](https://doc.qt.io/qt-6/qtnetwork-index.html#licenses-and-attributions)); the local-socket API and qmake module requirement are documented by [Qt](https://doc.qt.io/qt-6/qlocalsocket.html).

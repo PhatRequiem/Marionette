@@ -80,7 +80,7 @@ class MessageLogTests(unittest.TestCase):
                 sender.start()
                 item = chat.incoming.get(timeout=3)
                 chat.incoming.put(item)
-                terminal.display_discord(chat)
+                terminal.display_external(chat)
                 sender.join(3)
                 self.assertFalse(sender.is_alive())
                 chat.finish_preparation()

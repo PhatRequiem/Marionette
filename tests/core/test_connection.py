@@ -120,7 +120,7 @@ class ConnectionTests(unittest.TestCase):
             # Wait for the queued request without arbitrary timing assumptions.
             item = conversation.incoming.get(timeout=2)
             conversation.incoming.put(item)
-            self.assertTrue(terminal.display_discord(conversation))
+            self.assertTrue(terminal.display_external(conversation))
             worker.join(2)
             self.assertFalse(worker.is_alive())
             conversation.pending.result()

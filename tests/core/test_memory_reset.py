@@ -304,7 +304,7 @@ class MemoryResetTests(unittest.TestCase):
         future=Future();future.memory_epoch='old'
         convo.epoch='new'
         convo.incoming.put(('OLD_SECRET','123',future,time.monotonic(),None,None))
-        self.assertTrue(terminal.display_discord(convo))
+        self.assertTrue(terminal.display_external(convo))
         self.assertIn('discarded',future.result()[0])
         api.reply.assert_not_called()
         self.assertFalse(convo.histories)

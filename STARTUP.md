@@ -44,6 +44,19 @@ and Discord; the setting survives restarts.
 
 Wait for **Discord ready**, then DM her. Connections and requests shows the Discord connection logs. Only her final answers go to Discord; reasoning stays local. Each Discord DM has its own conversation, separate from typed terminal messages. The main terminal displays messages and answers; the Reasoning terminal shows reasoning for both chat sources.
 
+## 3. Connect the desktop puppet — optional
+
+After main chat is ready, open another terminal in this checkout:
+
+```bash
+./scripts/native-linux/desktop-puppet.sh build
+./scripts/native-linux/desktop-puppet.sh background
+```
+
+Type below her and press Enter to send; Shift+Enter inserts a line break. Replies appear in a selectable, scrollable bubble. She keeps idling during generation and giggles only when clicked. The desktop uses your saved owner identity and shares the owner's terminal history; Discord histories remain separate. Main chat must stay open. Use the same absolute `MARIONETTE_DATA_DIR` for both launchers if overriding it.
+
+Close or `/exit` in the puppet detaches it while main chat keeps running. To stop its background service, run `./scripts/native-linux/desktop-puppet.sh stop`. After code changes, rebuild the puppet and restart both the backend and puppet to load the new version. See [desktop operation and limits](docs/active/current-operation/desktop-puppet.md).
+
 ## Stop or start fresh
 
 - **Disconnect Discord only:** type `/stopdiscord` in main chat as the owner, or press Ctrl+C in the optional foreground Discord terminal. Main chat stays running.

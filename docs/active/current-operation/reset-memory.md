@@ -1,6 +1,6 @@
 # Reset memory from chat
 
-Send **`/resetmemory`** in the main terminal or a one-to-one Discord DM. Only the saved owner contact may run it. Discord authorization resolves the sending account against the saved owner mapping; typing an owner name in a message does not grant access. The local terminal profile selector remains identification, not a secure login.
+Send **`/resetmemory`** in the main terminal, desktop puppet input, or a one-to-one Discord DM. Only the saved owner contact may run it. Discord authorization resolves the sending account against the saved owner mapping; typing an owner name in a message does not grant access. The desktop is a private same-OS-user interface that resolves the saved owner server-side. The local terminal profile selector remains identification, not a secure login.
 
 This is an application command, processed before model inference. It does not depend on the model agreeing to erase memory. `/clear` still clears only the originating conversation history and preserves saved memory and logs. There is no confirmation prompt for `/resetmemory`. Non-owners receive: “Access Denied”
 
@@ -19,6 +19,8 @@ The soul UUID, owner UUID and authorization mapping, tools, and existing directo
 The main turn lock waits for pending preparation and serializes the reset with generation. Messages from the old reset generation are discarded rather than replayed into fresh memory. Queued terminal lines, partial input, and unread interactive keystrokes are discarded at the reset boundaries; type the next message after the success response. Discord remains connected and the model process remains loaded. Transport duplicate-message watermarks remain active so replayed Discord events do not restore old conversations. The application prepares an empty conversation prefix with its tools and application guidance still registered; no old messages are submitted to the next generation.
 
 The live database and its WAL/SHM files stay open. A transaction deletes old payloads and advances a private reset generation. The current session ID and monotonically allocated event IDs remain valid so launchers and live viewers continue working; its start timestamp is refreshed. Reset completion and subsequent activity create new log records, so the running database is not expected to stay empty.
+
+The desktop client clears its current draft and reply bubble when it observes a reset or session change, and rechecks the session/generation before displaying a received answer. Pending desktop inputs from the old generation are rejected by the same queue boundary. Its UI text is RAM-only and is not a second memory store.
 
 Ordered markers in the diagnostic and terminal streams drain buffered old bytes and acknowledge the boundary. Stale terminal/Discord writers cannot save payloads until crossing the new boundary. Discord input/answer payload logging occurs under the same turn lock; delayed connection handlers log transport metadata only. The diagnostic recorder discards its old RAM and protected errors; even an interrupted reset cannot save the old generation at shutdown. Discord synchronizes its stream on reset completion or the next fresh message. The ordinary 500 MB / 20 MB RAM retention and latest-20 error-window policy is unchanged.
 

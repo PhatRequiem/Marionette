@@ -77,7 +77,7 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
                     'processing': 'busy' if conversation.lock.locked() else 'idle',
                     'cache_preparation': bool(api.worker and api.worker.is_alive()),
                     'observed_at': datetime.now(timezone.utc).isoformat()}
-        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status, setup_changed=lambda: getattr(conversation, 'setup_signal', lambda: None)())
+        connection = LocalConnection(address, conversation.submit_discord, diagnostics.log, status=operator_status, setup_changed=lambda: getattr(conversation, 'setup_signal', lambda: None)(), desktop_turn=conversation.submit_desktop)
     else:
         connection = nullcontext()
     from discord_control import DiscordControl

@@ -66,7 +66,7 @@ def show_ready(capacity, reserve):
           + ' tokens. /clear starts fresh; /resetmemory wipes memory (owner); /shutdown stops her (owner); /exit quits.')
 
 
-def display_discord(conversation, inputs=None):
+def display_external(conversation, inputs=None):
     try:
         message, sender_id, future, queued_at, timings, message_id = conversation.incoming.get_nowait()
     except queue.Empty:
@@ -75,11 +75,13 @@ def display_discord(conversation, inputs=None):
         future.set_result(('Message discarded because memory was reset. Please send it again.', 'stop'))
         return True
     processing_start = time.monotonic()
+    source = getattr(future, 'source', 'discord')
+    label = 'Discord' if source == 'discord' else 'Desktop'
     if timings is not None:
         timings['main_queue_ms'] = round((processing_start - queued_at) * 1000, 2)
     print('\n')
     color('meta')
-    print('[Discord · ', end='', flush=True)
+    print(f'[{label} · ', end='', flush=True)
     color('ids')
     print(sender_id, end='', flush=True)
     color('meta')
@@ -89,8 +91,8 @@ def display_discord(conversation, inputs=None):
     color('data')
     try:
         with (inputs or CancelInput()).watch(conversation):
-            answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source='discord', sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None), generation=getattr(future, 'memory_epoch', conversation.epoch))
-        if recognize(message, 'discord') in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
+            answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source=source, sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None), generation=getattr(future, 'memory_epoch', conversation.epoch))
+        if recognize(message, source) in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel', 'startdiscord', 'stopdiscord', 'refreshsetup'):
             color('meta')
             print(answer)
         if finish == 'cancelled':
@@ -104,7 +106,7 @@ def display_discord(conversation, inputs=None):
     except (ValueError, RuntimeError, OSError, http.client.HTTPException) as error:
         color('data')
         color('error')
-        print(f'\nDiscord request failed: {error}')
+        print(f'\n{label} request failed: {error}')
         future.set_exception(error)
     finally:
         color('data')
@@ -133,7 +135,7 @@ def run(conversation, *, external=False):
                     while True:
                         if getattr(conversation, 'setup_refresh', None):
                             conversation.setup_refresh()
-                        if display_discord(conversation, inputs):
+                        if display_external(conversation, inputs):
                             if conversation.shutdown_requested:
                                 return
                             show_terminal_source(conversation)

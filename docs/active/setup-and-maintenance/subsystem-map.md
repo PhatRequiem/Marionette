@@ -112,11 +112,11 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 **Responsibility:** terminal presentation/input, Discord DM transport, local request routing, delivery and connection lifecycle/status. This group does not choose the model or own durable conversation history.
 
-**Current connections:** terminal drives the main processing loop; Discord submits through the local socket and Conversation's queue. `LocalConnection` is currently a Discord-shaped protocol, including sender ID validation, not a generic transport API. Discord lifecycle and status are connected to Application core and diagnostic probes. Shared style functions are also used by diagnostic views.
+**Current connections:** terminal drives the main processing loop; Discord and desktop submit through the private local socket and Conversation's queue. Discord validates its account ID; the desktop route checks the local peer UID and session/generation, rejects identity overrides, and resolves the saved owner server-side. Desktop uses the owner's terminal conversation key. The Qt client keeps layout/animation separate from its asynchronous socket adapter and does not access conversation storage. Discord lifecycle and status are connected to Application core and diagnostic probes. Shared style functions are also used by diagnostic views.
 
 **Preserve on replacement:** identity and correlation metadata; queueing/serialization; reset-generation rejection; owner authorization for controls; responsive cancellation without shutdown or partial-history commits; persistent DM admission policy with owner access preserved and checks before content processing and after queue waits; final-answer-only Discord delivery; delivery/error observations distinct from generation success; supported background start/stop and recorder shutdown; no credential disclosure. Preserve one-to-one human DM scope unless expanding it is separately authorized.
 
-**Checks:** `tests/core/test_connection.py`, `test_discord_control.py`, `test_client.py`, `test_operator_commands.py`, `test_message_logs.py`, and `tests/discord/test_discord.py`, `test_launcher.py`. See [Discord operation](discord.md) and root `STARTUP.md`. Mocked transport tests do not prove live Discord delivery or reconnect reliability.
+**Checks:** `tests/core/test_connection.py`, `test_desktop_chat.py`, `test_discord_control.py`, `test_client.py`, `test_operator_commands.py`, `test_message_logs.py`, `tests/desktop-puppet/`, and `tests/discord/test_discord.py`, `test_launcher.py`. See [Discord operation](discord.md), [desktop chat](../current-operation/desktop-puppet.md) and root `STARTUP.md`. Mocked transport tests do not prove live Discord delivery or reconnect reliability.
 
 ## Scarecrow
 
@@ -144,13 +144,13 @@ These are current limitations, not approved refactoring work:
 - Model transport, framework message conversion, prompt assembly and tool coordination overlap; framework-specific tool adapters also live in other groups.
 - Conversation binds concrete tools and accesses storage internals rather than depending only on small interfaces.
 - Reset reaches across every personal-data consumer and recorder generation; each future implementation needs an explicit reset/lifecycle contract.
-- Communication's local protocol assumes Discord, and terminal processing owns the external-input queue.
+- Communication's local protocol has explicit Discord and desktop routes; terminal processing still owns the external-input queue.
 - Scarecrow and the archive exporter share a Markdown-format contract. Changing either requires checking the other.
 
 A future folder reorganization should follow these ownership groups incrementally while preserving supported entry points. This map does not claim that moving files alone makes the systems replaceable.
 
-## Standalone desktop visual prototype
+## Desktop chat interface
 
-Communication owns the optional [desktop puppet](../current-operation/desktop-puppet.md): `src/desktop-puppet/`, `scripts/native-linux/desktop-puppet.sh` and `tests/desktop-puppet/`. It currently has no connection to the conversation engine or personal data. Its Qt/Wayland UI is an independently replaceable process.
+Communication owns the optional [desktop puppet](../current-operation/desktop-puppet.md): `src/desktop-puppet/`, `scripts/native-linux/desktop-puppet.sh` and `tests/desktop-puppet/`. Its Qt/Wayland UI is an independently replaceable process connected to the existing owner's local conversation. Python owns identity, tools, memory, generation and diagnostic retention; the desktop keeps only its current draft and reply in RAM and clears them across reset/session boundaries. Thinking animation and a standalone/headless backend loop remain future work.
 
 The read-only `clock_tool.py` adapter and `prompts/clock.md` provide on-demand host time through tool coordination; `tests/core/test_clock_tool.py` covers its contract. It has no persistent memory or background lifecycle.

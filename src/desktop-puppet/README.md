@@ -2,6 +2,6 @@
 
 # Marionette desktop puppet
 
-Standalone native Qt Quick / Wayland visual prototype. Build/run/stop commands, shortcuts, dependencies, verification and limitations are in the [operation guide](../../docs/active/current-operation/desktop-puppet.md).
+Native Qt Quick / Wayland interface to Marionette's local chat backend. Type below her and read completed replies in the bubble above her. She stays idle during generation; giggling is click-only. Build/run/stop commands, shortcuts, connection/reset behavior and limitations are in the [operation guide](../../docs/active/current-operation/desktop-puppet.md).
 
-The approved idle and giggle atlases are embedded in the binary; the screenshot above is an offscreen documentation preview. The app does not connect to chat or personal data.
+The approved idle and giggle atlases are embedded in the binary; the screenshot above is an offscreen preview with a synthetic reply. The Python backend owns identity, tools, memory and conversation storage; the replaceable desktop client holds only its current draft and bubble in RAM.

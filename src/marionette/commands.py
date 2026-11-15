@@ -29,6 +29,10 @@ def render_help(source='terminal', *, colored=False):
     for line in HELP_TEXT.splitlines()[1:]:
         if source == 'discord' and 'terminal only)' in line:
             continue
+        if source == 'desktop':
+            if line.startswith('/exit '):
+                line = '/exit — Close the desktop puppet; main chat keeps running.'
+            line = line.replace('terminal only)', 'local only)')
         command, description = line.split(' — ', 1)
         restriction = ''
         if description.endswith(')') and ' (' in description:

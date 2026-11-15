@@ -3,6 +3,8 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 BUILD="$ROOT/runtime/desktop-puppet"
 UNIT="marionette-puppet"
+export MARIONETTE_DATA_DIR="${MARIONETTE_DATA_DIR:-$ROOT/data}"
+[[ "$MARIONETTE_DATA_DIR" = /* ]] || { echo 'MARIONETTE_DATA_DIR must be absolute.' >&2; exit 1; }
 case "${1:-start}" in
   build)
     for command in qmake6 make g++; do
@@ -30,8 +32,9 @@ case "${1:-start}" in
     ;;
   background)
     [[ -x "$BUILD/marionette-puppet" ]] || "$0" build
-    systemd-run --user --collect --unit="$UNIT" --description='Marionette desktop puppet preview' \
+    systemd-run --user --collect --unit="$UNIT" --description='Marionette desktop chat' \
       --setenv=QT_QPA_PLATFORM=wayland --setenv="WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-1}" \
+      --setenv="MARIONETTE_DATA_DIR=$MARIONETTE_DATA_DIR" \
       "$BUILD/marionette-puppet"
     ;;
   stop) systemctl --user stop "$UNIT.service" ;;

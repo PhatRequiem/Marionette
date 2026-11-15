@@ -1,9 +1,9 @@
-QT += core gui qml quick quickcontrols2
+QT += core gui qml quick quickcontrols2 network
 CONFIG += c++17 release
 TARGET = marionette-puppet
 TEMPLATE = app
-SOURCES += main.cpp backend.cpp theme.cpp translator.cpp
-HEADERS += backend.h theme.h translator.h
+SOURCES += main.cpp backend.cpp chatclient.cpp theme.cpp translator.cpp
+HEADERS += backend.h chatclient.h theme.h translator.h
 INCLUDEPATH += /usr/include/LayerShellQt
 LIBS += -lLayerShellQtInterface
 RESOURCES += resources.qrc

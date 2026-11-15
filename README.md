@@ -20,7 +20,7 @@ Log-tool execution works, but answers can still misinterpret units or add unsupp
 
 The [Scarecrow Obsidian plugin](docs/active/setup-and-maintenance/obsidian-connection.md) provides optional read-only local access to the conversation and documentation mirror. It runs inside Obsidian and exposes browsing, ranked lexical search, metadata, links and UI opening through `read_vault`. Its independent search engine ranks conversation exchanges and documentation sections with BM25, optional prefix/typo matching, source references and neighboring-context reads. No embedding model is required.
 
-Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
+Chat runs in response to terminal, desktop puppet or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
 The selected uncensored 9B Q4_K_M weights live under `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Uncensored/HauhauCS-Aggressive/`, separated by revision. Original 9B Q4 and 4B Q4/BF16 files remain available. See [shared model storage](docs/active/setup-and-maintenance/setup.md#shared-model-storage) and [HauhauCS switch verification](docs/development/experiments/hauhaucs-9b-switch-2026-11-15.md).
 
@@ -30,7 +30,7 @@ See [context policy and limitations](docs/active/current-operation/context.md) f
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/active/current-operation/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/development/history/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
-Optional visual experiment: [desktop puppet prototype](docs/active/current-operation/desktop-puppet.md), a standalone draggable animated overlay. It is not connected to chat or memory.
+Optional [desktop puppet chat](docs/active/current-operation/desktop-puppet.md): a draggable animated overlay with an input box and reply bubble, connected to the owner's existing local conversation. She idles during replies and giggles only when clicked.
 
 ## Documentation
 
@@ -95,7 +95,7 @@ Start with these files, in order:
 - `data/scarecrow/`: private local connection configuration and credentials; ignored by Git.
 - `prompts/`: versioned feature instructions, explicitly bound to the system prompt separately from the soul.
 - `STARTUP.md`: step-by-step launch and stop guide, with optional features clearly marked.
-- `src/desktop-puppet/`: native Qt Quick desktop puppet prototype and embedded character art.
+- `src/desktop-puppet/`: native Qt Quick desktop chat interface, local socket client and embedded character art.
 - `tests/desktop-puppet/`: isolated Qt/QML interaction checks for the prototype.
 - `src/marionette/`: application code—terminal chat, optional Discord DMs, rollover, and diagnostic log processing.
 - `scripts/native-linux/`: installation, terminal/Discord launchers, log-window launcher, and pinned dependency manifests.

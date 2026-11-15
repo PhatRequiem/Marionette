@@ -2,8 +2,11 @@
 import asyncio
 import http.client
 import json
+import os
 from pathlib import Path
+import socket
 import socketserver
+import struct
 import threading
 
 import diagnostics
@@ -13,19 +16,22 @@ MAX_REQUEST = 1024 * 1024
 
 
 class LocalConnection:
-    def __init__(self, address, turn, log, *, status=None, setup_changed=None):
+    def __init__(self, address, turn, log, *, status=None, setup_changed=None, desktop_turn=None):
         self.path = Path(address)
         self.path.unlink(missing_ok=True)  # Main launcher's lock excludes another owner.
 
         class Handler(socketserver.StreamRequestHandler):
             def handle(self):
                 message_id = None
+                label = 'Local'
                 self.connection.settimeout(10)
                 try:
                     raw = self.rfile.readline(MAX_REQUEST + 1)
                     if len(raw) > MAX_REQUEST or not raw.endswith(b'\n'):
                         raise ValueError('Invalid local request size.')
                     request = json.loads(raw)
+                    if not isinstance(request, dict):
+                        raise ValueError('A local request must be an object.')
                     if request == {'event': 'setup_changed'} and setup_changed is not None:
                         setup_changed()
                         self.wfile.write(b'{"accepted":true}\n')
@@ -34,35 +40,54 @@ class LocalConnection:
                         result = {'type': 'operator_status', 'data': status()} if status else {'error': 'Status probe unavailable.'}
                         self.wfile.write((json.dumps(result) + '\n').encode())
                         return
+                    source = request.get('source', 'discord')
+                    if source not in ('discord', 'desktop'):
+                        raise ValueError('Unknown local input source.')
+                    label = 'Desktop' if source == 'desktop' else 'Discord'
+                    if source == 'desktop':
+                        _, uid, _ = struct.unpack('3i', self.connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+                        if uid != os.getuid() or desktop_turn is None:
+                            raise ValueError('Desktop chat is unavailable for this local user.')
+                        if 'sender_id' in request or 'display_name' in request:
+                            raise ValueError('Desktop identity is resolved by the application.')
+                        session = json.loads(Path(self.server.server_address).with_name('log-session.json').read_text())['session']
+                        if not session or request.get('session') != session:
+                            raise ValueError('Message belongs to a different chat session.')
                     generation = request.get('generation', '')
                     if generation != current_generation(self.server.server_address):
                         raise ValueError('Message predates memory reset; send it again.')
                     message = request['message']
                     if not isinstance(message, str) or not message.strip():
                         raise ValueError('A text message is required.')
-                    sender_id = request['sender_id']
-                    if (not isinstance(sender_id, str) or not sender_id.isascii()
-                            or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
-                        raise ValueError('A numeric Discord sender ID is required.')
                     message_id = diagnostics.message_id(request.get('message_id'))
-                    log(f'[message {message_id}] Discord local request received.')
+                    log(f'[message {message_id}] {label} local request received.')
                     display_name = request.get('display_name')
                     if display_name is not None and not isinstance(display_name, str):
                         raise ValueError('Discord display name must be text.')
-                    names = {'display_name': display_name} if display_name is not None else {}
                     timings = {}
-                    answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id, generation=generation, **names)
+                    if source == 'desktop':
+                        answer, finish = desktop_turn(message, timings=timings, message_id=message_id, generation=generation)
+                    else:
+                        sender_id = request['sender_id']
+                        if (not isinstance(sender_id, str) or not sender_id.isascii()
+                                or not sender_id.isdecimal() or not 0 < int(sender_id) < 2**64):
+                            raise ValueError('A numeric Discord sender ID is required.')
+                        names = {'display_name': display_name} if display_name is not None else {}
+                        answer, finish = turn(message, sender_id=sender_id, timings=timings, message_id=message_id, generation=generation, **names)
                     if finish != 'resetmemory' and generation != current_generation(self.server.server_address):
                         answer, finish = 'Message discarded because memory was reset. Please send it again.', 'stop'
-                    log(f'[message {message_id}] Discord local request completed.')
+                    log(f'[message {message_id}] {label} local request completed.')
                     result = {'answer': answer, 'finish': finish, 'timings': timings}
+                    if source == 'desktop':
+                        result.update(session=session, generation=current_generation(self.server.server_address)
+                                      if finish == 'resetmemory' else generation)
                 except (ValueError, KeyError, TypeError, OSError, RuntimeError, http.client.HTTPException) as error:
-                    log(f'[message {message_id or "unassigned"}] Discord local request failed: {type(error).__name__}')
+                    log(f'[message {message_id or "unassigned"}] {label} local request failed: {type(error).__name__}')
                     result = {'error': 'Local chat could not finish this turn; check model logs.'}
                 try:
                     self.wfile.write((json.dumps(result) + '\n').encode())
                 except OSError:
-                    log(f'[message {message_id or "unassigned"}] Discord disconnected before receiving the result; completed history is retained.')
+                    log(f'[message {message_id or "unassigned"}] {label} disconnected before receiving the result; completed history is retained.')
 
         class Server(socketserver.ThreadingUnixStreamServer):
             daemon_threads = True

@@ -11,6 +11,7 @@
 #include <QDebug>
 #include <LayerShellQt/window.h>
 #include "backend.h"
+#include "chatclient.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -18,7 +19,7 @@ int main(int argc, char **argv) {
     QQuickWindow::setDefaultAlphaBuffer(true);
     QGuiApplication app(argc, argv);
     app.setApplicationName("marionette-puppet");
-    app.setApplicationVersion("0.1.0");
+    app.setApplicationVersion("0.2.0");
     app.setDesktopFileName("marionette-puppet");
     const bool preview = app.arguments().contains("--preview");
     if (!preview && app.platformName() != "wayland") {
@@ -35,11 +36,16 @@ int main(int argc, char **argv) {
     app.installTranslator(&translator);
     Theme theme;
     Backend backend;
+    // The binary lives in runtime/desktop-puppet; launchers may override the data root.
+    const auto data = qEnvironmentVariable("MARIONETTE_DATA_DIR",
+        QDir(app.applicationDirPath()).absoluteFilePath("../../data"));
+    ChatClient chat(data);
     QQmlApplicationEngine engine;
     QObject::connect(&translator, &Translator::changed, &engine, &QQmlEngine::retranslate);
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("translator", &translator);
     engine.rootContext()->setContextProperty("backend", &backend);
+    engine.rootContext()->setContextProperty("chat", &chat);
     engine.rootContext()->setContextProperty("previewMode", preview);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty()) return 1;

@@ -1,17 +1,25 @@
-# Desktop puppet prototype
+# Desktop puppet chat
 
-A small standalone C++/Qt Quick visual companion using the approved purple puppet design. The current transparent artwork has no strings, wooden crossbar or cyan hat symbol; cyan eyes and joints remain. The app is an optional visual prototype, not a connection to Marionette's conversation engine. Greeting text is scripted. No chat, model, memory, screen-reading, application control or autonomous behavior is enabled.
+A small C++/Qt Quick desktop chat interface using the approved purple puppet design. Type below her and read completed replies in the selectable, scrollable bubble above her. She keeps her existing idle animation during generation; there is no waiting indicator or thinking animation. Only clicking her requests a giggle. The current transparent artwork has no strings, wooden crossbar or cyan hat symbol; cyan eyes and joints remain.
+
+This is a basic interface to the existing local chat engine. Model execution, tools, identity, memory and durable conversations remain in the Python backend. The puppet has no separate model, memory database, screen-reading, application control or autonomous behavior.
 
 ## Run from this checkout
 
 ```bash
+./scripts/native-linux/chat.sh
+# Select a profile and wait for Ready. In another terminal:
 ./scripts/native-linux/desktop-puppet.sh build
 ./scripts/native-linux/desktop-puppet.sh background
 ./scripts/native-linux/desktop-puppet.sh status
 ./scripts/native-linux/desktop-puppet.sh stop
 ```
 
-For foreground operation, use `./scripts/native-linux/desktop-puppet.sh start` (Ctrl+C stops it). `preview` opens the same character in an opaque preview window for development. Close exits either mode. The background command creates a transient user systemd service, `marionette-puppet.service`; it does not enable login autostart. View startup errors with `journalctl --user -u marionette-puppet.service`. This is process stderr only, not a conversation/diagnostic recorder. Existing chat launch commands and the RAM recorder policy are unchanged.
+Keep main chat running. Restart it after installing this change so its local connection supports desktop requests. The desktop always resolves the saved owner UUID, even if the main terminal selected another profile. It shares the owner's terminal conversation and contact notes; Discord keeps its separate conversation history. Selecting another terminal profile does not grant that profile the owner's desktop identity.
+
+For foreground operation, use `./scripts/native-linux/desktop-puppet.sh start` (Ctrl+C stops it). `preview` opens the same interface in an opaque preview window for development. Close or `/exit` detaches the puppet and leaves main chat running; `/shutdown` requests the existing orderly backend shutdown. The background command creates a transient user systemd service, `marionette-puppet.service`; it does not enable login autostart. View startup errors with `journalctl --user -u marionette-puppet.service`. Chat payloads are not printed to the puppet's journal; existing backend recorders own them. Existing chat launch commands and the RAM recorder policy are unchanged.
+
+If using `MARIONETTE_DATA_DIR`, pass the same absolute directory to both launchers. Desktop background startup passes it into the service explicitly. The UI reports connection failures; it never starts another model or automatically resends a message. After a disconnect, inspect main chat before retrying because a reply may have been saved even if it was not displayed.
 
 Build after changing source or assets; stop a running preview before rebuilding. Background start fails if its service is already running; the app also uses a runtime lock to prevent duplicate desktop instances. Stop/status refer to the one user service, so do not launch separate checkouts under that service name concurrently.
 
@@ -20,22 +28,37 @@ Build after changing source or assets; stop a running preview before rebuilding.
 | Action | Result |
 |---|---|
 | Drag the character | Move within her current monitor |
-| Click the character | Play the approved giggle and return to idle, plus a brief scripted greeting |
+| Click the character | Play the approved giggle and return to idle |
+| Enter / Send in the input box | Send one message; input and Send remain disabled until the request finishes |
+| Shift+Enter | Insert a new line |
+| Select / scroll the reply | Copy text or read a long answer; the bubble remains until replaced or dismissed |
+| × on the bubble | Dismiss the visible reply, error or help; saved conversations remain |
 | Pause / Resume or Space | Freeze/resume poses, head motion, hover and giggle |
 | Help or `?` | Toggle shortcut help |
-| Close, Q or Escape | Exit the preview |
+| Close, Q or Escape outside text | Detach the desktop interface |
+| Escape while editing/selecting text | Leave text focus without closing |
 
-Keyboard shortcuts apply when the companion has keyboard focus. Idle alternates between one leg down (pose 36) and both legs tucked (pose 24), using the approved aligned transitions. Random holds last 2–7 seconds, with a 65% chance of swapping at each hold boundary; a prolonged hold eventually forces a swap. The smoother blink can run only while her legs are tucked. Gentle head movement pivots at the neck, with continuous vertical bobbing. During both idle poses, her arms lift and settle on a roughly 3.7-second cycle: the elbows lead the wrists, and the two sides are slightly out of phase. The connected artwork bends around the arms while the neck, bodice and legs retain their existing motion. These are drawn sprite poses, not a skeletal rig.
+Keyboard shortcuts apply when the companion has keyboard focus, with Q, Space and ? disabled while text has focus. Replies are plain text; reasoning remains in the existing diagnostic view. The UI retains only the latest bubble and current draft in RAM. A new submission leaves the previous bubble visible until a response arrives. No animation change is triggered by sending, receiving, errors or reset.
+
+Idle alternates between one leg down (pose 36) and both legs tucked (pose 24), using the approved aligned transitions. Random holds last 2–7 seconds, with a 65% chance of swapping at each hold boundary; a prolonged hold eventually forces a swap. The smoother blink can run only while her legs are tucked. Gentle head movement pivots at the neck, with continuous vertical bobbing. During both idle poses, her arms lift and settle on a roughly 3.7-second cycle: the elbows lead the wrists, and the two sides are slightly out of phase. The connected artwork bends around the arms while the neck, bodice and legs retain their existing motion. These are drawn sprite poses, not a skeletal rig.
 
 Clicking requests the approved 3.5-second giggle: hands move to her belly as her eyes close and mouth opens, her shoulders bounce, and her feet alternate through the selected 1 → 2 → 4 → 5 → 4 → 2 leg sequence. Her hands and expression then reverse back to rest. If she is tucked up, the current clip finishes and she lowers one leg before giggling. Repeated clicks during a giggle do not restart it. Giggles are click-triggered, not randomly scheduled. Pausing freezes the animation; clicks while paused do not queue a giggle. Position is temporary and resets on launch. The overlay occupies one monitor; dragging between monitors is not implemented.
 
-The transparent Wayland layer uses an input region limited to the character/control rectangle (including space for the help bubble). Outside that rectangle clicks pass through; transparent gaps inside the rectangle still intercept clicks. It does not reserve desktop workspace. Its top layer remains above ordinary windows; fullscreen behavior follows compositor policy. Removing the selected output closes the companion.
+The transparent Wayland layer uses an input region limited to the character, input and controls, extended upward when a bubble is visible. Outside that rectangle clicks pass through; transparent gaps inside the rectangle still intercept clicks. It does not reserve desktop workspace. Its top layer remains above ordinary windows; fullscreen behavior follows compositor policy. Removing the selected output closes the companion.
+
+## Local connection and reset
+
+`chatclient.cpp` uses Qt Network's asynchronous `QLocalSocket` against `data/session/chat.sock`. The event loop remains responsive during model generation. Requests are newline-delimited JSON with `source: "desktop"`, `session`, `generation`, and `message`. The private socket checks the peer's Linux UID and rejects client-supplied identity fields. Python resolves the owner and queues the request alongside Discord. Desktop messages use the existing `terminal:<owner UUID>` conversation key and are saved with source `terminal`; transport diagnostics label their route `Desktop`. The terminal still owns the processing loop, so it must stay open.
+
+Replies carry only the completed answer, finish status, timings, session and generation. The client bounds request/reply sizes and connection setup time; it does not impose a short generation timeout. It uses no hosted endpoint or new recorder/helper process. `ChatClient` is separate from QML layout and animation, allowing future UI changes without moving conversation ownership.
+
+The client reads only the small session descriptor and incomplete-reset guard, never profiles or the conversation database. It checks them on a 500 ms timer and immediately before accepting a reply. A reset boundary or new/ended backend session clears the bubble and draft. Old-generation replies are discarded; a successful `/resetmemory` response can acknowledge the new generation. An incomplete reset blocks new desktop messages. Closing the puppet disconnects delivery but does not cancel a backend turn already in progress or erase saved history. Use the existing owner `/cancel` from terminal or Discord to interrupt generation.
 
 ## Setup and rebuild
 
 Source: `src/desktop-puppet/`; launcher: `scripts/native-linux/desktop-puppet.sh`; generated objects and executable: ignored `runtime/desktop-puppet/`; UI checks: `tests/desktop-puppet/`. Nothing is installed globally. This follows the repository's run-from-checkout policy rather than distributing an Arch package at this prototype stage.
 
-Requirements are the distribution packages `gcc`, `make`, `qt6-base`, `qt6-declarative`, `qt6-wayland`, and `layer-shell-qt`. On Omarchy, missing packages can be installed with:
+Requirements are the distribution packages `gcc`, `make`, `qt6-base` (including Qt Network), `qt6-declarative`, `qt6-wayland`, and `layer-shell-qt`. On Omarchy, missing packages can be installed with:
 
 ```bash
 omarchy pkg add gcc make qt6-base qt6-declarative qt6-wayland layer-shell-qt
@@ -53,11 +76,11 @@ QT_QPA_PLATFORMTHEME=basic QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
   runtime/desktop-puppet/marionette-puppet --preview --smoke /tmp/puppet-preview.png
 ```
 
-The Qt tests load the actual QML and check greeting, pause/resume, complete giggle/reset playback, distinct rendering of the active idle/blink poses and seven giggle poses, dragging, input-region bounds, live Danish translation from a synthetic temporary language file, and window close. A deterministic animation simulation checks randomized idle states, blink gating, queued giggles during a blink, lowering before a giggle, and return to idle after repeated clicks. Arm deformation checks cover visible wrist movement, unchanged neck/body/leg anchors, and positive strip heights across multiple motion cycles. The optional captures include both ends of the arm wave in each idle pose. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` when running the test command to retain synthetic offscreen renders.
+The Qt tests load the actual QML and check typing/shortcuts, multiline input, final replies, idle during requests, absence of a waiting bubble, reset/restart clearing, stale replies, failure display, pause/resume, complete giggle playback, rendered poses, dragging, input-region bounds, Danish translation from a synthetic language file, and window close. One test connects the actual native client to Python Conversation/LocalConnection and both real recorders, performs a reset, and sends again. Its model replies are synthetic and all profiles live in an empty temporary directory. Core desktop tests separately verify owner authorization and history sharing when another terminal profile is selected. A deterministic animation simulation checks randomized idle states, blink gating, click-requested giggles and return to idle. Arm checks cover wrist movement and unchanged body anchors. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` to retain synthetic offscreen renders.
 
-The offscreen backend warns that native input masks are unsupported: this checks the requested region, not compositor click-through. Live desktop verification separately checks transparent rendering and placement. Long-session behavior, other compositors, monitor hotplug and performance under inference load remain unverified.
+The offscreen backend warns that native input masks are unsupported: this checks the requested region, not compositor click-through. Earlier live desktop verification covered transparent rendering and placement. The new chat controls passed native Qt/QML tests, but live compositor focus/click-through remains unverified: the GUI driver could not discover the temporary preview window on this host. Long-session behavior, other compositors, monitor hotplug and performance under inference load remain unverified.
 
-The companion deliberately has no interface to personal data. A future local event adapter can drive animations without coupling the renderer to conversation storage, but that adapter is not implemented.
+The integration tests establish local transport, UI and reset behavior with synthetic replies. They do not establish real-model answer quality or long-session reliability. A dedicated thinking animation, streaming text, older-conversation browsing and a combined/headless backend launcher are future work, not implemented features.
 
 ## Artwork provenance
 

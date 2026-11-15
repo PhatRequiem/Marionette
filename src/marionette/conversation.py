@@ -72,13 +72,33 @@ class Conversation:
             self.pending_key = None
 
     def submit_discord(self, message, *, sender_id, timings=None, message_id=None, generation=None, display_name=None):
+        return self._submit_external(message, source='discord', sender_id=sender_id,
+                                     timings=timings, message_id=message_id,
+                                     generation=generation, display_name=display_name)
+
+    def submit_desktop(self, message, *, timings=None, message_id=None, generation=None):
+        # The private same-user desktop connection is an owner terminal interface.
+        # Identity comes from the registry, never a client-supplied UUID or name.
+        if self.profiles is None:
+            raise RuntimeError('Desktop chat requires a saved owner profile.')
+        if recognize(message, 'terminal') == 'help':
+            return render_help('desktop'), 'stop'
+        if recognize(message, 'terminal') == 'exit':
+            return 'Use Close to detach the desktop puppet. Main chat will keep running.', 'stop'
+        return self._submit_external(message, source='terminal',
+                                     sender_id=self.profiles.data['owner_uuid'],
+                                     timings=timings, message_id=message_id, generation=generation)
+
+    def _submit_external(self, message, *, source, sender_id, timings=None,
+                         message_id=None, generation=None, display_name=None):
         # The terminal thread owns rendering, including while awaiting local input.
         epoch = self.epoch if generation is None else generation
         if self.resetting or epoch != self.epoch:
             return 'Message discarded because memory was reset. Please send it again.', 'stop'
-        if recognize(message, 'discord') == 'cancel':
-            return self.cancel(source='discord', sender_id=str(sender_id)), 'stop'
+        if recognize(message, source) == 'cancel':
+            return self.cancel(source=source, sender_id=str(sender_id)), 'stop'
         future = Future()
+        future.source = source
         future.memory_epoch = epoch
         future.discord_display_name = display_name
         self.incoming.put((message, sender_id, future, time.monotonic(), timings, message_id))
@@ -93,7 +113,7 @@ class Conversation:
     def cancel(self, source='terminal', sender_id=None):
         from permissions import require_reset
         try:
-            sender = str(sender_id) if source == 'discord' else self.terminal_profile['uuid']
+            sender = str(sender_id) if sender_id is not None else self.terminal_profile['uuid']
             require_reset(self.profiles.resolve(source, sender), self.profiles)
         except (PermissionError, ValueError, TypeError, AttributeError, KeyError):
             return 'Access Denied'
@@ -138,7 +158,8 @@ class Conversation:
             return render_help(source), 'stop'
         identity = None
         if self.profiles is not None:
-            sender_id = sender_id if source != 'terminal' else self.terminal_profile['uuid']
+            if source == 'terminal' and sender_id is None:
+                sender_id = self.terminal_profile['uuid']
             if source == 'discord':
                 sender_id = self.profiles.register_discord(sender_id, display_name)
             identity = self.profiles.resolve(source, sender_id)
