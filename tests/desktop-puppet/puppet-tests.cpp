@@ -13,13 +13,20 @@
 #include <QSaveFile>
 #include <QProcess>
 #include <QScopeGuard>
+#include <QQuickTextDocument>
+#include <QTextCursor>
+#include <QTextBlock>
 #include "backend.h"
 #include "chatclient.h"
+#include "replypresentation.h"
 #include "theme.h"
 #include "translator.h"
 
 class PuppetTests : public QObject {
     Q_OBJECT
+    static bool puppetBoundsAreVisible(QQuickWindow *window, QQuickItem *item) {
+        return QRectF(0,0,window->width(),window->height()).contains(item->mapRectToScene(item->boundingRect()));
+    }
     static void descriptor(const QString &root, const QString &generation, const QString &session = "synthetic-session") {
         QDir().mkpath(root + "/session");
         QSaveFile file(root + "/session/log-session.json");
@@ -28,6 +35,40 @@ class PuppetTests : public QObject {
         QVERIFY(file.commit());
     }
 private slots:
+    void initTestCase() {
+        qmlRegisterType<ReplyPresentation>("Marionette", 1, 0, "ReplyPresentation");
+    }
+    void formattedReplyReveal() {
+        ReplyPresentation presentation;
+        QTextDocument rendered;
+        presentation.setMarkdown(QString::fromUtf8("**é👩‍💻X**"));
+        rendered.setHtml(presentation.html());
+        QCOMPARE(rendered.toPlainText(), QString::fromUtf8("é"));
+        QVERIFY(presentation.revealing());
+        QVERIFY(QMetaObject::invokeMethod(&presentation, "advance"));
+        rendered.setHtml(presentation.html());
+        QCOMPARE(rendered.toPlainText(), QString::fromUtf8("é👩‍💻"));
+        QTRY_VERIFY_WITH_TIMEOUT(!presentation.revealing(),1000);
+        rendered.setHtml(presentation.html());
+        QCOMPARE(rendered.toPlainText(), QString::fromUtf8("é👩‍💻X"));
+        const auto bold = rendered.find(QString::fromUtf8("é"));
+        QVERIFY(bold.charFormat().fontWeight() >= QFont::Bold);
+        QCOMPARE(bold.charFormat().foreground().color(), QColor("#FF4FA3"));
+
+        presentation.setMarkdown("## Heading\n\n*Italic* and `code`.\n\n- First\n- Second\n\n![diagram](file:///never-load.png)![diagram](file:///never-load.png)\n\n<img src='https://invalid.test/never-load.png'>");
+        while (presentation.revealing()) QVERIFY(QMetaObject::invokeMethod(&presentation, "advance"));
+        rendered.setHtml(presentation.html());
+        QVERIFY(rendered.find("Italic").charFormat().fontItalic());
+        QVERIFY(rendered.find("First").block().textList());
+        QVERIFY(rendered.toPlainText().contains("diagram"));
+        QVERIFY(!presentation.html().contains("<img", Qt::CaseInsensitive));
+        presentation.setMarkdown("A pending reply must disappear on reset.");
+        QVERIFY(presentation.revealing());
+        presentation.setMarkdown("");
+        QTest::qWait(40);
+        QVERIFY(!presentation.revealing());
+        QVERIFY(presentation.html().isEmpty());
+    }
     void pythonBackendIntegration() {
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
@@ -86,7 +127,11 @@ private slots:
         auto *reply = window->findChild<QQuickItem *>("replyText");
         auto *bubble = window->findChild<QQuickItem *>("replyBubble");
         auto *character = window->findChild<QQuickItem *>("characterAnimation");
-        QVERIFY(input && reply && bubble && character);
+        auto *presentation = window->findChild<ReplyPresentation *>("replyPresentation");
+        QVERIFY(input && reply && bubble && character && presentation);
+        QCOMPARE(input->property("color").value<QColor>(), QColor("#39FF14"));
+        QCOMPARE(reply->property("color").value<QColor>(), QColor("#FF4FA3"));
+        auto *replyDocument = reply->property("textDocument").value<QQuickTextDocument *>()->textDocument();
         input->forceActiveFocus();
         QTest::keyClick(window, Qt::Key_Q);
         QTest::keyClick(window, Qt::Key_Space);
@@ -114,7 +159,7 @@ private slots:
         QCOMPARE(character->property("animationKind").toString(), "idle");
         QVERIFY(character->property("hoverOffset").toReal() != hover);
         QVERIFY(!chat.send("duplicate"));
-        const QString answer = "I'm here. Your messages reach the same local chat engine, and my replies appear here.";
+        const QString answer = "### Hello!\n\nMy replies now support **bold text**, *italics*, and `code`.\n\n- The bubble grows with my reply.\n- My words appear a letter at a time.\n\nWhat would you like to talk about?";
         const auto response = QJsonDocument(QJsonObject{{"answer",answer},{"finish","stop"},
             {"session","synthetic-session"},{"generation","epoch-one"}}).toJson(QJsonDocument::Compact) + '\n';
         peer->write(response.left(20)); peer->flush();
@@ -124,31 +169,51 @@ private slots:
         QTRY_COMPARE(chat.reply(), answer);
         QVERIFY(!chat.busy());
         QCOMPARE(input->property("text").toString(), "");
-        QCOMPARE(reply->property("text").toString(), answer);
-        QCOMPARE(reply->property("textFormat").toInt(), 0); // PlainText.
+        QVERIFY(presentation->revealing());
+        QVERIFY(replyDocument->toPlainText().size() < answer.size()/2);
+        const auto initialHeight = bubble->height();
+        QCOMPARE(reply->property("textFormat").toInt(), 1); // RichText generated by Qt.
         QCOMPARE(character->property("animationKind").toString(), "idle");
         QVERIFY(bubble->isVisible());
+        QTRY_VERIFY_WITH_TIMEOUT(!presentation->revealing(),5000);
+        QVERIFY(replyDocument->toPlainText().contains("bold text"));
+        QVERIFY(replyDocument->find("bold text").charFormat().fontWeight() >= QFont::Bold);
+        QVERIFY(bubble->height() > initialHeight);
+        QVERIFY(bubble->width() > 360);
+        QVERIFY(puppetBoundsAreVisible(window, bubble));
+        // The wider bubble is clickable without blocking the empty space next to her.
+        const auto bubblePoint = bubble->mapToScene(QPointF(16,40)).toPoint();
+        QVERIFY(window->mask().contains(bubblePoint));
+        QVERIFY(!window->mask().contains(QPoint(bubblePoint.x(),int(character->mapToScene(QPointF(0,150)).y()))));
         const QString captures = qEnvironmentVariable("PUPPET_TEST_CAPTURES");
         if (!captures.isEmpty()) {
             QDir().mkpath(captures);
+            input->setProperty("text", "Tell me more about that.");
             QTest::qWait(100);
             QVERIFY(window->grabWindow().save(captures + "/chat.png"));
+            input->setProperty("text", "");
         }
         QVERIFY(chat.send("Long reply test"));
         QTRY_VERIFY(server.hasPendingConnections());
         peer.reset(server.nextPendingConnection());
         QTRY_VERIFY(peer->canReadLine()); peer->readLine();
-        const QString longAnswer = QString("A long plain-text reply with <b>literal markup</b>.\n").repeated(100);
+        const QString longAnswer = QString("Another **formatted** paragraph.\n\n").repeated(20);
         peer->write(QJsonDocument(QJsonObject{{"answer",longAnswer},{"finish","stop"},
             {"session","synthetic-session"},{"generation","epoch-one"}}).toJson(QJsonDocument::Compact) + '\n');
         peer->flush();
         QTRY_COMPARE(chat.reply(),longAnswer);
-        QVERIFY(reply->property("contentHeight").toReal() > bubble->height());
-        QVERIFY(bubble->height() <= 200);
+        QTRY_VERIFY_WITH_TIMEOUT(!presentation->revealing(),7000);
+        QVERIFY(reply->property("contentHeight").toReal() > window->findChild<QQuickItem *>("replyScroll")->property("availableHeight").toReal());
+        QVERIFY(bubble->height() > 200);
+        QVERIFY(bubble->height() <= bubble->property("availableHeight").toReal());
+        QVERIFY(puppetBoundsAreVisible(window, bubble));
+        if (!captures.isEmpty()) QVERIFY(window->grabWindow().save(captures + "/long-chat.png"));
         auto *dismiss = window->findChild<QQuickItem *>("dismissReply");
         QVERIFY(dismiss);
         QTest::mouseClick(window,Qt::LeftButton,{},dismiss->mapToScene(QPointF(15,15)).toPoint());
         QTRY_VERIFY(chat.reply().isEmpty());
+        QVERIFY(presentation->html().isEmpty());
+        QVERIFY(!presentation->revealing());
         input->setProperty("text", "OLD_SECRET pending input");
         QVERIFY(chat.send(input->property("text").toString()));
         QTRY_VERIFY(server.hasPendingConnections());
@@ -172,8 +237,11 @@ private slots:
             {"session","synthetic-session"},{"generation","epoch-three"}}).toJson(QJsonDocument::Compact) + '\n');
         peer->flush();
         QTRY_COMPARE(chat.reply(), "Memory reset.");
+        QVERIFY(presentation->revealing());
         descriptor(temporary.path(), "epoch-three", "restarted-session");
         QTRY_VERIFY(chat.reply().isEmpty());
+        QVERIFY(presentation->html().isEmpty());
+        QVERIFY(!presentation->revealing());
         QFile blocked(temporary.filePath("memory-reset-incomplete.json"));
         QVERIFY(blocked.open(QIODevice::WriteOnly)); blocked.write("{}"); blocked.close();
         QVERIFY(!chat.send("must not run"));

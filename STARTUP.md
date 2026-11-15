@@ -56,7 +56,7 @@ The puppet must be built first. For the initial build or after changing its sour
 
 Then use `/startpuppet` in main chat. The existing shell command `./scripts/native-linux/desktop-puppet.sh background` also remains supported.
 
-Type below her and press Enter to send; Shift+Enter inserts a line break. Replies appear in a selectable, scrollable bubble. She keeps idling during generation and giggles only when clicked. The desktop uses your saved owner identity and shares the owner's terminal history; Discord histories remain separate. Main chat must stay open. Use the same absolute `MARIONETTE_DATA_DIR` for both launchers if overriding it.
+Type below her and press Enter to send; Shift+Enter inserts a line break. Input is green like the terminal. Completed replies reveal quickly one letter at a time, with Markdown formatting in terminal pink; the bubble grows and scrolls for longer answers. She keeps idling during generation and giggles only when clicked. The desktop uses your saved owner identity and shares the owner's terminal history; Discord histories remain separate. Main chat must stay open. Use the same absolute `MARIONETTE_DATA_DIR` for both launchers if overriding it.
 
 Close or `/exit` in the puppet detaches it while main chat keeps running. To stop its background service, run `./scripts/native-linux/desktop-puppet.sh stop`. After code changes, rebuild the puppet and restart both the backend and puppet to load the new version. See [desktop operation and limits](docs/active/current-operation/desktop-puppet.md).
 

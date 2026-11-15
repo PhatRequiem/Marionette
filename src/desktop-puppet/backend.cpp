@@ -2,8 +2,8 @@
 #include <QRegion>
 #include <QRectF>
 
-void Backend::inputArea(qreal x, qreal y, qreal width, qreal height) {
-    // The rest of the transparent layer must pass clicks to the desktop.
+void Backend::inputAreas(const QRectF &body, const QRectF &bubble) {
+    // A wider reply must not intercept clicks in the empty space beside her.
     if (m_window)
-        m_window->setMask(QRegion(QRectF(x, y, width, height).toAlignedRect()));
+        m_window->setMask(QRegion(body.toAlignedRect()) | QRegion(bubble.toAlignedRect()));
 }

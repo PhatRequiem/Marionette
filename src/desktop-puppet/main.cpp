@@ -12,6 +12,7 @@
 #include <LayerShellQt/window.h>
 #include "backend.h"
 #include "chatclient.h"
+#include "replypresentation.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -19,7 +20,7 @@ int main(int argc, char **argv) {
     QQuickWindow::setDefaultAlphaBuffer(true);
     QGuiApplication app(argc, argv);
     app.setApplicationName("marionette-puppet");
-    app.setApplicationVersion("0.2.0");
+    app.setApplicationVersion("0.3.0");
     app.setDesktopFileName("marionette-puppet");
     const bool preview = app.arguments().contains("--preview");
     if (!preview && app.platformName() != "wayland") {
@@ -32,6 +33,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     QQuickStyle::setStyle("Material");
+    qmlRegisterType<ReplyPresentation>("Marionette", 1, 0, "ReplyPresentation");
     Translator translator;
     app.installTranslator(&translator);
     Theme theme;

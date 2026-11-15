@@ -5,5 +5,7 @@ SOURCES += puppet-tests.cpp ../../src/desktop-puppet/backend.cpp ../../src/deskt
 HEADERS += ../../src/desktop-puppet/backend.h ../../src/desktop-puppet/theme.h ../../src/desktop-puppet/translator.h
 SOURCES += ../../src/desktop-puppet/chatclient.cpp
 HEADERS += ../../src/desktop-puppet/chatclient.h
+SOURCES += ../../src/desktop-puppet/replypresentation.cpp
+HEADERS += ../../src/desktop-puppet/replypresentation.h
 INCLUDEPATH += ../../src/desktop-puppet
 RESOURCES += ../../src/desktop-puppet/resources.qrc

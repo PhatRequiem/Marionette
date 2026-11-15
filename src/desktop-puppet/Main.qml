@@ -1,10 +1,11 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
+import Marionette 1.0
 
 ApplicationWindow {
     id: win
-    width: 540; height: 740
+    width: 760; height: 900
     visible: false
     color: previewMode ? "#17151e" : "transparent"
     title: qsTr("Marionette")
@@ -15,14 +16,19 @@ ApplicationWindow {
     property bool paused: false
     property bool helpVisible: false
     readonly property bool textFocused: messageInput.activeFocus || replyText.activeFocus
+    ReplyPresentation {
+        id: presentation
+        objectName: "replyPresentation"
+        markdown: chat.reply
+    }
     function placeInitial() {
         puppet.x = Math.max(0, win.width - puppet.width - 44)
         puppet.y = Math.max(0, win.height - puppet.height - 24)
         updateInput()
     }
     function updateInput() {
-        var top = bubble.visible ? bubble.y : character.y
-        backend.inputArea(puppet.x, puppet.y + top, puppet.width, puppet.height - top)
+        backend.inputAreas(Qt.rect(puppet.x, puppet.y + character.y, puppet.width, puppet.height - character.y),
+            bubble.visible ? Qt.rect(puppet.x + bubble.x, puppet.y + bubble.y, bubble.width, bubble.height + 6) : Qt.rect(0, 0, 0, 0))
     }
     function giggle() { character.forceActiveFocus(); character.gesture() }
     function sendMessage() { chat.send(messageInput.text) }
@@ -41,8 +47,7 @@ ApplicationWindow {
     Item {
         id: puppet
         objectName: "puppet"
-        width: Math.min(360, win.width); height: Math.min(680, win.height)
-        readonly property real bubbleSpace: Math.max(80, height - 480)
+        width: Math.min(360, win.width); height: Math.min(480, win.height)
         x: Math.max(0, win.width - width - 44)
         y: Math.max(0, win.height - height - 24)
         onXChanged: win.updateInput()
@@ -53,22 +58,28 @@ ApplicationWindow {
         Rectangle {
             id: bubble
             objectName: "replyBubble"
-            width: parent.width
-            height: Math.min(parent.bubbleSpace, Math.max(80, replyText.contentHeight + 52))
-            y: parent.bubbleSpace - height
+            readonly property real availableHeight: Math.max(80, Math.min(520, win.height * 0.6, puppet.y - 12))
+            width: Math.min(win.width - 24, 640, Math.max(360, presentation.naturalWidth + 32))
+            height: Math.min(availableHeight, Math.max(80, replyText.contentHeight + 52))
+            x: Math.max(12 - puppet.x, Math.min(puppet.width - width, win.width - 12 - puppet.x - width))
+            y: Math.max(12 - puppet.y, -height)
+            onXChanged: win.updateInput()
             onYChanged: win.updateInput()
+            onWidthChanged: win.updateInput()
+            onHeightChanged: win.updateInput()
             visible: win.helpVisible || chat.reply.length > 0 || chat.error.length > 0
             onVisibleChanged: win.updateInput()
             color: "#ed201b2b"; radius: theme.radius
             border.color: theme.accent
             Rectangle {
                 width: 12; height: 12; rotation: 45; z: -1
-                anchors.horizontalCenter: parent.horizontalCenter
+                x: Math.min(parent.width - 24, Math.max(12, character.x + character.width/2 - bubble.x - 6))
                 y: parent.height - 6
                 color: parent.color; border.color: theme.accent
             }
             ScrollView {
                 id: replyScroll
+                objectName: "replyScroll"
                 anchors.fill: parent; anchors.margins: 12; anchors.topMargin: 36
                 clip: true
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -76,10 +87,13 @@ ApplicationWindow {
                     id: replyText
                     objectName: "replyText"
                     readOnly: true; selectByMouse: true
-                    wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText
-                    color: "#f5efff"; font.pixelSize: 14
+                    wrapMode: TextEdit.Wrap
+                    textFormat: win.helpVisible || chat.error ? TextEdit.PlainText : TextEdit.RichText
+                    color: "#FF4FA3"; font.pixelSize: 16
                     padding: 0; background: null
-                    text: win.helpVisible ? qsTr("Enter: send • Shift+Enter: new line\nClick her to giggle • Drag her to move\nOutside text: Space pauses, Q / Esc closes\nClose detaches the puppet; main chat keeps running.") : (chat.error || chat.reply)
+                    text: win.helpVisible ? qsTr("Enter: send • Shift+Enter: new line\nClick her to giggle • Drag her to move\nOutside text: Space pauses, Q / Esc closes\nClose detaches the puppet; main chat keeps running.") : (chat.error || presentation.html)
+                    onContentHeightChanged: if (presentation.revealing && !win.helpVisible && !chat.error)
+                        Qt.callLater(function() { replyScroll.contentItem.contentY = Math.max(0, replyScroll.contentHeight - replyScroll.availableHeight) })
                     Keys.onEscapePressed: character.forceActiveFocus()
                 }
             }
@@ -98,7 +112,7 @@ ApplicationWindow {
         PuppetAnimation {
             id: character
             x: (parent.width - width) / 2
-            y: parent.bubbleSpace + 8; width: 280; height: 320
+            y: 8; width: 280; height: 320
             playing: !win.paused
         }
         MouseArea {
@@ -108,7 +122,7 @@ ApplicationWindow {
             cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
             drag.target: puppet
             drag.minimumX: 0; drag.maximumX: Math.max(0, win.width - puppet.width)
-            drag.minimumY: 0; drag.maximumY: Math.max(0, win.height - puppet.height)
+            drag.minimumY: Math.min(92, drag.maximumY); drag.maximumY: Math.max(0, win.height - puppet.height)
             property bool moved: false
             onPressed: moved = false
             onPositionChanged: if (drag.active) moved = true
@@ -133,7 +147,7 @@ ApplicationWindow {
                     placeholderText: qsTr("Message Marionette…")
                     readOnly: chat.busy; selectByMouse: true
                     wrapMode: TextEdit.Wrap; textFormat: TextEdit.PlainText
-                    color: "#f5efff"; font.pixelSize: 14
+                    color: "#39FF14"; placeholderTextColor: "#80a478"; font.pixelSize: 16
                     padding: 0; background: null
                     Keys.priority: Keys.BeforeItem
                     Keys.onPressed: event => {
