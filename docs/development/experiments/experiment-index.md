@@ -6,6 +6,8 @@ Keep the date, model/runtime configuration, method, results and limitations with
 
 ## Reports
 
+- [Desktop puppet animation history and verification — 2026-11-14](desktop-puppet-animation-2026-11-14.md): pose/blink/giggle decisions, rejected kick branches, native integration and the local artifact archive.
+
 - [Scarecrow plugin verification](scarecrow-2026-11-13.md)
 
 - [Read-only Obsidian connection verification](obsidian-read-only-2026-11-13.md)

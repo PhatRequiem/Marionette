@@ -24,3 +24,6 @@ __pycache__/
 
 # Obsidian local settings, plugin binaries and API credentials
 .obsidian/
+
+# Local visual-reference archives, including user recordings and authoring files
+/visual design/archive/

@@ -132,7 +132,7 @@ Keep inactive material separate from current files:
 |---|---|
 | `data/conversations/archive/` | Optional manually retained private exports or backups |
 | `docs/development/history/` | Historical baselines and retired guides; active guides live under `docs/active/` |
-| `visual design/archive/` | Superseded visual references |
+| `visual design/archive/` | Local visual references and dated animation-authoring archives; excluded from Git |
 
 Archiving documents and private exports is manual. Routine diagnostic events expire automatically under the [rolling retention policy](docs/active/current-operation/log-retention.md). For the current SQLite database, use the [backup procedure](docs/active/current-operation/storage.md#backup-and-restore); do not move a live database or separate its WAL/SHM sidecars. Archives under `data/` remain private and ignored by Git. Visual references, including their archive, remain local and untracked. These local folders can be created when needed on a new checkout. Unused model variants such as BF16 stay alongside Q4 in the shared model library; the download manifest selects Q4 for Marionette.
 
