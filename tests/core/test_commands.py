@@ -49,6 +49,50 @@ class CommandTests(unittest.TestCase):
                     api.reply.assert_not_called()
                     self.assertIsNone(convo.pending)
 
+    def test_puppet_controls_require_owner_and_preserve_chat_without_model(self):
+        import tempfile
+        import threading
+        from contacts import ContactProfiles
+        from conversation import Conversation
+        with tempfile.TemporaryDirectory() as directory, patch('diagnostics.log'):
+            profiles = ContactProfiles(Path(directory)/'profiles.json')
+            owner, guest = profiles.profiles[0], profiles.add('Guest')
+            for command, action in (('startpuppet', 'start'), ('stoppuppet', 'stop')):
+                self.assertEqual(recognize('/'+command, 'terminal'), command)
+                self.assertIsNone(recognize('/'+command, 'discord'))
+                for selected in (owner, guest):
+                    api = Mock(closing=threading.Event())
+                    conversation = Conversation(api, 8192, profiles, selected)
+                    conversation.puppet_control = Mock()
+                    method = getattr(conversation.puppet_control, action)
+                    method.return_value = 'Synthetic puppet result'
+                    conversation.history = [{'role': 'user', 'content': 'Keep this history'}]
+                    before = conversation.history.copy()
+                    answer, finish = conversation.turn('/'+command)
+                    self.assertEqual(finish, 'stop')
+                    if selected is owner:
+                        method.assert_called_once_with()
+                        self.assertEqual(answer, 'Synthetic puppet result')
+                    else:
+                        method.assert_not_called()
+                        self.assertEqual(answer, 'Access Denied')
+                    self.assertEqual(conversation.history, before)
+                    self.assertFalse(conversation.shutdown_requested)
+                    api.reply.assert_not_called()
+                    self.assertIsNone(conversation.pending)
+
+    def test_terminal_displays_puppet_control_result(self):
+        import io
+        import terminal
+        conversation = SimpleNamespace(terminal_profile=None, shutdown_requested=False,
+            turn=Mock(side_effect=[('Synthetic launch requested', 'stop'), ('Synthetic puppet stopped', 'stop')]))
+        with patch('builtins.input', side_effect=['/startpuppet', '/stoppuppet', '/exit']), \
+                patch('sys.stdout', new_callable=io.StringIO) as output:
+            terminal.run(conversation)
+        self.assertIn('Synthetic launch requested', output.getvalue())
+        self.assertIn('Synthetic puppet stopped', output.getvalue())
+        self.assertEqual(conversation.turn.call_count, 2)
+
     def test_clear_waits_only_after_authorization_and_does_not_run_model(self):
         history = [{'role': 'user', 'content': 'retain until cleared'}]
         finish = Mock()
@@ -123,7 +167,7 @@ class CommandTests(unittest.TestCase):
             api.reply.assert_not_called()
             api.count.assert_not_called()
         commands = ('help', 'ddm [on|off]', 'clear', 'resetmemory', 'shutdown', 'startdiscord',
-                    'stopdiscord', 'refreshsetup', 'exit', 'status', 'connections', 'context', 'sync', 'cancel',
+                    'stopdiscord', 'startpuppet', 'stoppuppet', 'refreshsetup', 'exit', 'status', 'connections', 'context', 'sync', 'cancel',
                     'ddm allow <user>', 'ddm block <user>')
         self.assertEqual(len(HELP_TEXT.splitlines()), len(commands) + 1)
         for command in commands:
@@ -175,7 +219,7 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(render_help('terminal'), HELP_TEXT)
         discord = render_help('discord', colored=True)
         self.assertNotIn('\x1b', discord)
-        for name in ('/startdiscord', '/stopdiscord', '/refreshsetup', '/exit'):
+        for name in ('/startdiscord', '/stopdiscord', '/startpuppet', '/stoppuppet', '/refreshsetup', '/exit'):
             self.assertNotIn(name, discord)
         self.assertIn('/status', discord)
         self.assertIn('/help', discord)

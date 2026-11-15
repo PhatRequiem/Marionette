@@ -30,7 +30,7 @@ See [context policy and limitations](docs/active/current-operation/context.md) f
 
 Terminal profiles and linked accounts use permanent contact UUIDs. The schema-2 registry also stores preferred names, timezones, and creation/update timestamps; see [identities and migration](docs/active/current-operation/contacts.md). The earlier foundation is captured in `baseline-v4`; the previous [V3 guide](docs/development/history/baseline-v3-2026-11-09.md) is archived and its tag stays unchanged. Each Discord DM and the terminal have separate histories. Linked accounts share the contact’s notes, not their message history. The main terminal displays all activity.
 
-Optional [desktop puppet chat](docs/active/current-operation/desktop-puppet.md): a draggable animated overlay with an input box and reply bubble, connected to the owner's existing local conversation. She idles during replies and giggles only when clicked.
+Optional [desktop puppet chat](docs/active/current-operation/desktop-puppet.md): a draggable animated overlay with an input box and reply bubble, connected to the owner's existing local conversation. After building it, use `/startpuppet` and `/stoppuppet` in main chat as the owner. She idles during replies and giggles only when clicked.
 
 ## Documentation
 

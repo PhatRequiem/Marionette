@@ -6,6 +6,8 @@ This is a basic interface to the existing local chat engine. Model execution, to
 
 ## Run from this checkout
 
+Once main chat is ready, the owner can type `/startpuppet` to launch the background 2D interface and `/stoppuppet` to close it without stopping chat. These application commands appear in `/help`; they are local controls, unavailable over Discord. They reuse the launcher below with the current chat's data directory. Build the puppet first, and restart main chat once after adding/updating the command code. Launch acknowledgment means the launcher accepted the request, not that a window has been visually verified; failures point to the existing service status command. `/stoppuppet` controls the background service, not a separately launched foreground preview.
+
 ```bash
 ./scripts/native-linux/chat.sh
 # Select a profile and wait for Ready. In another terminal:
@@ -81,6 +83,8 @@ The Qt tests load the actual QML and check typing/shortcuts, multiline input, fi
 The offscreen backend warns that native input masks are unsupported: this checks the requested region, not compositor click-through. Earlier live desktop verification covered transparent rendering and placement. The new chat controls passed native Qt/QML tests, but live compositor focus/click-through remains unverified: the GUI driver could not discover the temporary preview window on this host. Long-session behavior, other compositors, monitor hotplug and performance under inference load remain unverified.
 
 The integration tests establish local transport, UI and reset behavior with synthetic replies. They do not establish real-model answer quality or long-session reliability. A dedicated thinking animation, streaming text, older-conversation browsing and a combined/headless backend launcher are future work, not implemented features.
+
+Core command tests verify owner-only puppet controls without inference or history changes. `test_puppet_control.py` uses a temporary shell launcher to check start/stop arguments, data-directory propagation and failures without opening a real desktop window.
 
 ## Artwork provenance
 

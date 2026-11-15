@@ -17,6 +17,8 @@ HELP_TEXT = """Available commands:
 /shutdown — Shut down Marionette and disconnect Discord; keep saved memory. (owner only)
 /startdiscord — Start the Discord connection in the background. (owner, terminal only)
 /stopdiscord — Disconnect Discord; keep main chat running. (owner, terminal only)
+/startpuppet — Open the 2D desktop puppet and chat input. (owner, terminal only)
+/stoppuppet — Close the background desktop puppet; keep main chat running. (owner, terminal only)
 /refreshsetup — Recheck setup and refresh the setup sheet and its existing Obsidian copy. (owner, terminal only)
 /exit — Exit main chat and disconnect Discord; keep saved memory. (terminal only)"""
 
@@ -59,7 +61,7 @@ def recognize(message, source):
     if command == '/clear':
         return 'clear'
     if source == 'terminal':
-        if command in ('/startdiscord', '/stopdiscord', '/refreshsetup'):
+        if command in ('/startdiscord', '/stopdiscord', '/startpuppet', '/stoppuppet', '/refreshsetup'):
             return command[1:]
         if command == '/exit':
             return 'exit'

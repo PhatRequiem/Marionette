@@ -83,6 +83,8 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
     from discord_control import DiscordControl
     database = store.db.execute('PRAGMA database_list').fetchone()[2] if store is not None else None
     conversation.discord_control = DiscordControl(data, address, database, session_id)
+    from puppet_control import PuppetControl
+    conversation.puppet_control = PuppetControl(data)
     try:
         from vault_diagnostics import VaultDiagnostics
         with connection, VaultDiagnostics(data, on_setup_change=lambda: getattr(conversation, 'setup_signal', lambda: None)()) as monitor:

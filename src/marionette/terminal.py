@@ -92,7 +92,7 @@ def display_external(conversation, inputs=None):
     try:
         with (inputs or CancelInput()).watch(conversation):
             answer, finish = conversation.turn(message, on_delta=ReplyDisplay(), source=source, sender_id=str(sender_id), message_id=message_id, display_name=getattr(future, 'discord_display_name', None), generation=getattr(future, 'memory_epoch', conversation.epoch))
-        if recognize(message, source) in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel', 'startdiscord', 'stopdiscord', 'refreshsetup'):
+        if recognize(message, source) in ('clear', 'resetmemory', 'shutdown', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel', 'startdiscord', 'stopdiscord', 'startpuppet', 'stoppuppet', 'refreshsetup'):
             color('meta')
             print(answer)
         if finish == 'cancelled':
@@ -160,7 +160,7 @@ def run(conversation, *, external=False):
         if command == 'exit':
             return
         print()
-        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
+        if command in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'startpuppet', 'stoppuppet', 'refreshsetup', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
             try:
                 answer, finish = conversation.turn(message)
             except (ValueError, RuntimeError, OSError) as error:

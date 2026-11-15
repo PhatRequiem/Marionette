@@ -33,6 +33,7 @@ class Conversation:
         self.reset_input = None
         self.shutdown_requested = False
         self.discord_control = None
+        self.puppet_control = None
         self.setup_refresh = None
         self.discord_access = None
         self.started_at = time.monotonic()
@@ -133,7 +134,7 @@ class Conversation:
                 result = self._turn(message, on_delta=on_delta, source=source, sender_id=sender_id, identifier=identifier, display_name=display_name)
                 if source == 'discord':
                     diagnostics.log('Discord answer: ' + json.dumps(result[0], ensure_ascii=False))
-            if result[1] not in ('blocked', 'cancelled') and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'refreshsetup', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
+            if result[1] not in ('blocked', 'cancelled') and recognize(message, source) not in ('clear', 'resetmemory', 'shutdown', 'startdiscord', 'stopdiscord', 'startpuppet', 'stoppuppet', 'refreshsetup', 'help', 'ddm', 'status', 'connections', 'context', 'sync', 'cancel'):
                 self.pending_key = self.key
                 self.pending = Preparation(self.api, self.history, self.capacity, self.reserve,
                                            message_id=identifier)
@@ -214,7 +215,7 @@ class Conversation:
             policy = self.discord_access.policy()
             state = ('ON' if policy['allow_other_dms'] else 'OFF') + ' — general access; allowed exceptions: ' + str(len(policy.get('allowed', []))) + '; blocked: ' + str(len(policy.get('blocked', []))) + '.'
             return 'Discord DMs: ' + state + ' Your access stays open.', 'stop'
-        if recognize(message, source) in ('startdiscord', 'stopdiscord', 'refreshsetup'):
+        if recognize(message, source) in ('startdiscord', 'stopdiscord', 'startpuppet', 'stoppuppet', 'refreshsetup'):
             from permissions import require_reset
             try:
                 require_reset(identity, self.profiles)
@@ -222,6 +223,11 @@ class Conversation:
                 return str(error), 'stop'
             if recognize(message, source) == 'refreshsetup':
                 return ('Setup datasheet: ' + self.setup_refresh(force=True) if self.setup_refresh else 'Setup refresh unavailable.'), 'stop'
+            if recognize(message, source) in ('startpuppet', 'stoppuppet'):
+                if self.puppet_control is None:
+                    return 'Desktop puppet controls are unavailable in this session.', 'stop'
+                action = self.puppet_control.start if recognize(message, source) == 'startpuppet' else self.puppet_control.stop
+                return action(), 'stop'
             if self.discord_control is None:
                 return 'Discord controls are unavailable in this session.', 'stop'
             action = self.discord_control.start if recognize(message, source) == 'startdiscord' else self.discord_control.stop
