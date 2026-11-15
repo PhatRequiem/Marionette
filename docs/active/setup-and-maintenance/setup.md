@@ -11,7 +11,7 @@ python scripts/native-linux/setup.py
 ./scripts/native-linux/chat.sh
 ```
 
-The setup downloads upstream llama.cpp's Vulkan binary release b12211 and Unsloth's Qwen3.5-4B Q4_K_M GGUF, derived from Qwen/Qwen3.5-4B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 3 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
+The setup downloads upstream llama.cpp's Vulkan binary release b12211 and HauhauCS's Qwen3.5-9B Uncensored Aggressive Q4_K_M GGUF, derived from Qwen/Qwen3.5-9B. Exact URLs, model revision, and SHA-256 checksums are in `scripts/native-linux/downloads.json`. Downloads are verified before use. Setup verifies existing downloads and installed runtime files against the pinned archive without rewriting them. A new runtime is extracted into a staging directory and moved into place only after validation. Concurrent setup runs in the same checkout are rejected. It requires roughly 5.7 GB plus runtime/archive space and internet access on first installation. Downloads use temporary files and are published only after checksum verification. A failed download leaves any previous target intact; the next setup run restarts the download. A force-killed setup may leave an unused `.part` file.
 
 The upstream prebuilt release avoids requiring a local compiler toolchain. This is a reproducible installation of pinned binaries, not a claim of reproducible compilation. To verify or complete installation, rerun setup; to recreate on another machine, clone the project, satisfy the documented Linux requirements, and run the same setup. GPU driver compatibility must be checked on that machine. If setup detects altered or missing files in an existing runtime, it stops rather than overwrite potentially running binaries. Close chats, move that version’s directory out of the [shared runtime folder](#shared-inference-runtime), and rerun setup to restore it from the verified archive.
 
@@ -33,7 +33,7 @@ Leave it unset for the default above. Each project pins its runtime version inde
 
 ## Shared model storage
 
-Setup and chat both use `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/Qwen3.5-4B-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
+Setup and chat both use `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Uncensored/HauhauCS-Aggressive/0a41c68809d375475f954be12ba7c40efa56c2a9/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf` by default. The home directory belongs to the user running the command; no username is hardcoded. The model's `directory` and `filename` in `scripts/native-linux/downloads.json` select its location within the shared library. Setup creates missing folders and verifies an existing model against the pinned checksum, downloading only when needed. Moving or cloning the checkout does not duplicate the weights.
 
 The library sits beside `~/AI Infrastructure/AI Apps/`. The capitalization of `AI Infrastructure` matters on Linux.
 
@@ -51,12 +51,13 @@ The shared library is organized as `Provider/Family/Size/Variant/`, keeping orig
 
 ```text
 Qwen/Qwen3.5/4B/Instruct/            Q4_K_M and BF16
-Qwen/Qwen3.5/9B/Instruct/            Q4_K_M
+Qwen/Qwen3.5/9B/Instruct/            original Q4_K_M
+Qwen/Qwen3.5/9B/Uncensored/HauhauCS-Aggressive/<revision>/  selected Q4_K_M
 Qwen/Qwen3-Embedding/0.6B/Embedding/ Q8_0
 BAAI/bge-en-v1.5/33.4M/Embedding/    BGE small ONNX and supporting files
 ```
 
-`Instruct` is the local category for Qwen's post-trained chat/reasoning models, as described in the official [4B](https://huggingface.co/Qwen/Qwen3.5-4B) and [9B](https://huggingface.co/Qwen/Qwen3.5-9B) model cards; the official model names have no Instruct suffix. BGE's provider and size follow its [model card](https://huggingface.co/BAAI/bge-small-en-v1.5). No Base or Heretic variants are installed. Future variants can use those folders under the appropriate size, with modified models further separated by derivative author/model name. Keep distinct revisions and precision formats separate; BF16 and Q4 are different representations of the same post-trained model, not Base versus Instruct.
+`Instruct` is the local category for Qwen's post-trained chat/reasoning models, as described in the official [4B](https://huggingface.co/Qwen/Qwen3.5-4B) and [9B](https://huggingface.co/Qwen/Qwen3.5-9B) model cards; the official model names have no Instruct suffix. BGE's provider and size follow its [model card](https://huggingface.co/BAAI/bge-small-en-v1.5). The selected HauhauCS derivative uses `Uncensored/HauhauCS-Aggressive/<revision>/`; its publisher, source, revision, precision and checksum are recorded in the shared catalog. No Base or Heretic variants are installed. Future variants can use those folders under the appropriate size, with modified models further separated by derivative author/model name. Keep distinct revisions and precision formats separate; BF16 and Q4 are different representations of the same post-trained model, not Base versus Instruct.
 
 The retained BF16 file is not automatically downloaded by current setup. Back it up separately if wanted; moving files on the same disk is not a backup.
 
@@ -97,7 +98,7 @@ Select another enumerated GPU with `MARIONETTE_DEVICE=Vulkan1 ./scripts/native-l
 
 ## Choices and updates
 
-The selected 4B Q4_K_M uses mixed 4-bit quantization (2,740,937,888 bytes). It uses less weight memory than 9B Q4 (5,680,522,464 bytes); speed and answer quality have not been compared systematically. Quantization trades numerical precision for lower memory use. The 9B Q4 and 4B BF16 files remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](../current-operation/contact-notes.md). No image projector is installed, so this setup is text-only.
+The selected HauhauCS 9B Q4_K_M uses mixed 4-bit quantization (5,627,044,224 bytes). Q4 leaves more VRAM headroom for context and runtime buffers on the 20 GB RX 7900 XT than Q8_0 (9,527,501,184 bytes) or BF16 (17,920,696,704 bytes), trading numerical precision for that headroom. Comparative speed and quality have not been measured. Original 9B Q4 and 4B Q4/BF16 remain in the shared library. The 65,536-token context keeps memory use bounded. Thinking is enabled with a bounded allowance; the soul supplies identity context; current-contact contact notes and their update tool are supplied as described in [contact notes](../current-operation/contact-notes.md). No image projector is installed, so this setup is text-only.
 
 When updating, change the download manifest, launcher paths, setup behavior if needed, license/version records, and these instructions together. Verify upstream checksums, reinstall, and test offline generation and interactive exit before committing. Models, runtime binaries, downloads, logs, and private data must stay out of Git.
 
@@ -109,7 +110,11 @@ The model's native template is used with thinking enabled. Enabled [tool guidanc
 
 The context is 65,536 tokens with a 32,768-token combined thinking-and-answer allowance and no separate thinking cap. Runtime and model versions are pinned in the manifest. Restart chat after client updates to use the new code.
 
-Sampling follows [Qwen3.5-4B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-4B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
+Sampling follows [Qwen3.5-9B's general-thinking guidance](https://huggingface.co/Qwen/Qwen3.5-9B#best-practices): temperature 1.0, top-p 0.95, top-k 20, min-p 0, presence penalty 1.5, and repetition penalty 1.0. The launcher sets `--repeat-last-n 65536` so llama.cpp applies the presence penalty across up to 65,536 tokens rather than its default last 64 tokens. These settings can reduce repetition but do not guarantee short reasoning or accurate answers.
+
+### HauhauCS guidance decision
+
+Reviewed the [derivative publisher card](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive/blob/0a41c68809d375475f954be12ba7c40efa56c2a9/README.md) and original Qwen guidance on 2026-11-15. HauhauCS recommends thinking temperature 0.6 and at least 128K context; current Qwen guidance distinguishes general thinking (1.0, presence penalty 1.5) from precise coding (0.6, presence penalty 0). Marionette deliberately uses the original general-thinking settings listed above for conversation, with its established 65,536 context and 32,768 combined output allowance to bound memory use. This deviates from the derivative card; smoke generation does not validate maximum-context reasoning. Native embedded Jinja template, thinking enabled and exclusion of historical reasoning remain in use. The uncensoring claim does not establish unchanged accuracy or tool reliability. See [switch verification](../../development/experiments/hauhaucs-9b-switch-2026-11-15.md).
 
 ## Maintenance checks
 

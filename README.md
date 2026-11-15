@@ -1,6 +1,6 @@
 # Marionette
 
-Local terminal chat with Qwen3.5 4B using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens three live views (connections/requests, model processing and reasoning) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/active/current-operation/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
+Local terminal chat with HauhauCS Qwen3.5 9B Aggressive using a small Python terminal client and llama.cpp’s `llama-server`. Runs in the foreground with a local HTTP server owned by the client, no persistent background service or required account. Each launch opens three live views (connections/requests, model processing and reasoning) and saves conversations in local SQLite. Diagnostics use a [500 MB RAM rolling buffer](docs/active/current-operation/log-retention.md), saved on shutdown. Saved conversations are not automatically reloaded as memory.
 
 ## Quick start
 
@@ -14,7 +14,7 @@ Optional phone access: [Discord DM setup](docs/active/setup-and-maintenance/disc
 
 ## Status and architecture
 
-The current base runs Qwen3.5-4B Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/active/current-operation/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/active/current-operation/qwen-agent.md). Her [editable soul](docs/active/current-operation/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The model’s loopback server stops when chat exits.
+The current base runs HauhauCS Qwen3.5-9B Aggressive Q4_K_M on the RX 7900 XT with Vulkan, a 65,536-token context, and thinking enabled (white reasoning, pink answers). Qwen-Agent coordinates model/tool turns, including bounded [contact notes](docs/active/current-operation/contact-notes.md) that are supplied automatically and can be updated proactively. Successful exchanges retain tool calls and results in active context; trimming removes them with their user input and answer. Our client still owns exact context trimming and background cache preparation. See [tool coordination](docs/active/current-operation/qwen-agent.md). Her [editable soul](docs/active/current-operation/soul.md) starts blank and supplies system context only once filled; `query_logs` supplies scoped setup, current status and message diagnostics. The model’s loopback server stops when chat exits.
 
 Log-tool execution works, but answers can still misinterpret units or add unsupported details; see [current reliability limits](docs/active/current-operation/log-queries.md#current-reliability-limits).
 
@@ -22,7 +22,7 @@ The [Scarecrow Obsidian plugin](docs/active/setup-and-maintenance/obsidian-conne
 
 Chat runs in response to terminal or Discord input; there is no autonomous thinking cycle or temporary scratchpad system.
 
-The selected 4B Q4_K_M weights live in `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/4B/Instruct/`. The 9B Q4 and 4B BF16 files remain available. See [shared model storage](docs/active/setup-and-maintenance/setup.md#shared-model-storage) and [4B return verification](docs/development/experiments/4b-return-2026-11-12.md).
+The selected uncensored 9B Q4_K_M weights live under `~/AI Infrastructure/AI Local Models/Qwen/Qwen3.5/9B/Uncensored/HauhauCS-Aggressive/`, separated by revision. Original 9B Q4 and 4B Q4/BF16 files remain available. See [shared model storage](docs/active/setup-and-maintenance/setup.md#shared-model-storage) and [HauhauCS switch verification](docs/development/experiments/hauhaucs-9b-switch-2026-11-15.md).
 
 The **last saved stable baseline** is **`baseline-v4` (2026-11-11)**: a deliberately saved, simple working foundation to return to if later development becomes cluttered or unreliable. It records the program at that checkpoint, not the current setup. Later changes are not automatically included; a new baseline requires a deliberate decision and a new tag. Recovery steps are in [the baseline guide](docs/development/history/baseline.md).
 
@@ -119,7 +119,7 @@ Start with these files, in order:
 - `runtime/discord/`: isolated optional Discord Python environment; ignored by Git.
 - `tests/scarecrow/`: synthetic Obsidian API fixtures and HTTP/plugin lifecycle tests.
 - `tests/discord/`: optional Discord transport tests—human one-to-one DM filtering, delivery, attachment to main chat, and reasoning isolation.
-- `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/active/setup-and-maintenance/setup.md#shared-model-storage) use `Qwen/Qwen3.5/4B/Instruct/`.
+- `~/AI Infrastructure/AI Local Models/`: shared local model library outside the checkout; [setup and launch](docs/active/setup-and-maintenance/setup.md#shared-model-storage) use the manifest-selected HauhauCS 9B revision.
 - `data/downloads/`: verified runtime archive; ignored by Git.
 - `visual design/`: local visual references, independent of terminal chat; currently untracked.
 - `tests/core/`: core application tests—setup, chat, shared connection, rollover, logging, and lifecycle.

@@ -6,8 +6,10 @@ The [V3 guide](baseline-v3-2026-11-09.md) is archived; its original tag remains 
 
 ## Current checkout versus V4
 
-The tag stays fixed. The current checkout keeps V4's model/runtime settings and
+The tag stays fixed. The current checkout keeps V4's runtime and
 chat, Discord, soul, contact-note and diagnostic-retention foundation, with these later changes:
+
+- Selected [HauhauCS Qwen3.5-9B Aggressive Q4_K_M](../experiments/hauhaucs-9b-switch-2026-11-15.md); V4's original 4B model remains part of the saved checkpoint.
 
 - Connected scoped `query_logs`, searchable metadata (SQLite schema 5), a request form and automatic startup datasheet updates.
 - Tool calls/results retained with each conversation exchange and trimmed together.

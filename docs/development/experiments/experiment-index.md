@@ -6,6 +6,8 @@ Keep the date, model/runtime configuration, method, results and limitations with
 
 ## Reports
 
+- [HauhauCS 9B switch — 2026-11-15](hauhaucs-9b-switch-2026-11-15.md): pinned uncensored derivative, sampling decision, setup reuse and synthetic generation/tool verification.
+
 - [Desktop puppet animation history and verification — 2026-11-14](desktop-puppet-animation-2026-11-14.md): pose/blink/giggle decisions, rejected kick branches, native integration and the local artifact archive.
 
 - [Scarecrow plugin verification](scarecrow-2026-11-13.md)

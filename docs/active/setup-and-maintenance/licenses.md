@@ -28,7 +28,7 @@ System package versions and license identifiers were checked using `pacman -Qi`;
 
 ## Model weights (separate from software)
 
-[Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) uses [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-4B/blob/main/LICENSE), verified from the actual license text. The [Unsloth GGUF distribution](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/tree/e87f176479d0855a907a41277aca2f8ee7a09523) identifies that base model and the same Apache-2.0 license. We use Q4_K_M at that pinned revision; see the download manifest for its checksum. Unsloth training software is not installed or required. Preserve license and attribution obligations if redistributing weights. This repository does not redistribute weights or runtime binaries.
+[Qwen/Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B) uses [Apache-2.0](https://huggingface.co/Qwen/Qwen3.5-9B/blob/main/LICENSE), verified from the actual license text. The [HauhauCS Aggressive GGUF distribution](https://huggingface.co/HauhauCS/Qwen3.5-9B-Uncensored-HauhauCS-Aggressive/tree/0a41c68809d375475f954be12ba7c40efa56c2a9) declares Apache-2.0 in its model-card metadata; it has no separate LICENSE file. We use its Q4_K_M at revision `0a41c68809d375475f954be12ba7c40efa56c2a9`; the download manifest pins its SHA-256. No hosted service, account or paid feature is required for local inference. Preserve license and attribution obligations if redistributing weights. This repository does not redistribute weights or runtime binaries.
 
 ## Resolved system library inventory
 
