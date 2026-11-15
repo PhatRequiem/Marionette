@@ -222,6 +222,9 @@ class Conversation:
             answer = execute_clear(self, identity)
             save('assistant', 'notice', answer, 'stop')
             return answer, 'stop'
+        if self.profiles is not None and identity is not None:
+            from contact_profile import UpdateContactProfile
+            self.api.tools = tuple(t for t in getattr(self.api, 'tools', ()) if t.name != 'update_contact_profile') + (UpdateContactProfile(self.profiles, identity),)
         if self.contact_notes is not None:
             if identity is None:
                 raise ValueError('Contact notes require a resolved sender identity.')

@@ -13,7 +13,7 @@ Paths in the Python column are relative to `src/marionette/`. Script paths are r
 | **Application core** | `session.py`, `memory_reset.py`, `reset_boundary.py` | `chat.sh`, `setup.py`, `downloads.json`; root `STARTUP.md` |
 | **Conversation engine** | `conversation.py`, `context.py`, `commands.py`, `permissions.py` | No separate setup script |
 | **Model engine** | `inference.py`, `coordination.py` | `setup-agent.sh`, `agent-requirements.in`, `agent-requirements.txt`; `tool-guidance.md`, `prompt-guide.md` |
-| **Personal memory** | `contacts.py`, `contact_notes.py`, `soul.py`, `data_migration.py` | `contact-notes.md`, `soul.md` prompts |
+| **Personal memory** | `contacts.py`, `contact_profile.py`, `contact_notes.py`, `soul.py`, `data_migration.py` | `contact-profile.md`, `contact-notes.md`, `soul.md` prompts |
 | **Conversation archive** | `storage.py`, `conversation_refs.py`, `conversation_vault.py` | `storage.sh`, `sync-conversation-vault.sh` |
 | **Diagnostics** | `diagnostics.py`, `ram_logs.py`, `retention.py`, `log_router.py`, `log_metadata.py`, `log_view.py`, `log_query.py`, `log_tool.py`, `setup_datasheet.py` | `view-log.sh`, `log-query.sh`; `log-queries.md`, `log-results.md` prompts |
 | **Communication** | `terminal.py`, `style.py`, `connection.py`, `discord_bot.py`, `discord_control.py`, `discord_access.py`, `operator_status.py` | `discord.sh`, `setup-discord.sh`, `discord-requirements.in`, `discord-requirements.txt`; `desktop-puppet.sh` and `src/desktop-puppet/` visual prototype |
@@ -84,9 +84,9 @@ Components emit events through Diagnostics; those edges are omitted for readabil
 
 **Current connections:** Conversation resolves identities and supplies current notes; model-facing update adapters live beside their storage implementations. `Soul.bind` updates Model engine state. Reset coordinates directly with profile, note and soul implementations. Contact notes and soul share some utilities, so they are not completely independent implementations.
 
-**Preserve on replacement:** permanent UUIDs; explicit terminal enrollment separate from Discord registration; owner and linked-account mappings; portable formats and provenance; revision history where specified; note-size and edit validation; current-contact scope of note writes; explicit uncertainty versus facts; blank soul behavior; reset scope and safe migrations. Do not infer new authorization from model text or a contact's display name.
+**Preserve on replacement:** permanent UUIDs; explicit terminal enrollment separate from Discord registration; owner and linked-account mappings; portable formats and provenance; revision history where specified; note-size and edit validation; current-contact scope of profile and note writes; protected identity fields and application-managed timestamps; explicit uncertainty versus facts; blank soul behavior; reset scope and safe migrations. Do not infer new authorization from model text or a contact's display name.
 
-**Checks:** `tests/core/test_contacts.py`, `test_contact_notes.py`, `test_soul.py`, `test_data_migration.py`, `test_permissions.py`, `test_memory_reset.py`. See [contacts](../current-operation/contacts.md), [contact notes](../current-operation/contact-notes.md) and [soul](../current-operation/soul.md).
+**Checks:** `tests/core/test_contacts.py`, `test_contact_profile.py`, `test_contact_notes.py`, `test_soul.py`, `test_data_migration.py`, `test_permissions.py`, `test_memory_reset.py`. See [contacts](../current-operation/contacts.md), [contact notes](../current-operation/contact-notes.md) and [soul](../current-operation/soul.md).
 
 ## Conversation archive
 

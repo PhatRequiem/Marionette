@@ -12,7 +12,7 @@
 - `terminal_enabled`: new terminal profiles store `true`; automatically registered Discord contacts store `false`. The saved owner remains terminal-enabled. This optional schema-2 field controls terminal selection and resolution, not Discord admission.
 - `linked_accounts`: a list of `{ "service": "discord", "account_id": "123" }` mappings. IDs remain strings. Each service/account pair must belong to only one contact. Other service labels can be stored, but only terminal and Discord inputs are currently supported. Terminal identity remains the contact UUID rather than a duplicate account entry.
 
-New profiles receive UTC ISO timestamps with an offset for `created_at` and `updated_at`. Creation time means record creation, not first meeting. Saves through `ContactProfiles.save()` update `updated_at` only for changed profiles; ordinary startup and messages do not touch it. New preferred names and timezones are null until supplied; preferred name falls back to display name when sent to the model. The terminal selector continues to show the display name.
+New profiles receive UTC ISO timestamps with an offset for `created_at` and `updated_at`. Creation time means record creation, not first meeting. Saves through `ContactProfiles.save()` update `updated_at` only for changed profiles; ordinary startup and messages do not touch it. New preferred names and timezones are null until supplied; an unset preferred name remains null in sender metadata rather than falling back to display name. The terminal selector continues to show the display name.
 
 Example (synthetic IDs):
 
@@ -32,11 +32,19 @@ Example (synthetic IDs):
 }
 ```
 
-These fields are identity metadata, not contact notes. Separate [Markdown contact notes](contact-notes.md) use the same UUID; the model can update those notes but cannot edit this registry.
+These fields are identity metadata, not contact notes. Separate [Markdown contact notes](contact-notes.md) use the same UUID; the model can update notes separately from the editable profile fields below.
 
 At startup, the configured `DISCORD_ALLOWED_USER_ID` from `data/discord/.env` is linked to the owner profile if not linked already. No bot token is copied into profiles. With no Discord configuration, terminal profiles still work offline. After adding Discord configuration, restart main chat before connecting Discord. A changed account or conflicting mapping stops startup with an error rather than silently transferring identity; review the saved mapping deliberately before relinking.
 
 Selecting another terminal profile never transfers your Discord account to it. Discord accepts human one-to-one DMs. New accounts receive separate identities automatically. Selecting a terminal name is identification, not authentication. Anyone able to use the local terminal can select that name.
+
+## Model profile edits
+
+`update_contact_profile` is bound to the current sender on each ordinary turn. It can update only `name`, `preferred_name`, and `timezone`. Omitted fields stay unchanged; null clears preferred name or timezone. Names must be printable, trimmed, and 1–80 characters; display names remain unique ignoring case. Timezones must be valid IANA names. For “call me Jack”, guidance requests `preferred_name: "Jack"` without repeated confirmation, while other lasting facts belong in contact notes. A preference does not require renaming the display label.
+
+UUIDs, linked accounts, owner status, terminal access, creation time and supplied update timestamps are rejected by code. `updated_at` is maintained automatically by the existing save path. Edits are atomic and failed saves restore the in-memory fields. Successful results return only the three editable fields; new sender metadata includes them on the next turn, across linked terminal/Discord identities. Existing message metadata and note headings are not rewritten. Profile edits do not update or verify the Obsidian connection; its mirror still refreshes through normal sync.
+
+Synthetic tests cover field restrictions, invalid names/timezones, disk-failure rollback, persistence, null preference handling, and contact switching. These checks establish tool behavior, not that the model will always select it correctly. Restart chat after updating to load the tool and guidance. Existing real profiles and notes are not automatically migrated or changed.
 
 ## What she receives
 

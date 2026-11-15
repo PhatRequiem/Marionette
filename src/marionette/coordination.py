@@ -34,7 +34,7 @@ def tool_outcome(name, result):
     except (ValueError, TypeError):
         return 'Returned (unverified)'
     if isinstance(data, dict):
-        if name in ('update_soul', 'update_contact_notes'):
+        if name in ('update_soul', 'update_contact_notes', 'update_contact_profile'):
             if data.get('success') is True:
                 return 'Success'
             if data.get('success') is False:

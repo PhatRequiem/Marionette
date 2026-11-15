@@ -83,6 +83,11 @@ class DMTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(incoming.channel.send.await_args.args[0], 'Cancellation requested')
 
     async def asyncSetUp(self):
+        # Transport tests run in the Discord-only environment. Native tool
+        # execution and profile permissions are covered by the core suite.
+        profile_module = SimpleNamespace(UpdateContactProfile=lambda profiles, identity:
+            SimpleNamespace(name='update_contact_profile'))
+        patch.dict(sys.modules, {'contact_profile': profile_module}).start()
         self.api = FakeAPI()
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

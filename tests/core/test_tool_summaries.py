@@ -15,7 +15,7 @@ from test_coordination import EchoTool
 
 class ToolSummaryTests(unittest.TestCase):
     def test_contract_outcomes(self):
-        for name in ('update_soul', 'update_contact_notes'):
+        for name in ('update_soul', 'update_contact_notes', 'update_contact_profile'):
             self.assertEqual(tool_outcome(name, '{"success":true}'), 'Success')
             self.assertEqual(tool_outcome(name, '{"success":false}'), 'Failed')
             self.assertEqual(tool_outcome(name, '{"success":"true"}'), 'Returned (unverified)')

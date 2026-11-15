@@ -59,6 +59,7 @@ Start with these files, in order:
 | [soul.py](src/marionette/soul.py) | Permanent self UUID, revisioned soul, and self-editing tool |
 | [memory_reset.py](src/marionette/memory_reset.py) and [reset_boundary.py](src/marionette/reset_boundary.py) | Owner-only live memory reset and recorder boundaries |
 | [data_migration.py](src/marionette/data_migration.py) | Preserving legacy contact and soul paths during startup |
+| [contact_profile.py](src/marionette/contact_profile.py) | Current-contact name, preferred-name and timezone tool; protected identity fields remain application-owned |
 | [contacts.py](src/marionette/contacts.py) | Saved profiles, linked accounts, and sender metadata |
 | [commands.py](src/marionette/commands.py) | Command recognition and conversation-scoped actions |
 | [permissions.py](src/marionette/permissions.py) | Restrict clearing to the sender’s own conversation |

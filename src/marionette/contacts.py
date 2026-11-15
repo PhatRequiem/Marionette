@@ -137,6 +137,39 @@ class ContactProfiles:
         finally:
             Path(temporary).unlink(missing_ok=True)
 
+    def update_fields(self, contact_uuid, fields):
+        """Edit only public profile fields; preserve references used by the terminal."""
+        if not isinstance(fields, dict) or not fields or set(fields) - {'name', 'preferred_name', 'timezone'}:
+            raise ValueError('Supply only name, preferred_name, and/or timezone.')
+        for key, value in fields.items():
+            if key in ('name', 'preferred_name'):
+                if value is None and key == 'preferred_name':
+                    continue
+                if not valid_name(value) or value != value.strip():
+                    raise ValueError('Names must be printable, trimmed, and 1–80 characters; preferred_name may be null.')
+            elif value is not None:
+                if not isinstance(value, str):
+                    raise ValueError('Timezone must be an IANA timezone or null.')
+                try:
+                    ZoneInfo(value)
+                except (ValueError, ZoneInfoNotFoundError):
+                    raise ValueError('Use a valid IANA timezone, such as America/New_York, or null.') from None
+        profile = next((p for p in self.profiles if p['uuid'] == contact_uuid), None)
+        if profile is None:
+            raise ValueError('Current contact is unavailable.')
+        if 'name' in fields and any(p is not profile and p['name'].casefold() == fields['name'].casefold()
+                                    for p in self.profiles):
+            raise ValueError('That display name is already used; preferred names need not be unique.')
+        previous = copy.deepcopy(profile)
+        profile.update(fields)
+        try:
+            self.save()
+        except (OSError, ValueError):
+            profile.clear()
+            profile.update(previous)
+            raise
+        return {key: profile[key] for key in ('name', 'preferred_name', 'timezone')}
+
     def link_owner(self, config):
         """Read only the configured account ID; never retain or log the bot token."""
         if not config.exists():
@@ -233,7 +266,7 @@ class ContactProfiles:
             raise ValueError('Sender has no enabled profile for this interface.')
         return {'source': source, 'sender_id': sender_id,
                 'display_name': profile['name'], 'contact_uuid': profile['uuid'],
-                'preferred_name': profile['preferred_name'] or profile['name'],
+                'preferred_name': profile['preferred_name'],
                 'timezone': profile['timezone']}
 
 

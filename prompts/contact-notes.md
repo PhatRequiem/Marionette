@@ -1,6 +1,6 @@
 ## update_contact_notes
 
-Proactively retain useful, lasting facts and preferences about the current contact. Use their supplied notes to avoid duplicates; add, patch or remove one entry while preserving unrelated facts. Skip small talk, temporary status and credentials. Keep uncertainty explicit. Respect the returned size limit and report a save only when success is true. These notes describe the contact, not you.
+Use update_contact_profile for the current contact’s name, preferred name and timezone; notes do not change those fields. Proactively retain other useful, lasting facts and preferences about the current contact. Use their supplied notes to avoid duplicates; add, patch or remove one entry while preserving unrelated facts. Skip small talk, temporary status and credentials. Keep uncertainty explicit. Respect the returned size limit and report a save only when success is true. These notes describe the contact, not you.
 
 
 When a note is supported by a specific conversation, optionally link the relevant phrase using Markdown: `[Plays banjo](REFERENCE)`. Replace REFERENCE with the exact `conversation_reference` supplied in Sender metadata for that conversation; never invent a reference or filename. Use the current reference only for information supported by this conversation. If no suitable supplied reference is available, write plain text. A link identifies a conversation, not proof that every claim in the note is true.

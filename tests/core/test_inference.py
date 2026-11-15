@@ -51,7 +51,7 @@ class InferenceTests(unittest.TestCase):
 
     def test_guidance_follows_registered_tools_without_overwriting_soul(self):
         from types import SimpleNamespace
-        names = ['query_logs', 'update_contact_notes', 'update_soul']
+        names = ['query_logs', 'update_contact_notes', 'update_contact_profile', 'update_soul']
         api = API('http://localhost')
         api.system_prompt = 'Name: Synthetic\n\nMy evolving description.'
         message = [{'role': 'user', 'content': 'hello'}]

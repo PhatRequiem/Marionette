@@ -82,7 +82,7 @@ class ContactNotes:
         if not isinstance(content, str):
             raise ValueError('Contact notes must be text.')
         if len(content) > LIMIT:
-            raise ValueError(f'Proposed profile is {len(content)}/{LIMIT} characters, {len(content) - LIMIT} over the limit. '
+            raise ValueError(f'Proposed notes file is {len(content)}/{LIMIT} characters, {len(content) - LIMIT} over the limit. '
                              'Nothing was written. Shorten the edit or patch/remove stale entries, then retry.')
         if any(not c.isprintable() and c not in '\n\t' for c in content):
             raise ValueError('Use readable Markdown text without control characters.')
@@ -133,7 +133,7 @@ class UpdateContactNotes(BaseTool):
         'Entries are separated by § lines; legacy blank-separated paragraphs are also entries. '
         'Use add to append ONE note, patch to replace only old_text within one entry, or remove to delete '
         'one entry identified by old_text. Use a unique exact substring; an exact whole-entry match wins. '
-        'Do not send the whole profile or its name heading. Preserve unrelated facts. '
+        'Do not send the whole notes file or its name heading. Use update_contact_profile for name, preferred_name and timezone. Preserve unrelated facts. '
         'The complete saved file, including heading and separators, must fit 1375 characters. '
         'If full, shorten or remove stale entries before adding. On failure use the returned current_entries '
         'to correct and retry; only report a save after success. '

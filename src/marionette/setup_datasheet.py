@@ -193,10 +193,13 @@ def application(api, conversation, store, bridge_bound):
         result['Discord DMs from others'] = ('Allowed' if access.enabled() else 'Blocked', 'Local admission policy; owner remains allowed')
     purposes = {'update_soul': 'Edit persistent self name and description',
                 'update_contact_notes': 'Edit notes for the current contact',
+                'update_contact_profile': 'Edit current contact name, preferred name and timezone',
                 'query_logs': 'Read setup, status and current-conversation diagnostics',
                 'read_vault': 'Read-only Scarecrow vault access'}
     for tool in tools:
         result['Tool: ' + tool.name] = ('Available', purposes.get(tool.name, 'Registered tool'))
+    if getattr(conversation, 'profiles', None) is not None and 'update_contact_profile' not in names:
+        result['Tool: update_contact_profile'] = ('Available', 'Contact-profile component')
     if conversation.contact_notes is not None and 'update_contact_notes' not in names:
         result['Tool: update_contact_notes'] = ('Available', 'Contact-note component')
     known = set(names) <= set(purposes)
