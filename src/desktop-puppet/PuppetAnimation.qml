@@ -1,52 +1,104 @@
 import QtQuick
+import "PuppetMotion.js" as Motion
 
 Item {
     id: character
     objectName: "characterAnimation"
     property bool playing: true
-    property int frameIndex: 0
+    property var player: new Motion.Player()
+    property int frameIndex: 36
+    property string animationKind: "idle"
     property real hoverOffset: 0
+    property real headAmount: 1
+    property bool ready: false
+    onFrameIndexChanged: canvas.requestPaint()
+    onAnimationKindChanged: canvas.requestPaint()
+
     function gesture() {
-        if (playing)
-            cycle.restart()
+        if (playing) player.giggle()
     }
-    Image {
+    function advance(dt) {
+        player.tick(dt)
+        animationKind = player.mode
+        frameIndex = animationKind === "giggle" ? Motion.giggleState(player.giggleTime).cell : player.frame
+        hoverOffset = 7 * Math.sin(player.time * 2.2)
+        // Ease idle head motion out before the hands move in and restore it
+        // during the final hold. Keep the body's hover continuous.
+        var target = animationKind !== "giggle" || player.giggleTime >= 2600 ? 1 : 0
+        headAmount += Math.max(-dt / .35, Math.min(dt / .35, target - headAmount))
+        canvas.requestPaint()
+    }
+    onPlayingChanged: clock.previous = Date.now()
+
+    Timer {
+        id: clock
+        property real previous: Date.now()
+        interval: 16
+        repeat: true
+        running: character.playing && character.ready
+        onRunningChanged: previous = Date.now()
+        onTriggered: {
+            var now = Date.now()
+            character.advance(Math.max(0, Math.min(.05, (now - previous) / 1000)))
+            previous = now
+        }
+    }
+    Canvas {
+        id: canvas
         anchors.centerIn: parent
-        width: 320; height: 320
-        source: "qrc:/assets/puppet-hover.png"
-        sourceClipRect: Qt.rect((character.frameIndex % 3) * 512,
-                               Math.floor(character.frameIndex / 3) * 512, 512, 512)
-        transform: Translate { y: character.hoverOffset }
-        smooth: false
-        mipmap: false
-    }
-    // Floating displacement complements the drawn elbow/knee changes; it
-    // never rotates the whole character. Pause freezes both kinds of motion.
-    SequentialAnimation {
-        running: true
-        paused: !character.playing
-        loops: Animation.Infinite
-        NumberAnimation { target: character; property: "hoverOffset"; from: 0; to: -10; duration: 1495; easing.type: Easing.InOutSine }
-        NumberAnimation { target: character; property: "hoverOffset"; from: -10; to: 0; duration: 1495; easing.type: Easing.InOutSine }
-    }
-    // Brief closing/opening frames keep the blink short; the resting pose
-    // holds between gestures instead of continuously waving at the user.
-    SequentialAnimation {
-        id: cycle
-        running: true
-        paused: !character.playing
-        loops: Animation.Infinite
-        PropertyAction { target: character; property: "frameIndex"; value: 1 }
-        PauseAnimation { duration: 320 }
-        PropertyAction { target: character; property: "frameIndex"; value: 2 }
-        PauseAnimation { duration: 120 }
-        PropertyAction { target: character; property: "frameIndex"; value: 3 }
-        PauseAnimation { duration: 110 }
-        PropertyAction { target: character; property: "frameIndex"; value: 4 }
-        PauseAnimation { duration: 320 }
-        PropertyAction { target: character; property: "frameIndex"; value: 5 }
-        PauseAnimation { duration: 320 }
-        PropertyAction { target: character; property: "frameIndex"; value: 0 }
-        PauseAnimation { duration: 1800 }
+        anchors.verticalCenterOffset: character.hoverOffset * scale
+        // Paint the approved deformation at its original pixel resolution;
+        // scaling individual four-pixel bands creates seams at desktop size.
+        width: 512; height: 544
+        scale: .625
+        property url idleAtlas: "qrc:/assets/puppet-idle.png"
+        property url giggleAtlas: "qrc:/assets/puppet-giggle.png"
+        Component.onCompleted: { loadImage(idleAtlas); loadImage(giggleAtlas) }
+        onImageLoaded: { character.ready = isImageLoaded(idleAtlas) && isImageLoaded(giggleAtlas); requestPaint() }
+        onPaint: {
+            if (!character.ready) return
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, 512, 544)
+            ctx.save()
+            var bob = 16
+            var t = character.player.time
+            var tilt = (.018*Math.sin(t*.92) + .006*Math.sin(t*1.43)) * character.headAmount
+            var dx = .65*Math.sin(t*.73) * character.headAmount
+            var dy = .45*Math.sin(t*1.1) * character.headAmount
+            var sx, sy
+            if (character.animationKind === "idle") {
+                var n = character.frameIndex - 1
+                sx = (n % 6) * 256; sy = Math.floor(n / 6) * 256
+                ctx.drawImage(idleAtlas, sx, sy+84, 256, 172, 0, bob+168, 512, 344)
+                ctx.save()
+                ctx.translate(273+dx, bob+171+dy)
+                ctx.rotate(tilt)
+                ctx.drawImage(idleAtlas, sx, sy, 256, 86, -273, -171, 512, 172)
+                ctx.restore()
+            } else {
+                sx = (character.frameIndex % 4) * 512; sy = Math.floor(character.frameIndex / 4) * 512
+                var bounce = Motion.giggleBounce(Motion.giggleState(character.player.giggleTime))
+                ctx.save()
+                ctx.translate(0, bob)
+                ctx.drawImage(giggleAtlas, sx, sy+260, 512, 252, 0, 260, 512, 252)
+                if (bounce < .001) {
+                    ctx.drawImage(giggleAtlas, sx, sy+160, 512, 100, 0, 160, 512, 100)
+                } else for (var x = 0; x < 512; x += 16) {
+                    for (var y = 160; y < 260; y += 4) {
+                        // Share exact pixel boundaries between adjacent bands.
+                        // Qt antialiases fractional edges separately, causing
+                        // transparent seams even when the rectangles overlap.
+                        var top = Math.round(y + Motion.shoulderOffset(x+8, y, bounce))
+                        var bottom = Math.round(y+4 + Motion.shoulderOffset(x+8, y+4, bounce))
+                        ctx.drawImage(giggleAtlas, sx+x, sy+y, 16, 4, x, top, 16, bottom-top)
+                    }
+                }
+                ctx.translate(273+dx, 171+dy)
+                ctx.rotate(tilt)
+                ctx.drawImage(giggleAtlas, sx, sy, 512, 160, -273, -171, 512, 160)
+                ctx.restore()
+            }
+            ctx.restore()
+        }
     }
 }

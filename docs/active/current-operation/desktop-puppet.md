@@ -20,12 +20,14 @@ Build after changing source or assets; stop a running preview before rebuilding.
 | Action | Result |
 |---|---|
 | Drag the character | Move within her current monitor |
-| Click the character | Replay the arm/leg gesture and blink, plus a brief scripted greeting |
-| Pause / Resume or Space | Freeze/resume sprite frames and vertical hover |
+| Click the character | Play the approved giggle and return to idle, plus a brief scripted greeting |
+| Pause / Resume or Space | Freeze/resume poses, head motion, hover and giggle |
 | Help or `?` | Toggle shortcut help |
 | Close, Q or Escape | Exit the preview |
 
-Keyboard shortcuts apply when the companion has keyboard focus. Her animation uses six transparent sprite frames: open-arm sweeps, both knees tucking underneath her, pointed feet, half-closed eyes and a closed-eye blink. The reference-inspired floating gesture lasts 1.19 seconds followed by a 1.8-second resting pose; a gentle 10-pixel vertical hover runs over the same 2.99-second cycle. The closed-eye frame lasts 110 ms. This is a short frame-based animation, not a skeletal rig; no whole-image sway remains. Clicking replays the gesture when animation is not paused. Position is temporary and resets on launch. The overlay occupies one monitor; dragging between monitors is not implemented.
+Keyboard shortcuts apply when the companion has keyboard focus. Idle alternates between one leg down (pose 36) and both legs tucked (pose 24), using the approved aligned transitions. Random holds last 2–7 seconds, with a 65% chance of swapping at each hold boundary; a prolonged hold eventually forces a swap. The smoother blink can run only while her legs are tucked. Gentle head movement pivots at the neck, with continuous vertical bobbing. These are drawn sprite poses, not a skeletal rig.
+
+Clicking requests the approved 3.5-second giggle: hands move to her belly as her eyes close and mouth opens, her shoulders bounce, and her feet alternate through the selected 1 → 2 → 4 → 5 → 4 → 2 leg sequence. Her hands and expression then reverse back to rest. If she is tucked up, the current clip finishes and she lowers one leg before giggling. Repeated clicks during a giggle do not restart it. Giggles are click-triggered, not randomly scheduled. Pausing freezes the animation; clicks while paused do not queue a giggle. Position is temporary and resets on launch. The overlay occupies one monitor; dragging between monitors is not implemented.
 
 The transparent Wayland layer uses an input region limited to the character/control rectangle (including space for the help bubble). Outside that rectangle clicks pass through; transparent gaps inside the rectangle still intercept clicks. It does not reserve desktop workspace. Its top layer remains above ordinary windows; fullscreen behavior follows compositor policy. Removing the selected output closes the companion.
 
@@ -39,7 +41,7 @@ Requirements are the distribution packages `gcc`, `make`, `qt6-base`, `qt6-decla
 omarchy pkg add gcc make qt6-base qt6-declarative qt6-wayland layer-shell-qt
 ```
 
-Verified build versions on 2026-11-14: GCC `16.2.1+r23+gd564253eb6c8-1`, Make `4.4.1-3`, Qt Base `6.12.0-3`, Qt Declarative `6.12.0-2`, Qt Wayland `6.12.0-1`, Layer Shell Qt `6.8.1-1`. These are rolling-distribution packages, not a frozen OS image. Rebuild and repeat the checks after Qt/Layer Shell Qt upgrades. There are no model downloads, pip/npm environments, external asset downloads or hosted runtime dependencies. The PNG is embedded by Qt's resource compiler.
+Verified build versions on 2026-11-14: GCC `16.2.1+r23+gd564253eb6c8-1`, Make `4.4.1-3`, Qt Base `6.12.0-3`, Qt Declarative `6.12.0-2`, Qt Wayland `6.12.0-1`, Layer Shell Qt `6.8.1-1`. These are rolling-distribution packages, not a frozen OS image. Rebuild and repeat the checks after Qt/Layer Shell Qt upgrades. There are no model downloads, pip/npm environments, external asset downloads or hosted runtime dependencies. The two PNG atlases and animation code are embedded by Qt's resource compiler; the authoring previews are not required at runtime.
 
 Desktop mode requires Wayland with `wlr-layer-shell` and is verified on this Hyprland host. It is not a generic GNOME/X11 implementation. Qt Quick renders the image and controls; Layer Shell Qt handles desktop overlay placement. Theme accent/rounding and language are read from Omarchy without changing desktop configuration. English and Danish strings are provided; other languages fall back to English.
 
@@ -51,7 +53,9 @@ QT_QPA_PLATFORMTHEME=basic QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
   runtime/desktop-puppet/marionette-puppet --preview --smoke /tmp/puppet-preview.png
 ```
 
-The Qt test loads the actual QML, checks greeting, pause/resume (including frame freeze), gesture progression through the blink back to rest, distinct rendering of all six frames, dragging, input-region bounds, live Danish translation from a synthetic temporary language file, image rendering and window close. The offscreen backend warns that native input masks are unsupported: this checks the requested region, not compositor click-through. Live desktop verification separately confirmed transparent rendering over applications and wallpaper, readable controls and the Help panel. Long-session behavior, other compositors, monitor hotplug and performance under inference load remain unverified.
+The Qt tests load the actual QML and check greeting, pause/resume, complete giggle/reset playback, distinct rendering of the active idle/blink poses and seven giggle poses, dragging, input-region bounds, live Danish translation from a synthetic temporary language file, and window close. A deterministic animation simulation checks randomized idle states, blink gating, queued giggles during a blink, lowering before a giggle, and return to idle after repeated clicks. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` when running the test command to retain synthetic offscreen renders.
+
+The offscreen backend warns that native input masks are unsupported: this checks the requested region, not compositor click-through. Live desktop verification separately checks transparent rendering and placement. Long-session behavior, other compositors, monitor hotplug and performance under inference load remain unverified.
 
 The companion deliberately has no interface to personal data. A future local event adapter can drive animations without coupling the renderer to conversation storage, but that adapter is not implemented.
 
@@ -61,12 +65,17 @@ The companion deliberately has no interface to personal data. A future local eve
 
 SHA-256: `9c94a75f7ebf6f91a06af6b256207f93685bc8739fa8f1a599fd260f4ec9d8f7`.
 
-### Arm, leg and blink animation
+### Current idle and giggle assets
 
-`src/desktop-puppet/assets/puppet-hover.png` is a built-in imagegen edit derived from `puppet.png`, with movement direction informed by the user-provided 36.63-second reference recording. The private recording is not included in the repository. Prompt: preserve the plain purple hat, outfit, cyan eyes/joints and character identity; create a three-column/two-row sheet of six equally sized, aligned full-body poses, gracefully opening/lowering both arms with relaxed wrists, tucking both knees beneath her and extending pointed feet, and briefly closing both eyes. Remove all background haze, strings, crossbar, particles and labels. The original concept remains a design reference; runtime displays the new sheet.
+The current atlases preserve the approved artwork from the local animation previews, decoded losslessly from their embedded WebP images into PNG so no Qt WebP plugin is needed. They were authored in this chat using imagegen and compositing of the approved poses. The private reference recording and conversation files are not included in the repository. No external character/model assets were downloaded.
 
-The sheet is 1536 × 1024, with six 512 × 512 cells. SHA-256: `f447aa9aacf712d9e75dfa074cbd08196c3bba405bcf1d7558aa2f7dc4e8b72b`. `PuppetAnimation.qml` owns frame selection and timing; it requires no new dependency or model service. The imagegen tool was used during authoring only.
+| Asset | Layout | SHA-256 |
+|---|---|---|
+| `assets/puppet-idle.png` | 6 columns × 7 rows, 256-pixel cells; original numbered poses 1–42 | `b645ada0122d0df8b4f9adc9de68670b246d9bb46c7f55ae579f0e70b8cb29bf` |
+| `assets/puppet-giggle.png` | 4 columns × 2 rows, 512-pixel cells; seven poses and one unused cell | `71a510ea2ae38b2ad6050bcbe8fa2cfc680c7c4a84f22e7dc9c9c019b95aae11` |
 
-Animation verification on 2026-11-14: the QML interaction test passed with all six frames rendered and checked for distinct output; pause froze frame selection and hover displacement, resume advanced both, and the replay reached the closed-eye frame then returned to rest. Rendered open/closed-eye poses were visually inspected for actual arm/leg changes and clean transparency. Set `PUPPET_TEST_CAPTURES=/tmp/puppet-frames` when running `desktop-puppet.sh test` to retain those synthetic offscreen renders.
+`PuppetMotion.js` owns pose selection and timing; `PuppetAnimation.qml` draws the atlases, neck-pivot head movement and tapered shoulder bounce. Both use one pauseable clock. The shoulder deformation uses shared integer pixel boundaries at source resolution before desktop scaling to avoid seams between bands. The whole canvas carries the continuous hover offset.
 
-The reference's full turns and inverted flourish are not implemented. They require additional side/back views; this version adapts the front-facing float, arm opening and knee tuck only.
+Idle uses pose 36, poses 35–31 leading to 24, and the reverse path, at 140 ms per transition frame. The blink uses 24 → 37–42 → 41–37 → 24, with 35 ms closing and 55 ms opening steps. The giggle atlas cells are: 0 arms out; 1 hands moving inward with half-closed eyes; 2 hands at belly; 3–6 settled giggle with the selected leg positions. Its full timing is recorded in `giggleTimeline`; the final two transitional cells reopen the eyes and reset the hands. Head motion eases out during the opening hold and resumes during the final resting hold; body bobbing continues without resetting its clock.
+
+`assets/puppet-hover.png` remains as the earlier six-frame design reference and is no longer embedded or played. The reference recording's full turns and inverted flourish are not implemented; those require additional side/back views.

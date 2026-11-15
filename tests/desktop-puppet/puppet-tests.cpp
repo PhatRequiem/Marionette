@@ -6,6 +6,7 @@
 #include <QQuickStyle>
 #include <QTemporaryDir>
 #include <QFile>
+#include <QJSEngine>
 #include "backend.h"
 #include "theme.h"
 #include "translator.h"
@@ -13,6 +14,52 @@
 class PuppetTests : public QObject {
     Q_OBJECT
 private slots:
+    void animationState() {
+        QJSEngine js;
+        QFile source(":/PuppetMotion.js");
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QVERIFY(!js.evaluate(QString::fromUtf8(source.readAll())).isError());
+        // Simulate varied idle holds, then request a giggle during an up-pose
+        // blink. It must finish that clip, lower the legs, and return to idle.
+        auto result = js.evaluate(R"JS(
+            var seed = 19;
+            var p = new Player(function() {
+                seed = (seed * 1664525 + 1013904223) >>> 0;
+                return seed / 4294967296;
+            });
+            var sawBlink = false, sawUp = false, sawDown = false;
+            for (var i = 0; i < 12000; ++i) {
+                p.tick(.016);
+                sawUp = sawUp || p.pose === 'up';
+                sawDown = sawDown || p.pose === 'down';
+                if (p.clipKind === 'blink') {
+                    if (p.pose !== 'up') throw new Error('Blink with legs down');
+                    sawBlink = true;
+                }
+            }
+            if (!sawBlink || !sawUp || !sawDown) throw new Error('Idle states missing');
+            for (var i = 0; i < 10000 && p.clipKind !== 'blink'; ++i) p.tick(.016);
+            if (p.clipKind !== 'blink') throw new Error('No blink reached');
+            p.giggle();
+            var sawLowering = false, sawGiggle = false, finished = false;
+            for (var i = 0; i < 500; ++i) {
+                p.tick(.016);
+                sawLowering = sawLowering || p.clipKind === 'to-down';
+                if (p.mode === 'giggle') {
+                    if (p.pose !== 'down' || p.clipKind) throw new Error('Giggle interrupted an idle clip');
+                    sawGiggle = true;
+                    p.giggle(); // Repeated clicks must not restart or queue loops.
+                } else if (sawGiggle) {
+                    finished = p.frame === 36 && p.pose === 'down' && !p.pendingGiggle;
+                    break;
+                }
+            }
+            if (!sawLowering || !sawGiggle || !finished) throw new Error('Giggle did not reset');
+            true;
+        )JS");
+        QVERIFY2(!result.isError(), qPrintable(result.toString()));
+        QVERIFY(result.toBool());
+    }
     void interactionAndTranslation() {
         QTemporaryDir temporary;
         QVERIFY(temporary.isValid());
@@ -52,21 +99,38 @@ private slots:
         QTRY_VERIFY(!window->property("paused").toBool());
         auto *character = window->findChild<QQuickItem *>("characterAnimation");
         QVERIFY(character);
+        QTRY_VERIFY(character->property("ready").toBool());
         window->setProperty("paused", true);
         const int stoppedFrame = character->property("frameIndex").toInt();
         const auto stoppedHover = character->property("hoverOffset").toReal();
+        const auto stoppedHead = character->property("headAmount").toReal();
         QTest::qWait(450);
         QCOMPARE(character->property("frameIndex").toInt(), stoppedFrame);
         QCOMPARE(character->property("hoverOffset").toReal(), stoppedHover);
+        QCOMPARE(character->property("headAmount").toReal(), stoppedHead);
         window->setProperty("paused", false);
         QVERIFY(QMetaObject::invokeMethod(character, "gesture"));
+        QTRY_COMPARE(character->property("animationKind").toString(), QString("giggle"));
+        QTRY_COMPARE(character->property("frameIndex").toInt(), 2);
+        window->setProperty("paused", true);
+        QTest::qWait(50);
+        const auto pausedGiggle = window->grabWindow();
+        QTest::qWait(100);
+        QCOMPARE(window->grabWindow(), pausedGiggle);
+        const QString captures = qEnvironmentVariable("PUPPET_TEST_CAPTURES");
+        if (!captures.isEmpty()) {
+            QDir().mkpath(captures);
+            QVERIFY(pausedGiggle.save(captures + "/giggle-bounce.png"));
+        }
+        window->setProperty("paused", false);
         QTRY_COMPARE(character->property("frameIndex").toInt(), 3);
         QVERIFY(character->property("hoverOffset").toReal() != stoppedHover);
         QTRY_COMPARE(character->property("frameIndex").toInt(), 0);
+        QTRY_COMPARE(character->property("animationKind").toString(), QString("idle"));
+        QCOMPARE(character->property("frameIndex").toInt(), 36);
         window->setProperty("paused", true);
         QImage previous;
-        const QString captures = qEnvironmentVariable("PUPPET_TEST_CAPTURES");
-        for (int frame = 0; frame < 6; ++frame) {
+        for (int frame : {24,31,32,33,34,35,36,37,38,39,40,41,42}) {
             character->setProperty("frameIndex", frame);
             QTest::qWait(50);
             const auto rendered = window->grabWindow();
@@ -75,8 +139,19 @@ private slots:
             previous = rendered;
             if (!captures.isEmpty()) {
                 QDir().mkpath(captures);
-                QVERIFY(rendered.save(captures + QString("/frame-%1.png").arg(frame)));
+                QVERIFY(rendered.save(captures + QString("/idle-%1.png").arg(frame)));
             }
+        }
+        character->setProperty("animationKind", "giggle");
+        previous = QImage();
+        for (int frame = 0; frame < 7; ++frame) {
+            character->setProperty("frameIndex", frame);
+            QTest::qWait(50);
+            const auto rendered = window->grabWindow();
+            QVERIFY(!rendered.isNull());
+            if (!previous.isNull()) QVERIFY(rendered != previous);
+            previous = rendered;
+            if (!captures.isEmpty()) QVERIFY(rendered.save(captures + QString("/giggle-%1.png").arg(frame)));
         }
         window->setProperty("paused", false);
         const auto oldX = puppet->x();
