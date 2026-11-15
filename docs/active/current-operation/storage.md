@@ -82,7 +82,7 @@ Restore while both applications are stopped: move the current database and any m
 
 ## Fresh personal-data start
 
-Ask the development agent to **reset memory** using the [operator instruction](../../../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, soul content, contact notes, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs, Phat's entire owner profile, tools, and the existing directory tree remain. The soul name and description start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
+Ask the development agent to **reset memory** using the [operator instruction](../../../AGENTS.md#operator-instruction-reset-memory). This clears local conversations, logs, soul content, contact notes, owner profile details, other profiles, self-description revisions, and project-local copies of those memories. Both permanent UUIDs, the owner's Discord links and owner status, tools, and the existing directory tree remain. The owner profile keeps only that identity mapping and the minimal defaults described in the [reset scope](reset-memory.md#what-it-resets). The soul name and description start blank. The application stays installed and stopped; ordinary restart does not perform this wipe.
 
 This operator procedure is separate from the owner-only [`/resetmemory` command](reset-memory.md), which resets memory while keeping the model loaded. Discord-hosted messages and backups outside the project are outside its scope. Local deletion is not a secure disk-erasure guarantee. See the operator instruction for the complete preservation and shutdown requirements.
 

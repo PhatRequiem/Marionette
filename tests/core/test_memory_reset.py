@@ -32,6 +32,27 @@ from reset_boundary import INCOMPLETE, require_complete
 
 
 class MemoryResetTests(unittest.TestCase):
+    def assert_owner_reset(self, profiles, saved):
+        from permissions import require_reset
+        self.assertEqual(len(profiles.profiles),1)
+        owner=profiles.profiles[0]
+        expected={'uuid':saved['uuid'],'name':'Owner','preferred_name':None,'timezone':None,
+                  'created_at':None,'updated_at':owner['updated_at'],'terminal_enabled':True,
+                  'linked_accounts':[{'service':'discord','account_id':link['account_id']}
+                                     for link in saved['linked_accounts'] if link['service']=='discord']}
+        self.assertEqual(owner,expected)
+        self.assertIsNotNone(owner['updated_at'])
+        self.assertNotEqual(owner['updated_at'],saved['updated_at'])
+        reloaded=ContactProfiles(profiles.path)
+        self.assertEqual(reloaded.profiles,[expected])
+        self.assertEqual(reloaded.data['owner_uuid'],saved['uuid'])
+        require_reset(reloaded.resolve('terminal',saved['uuid']),reloaded)
+        for link in expected['linked_accounts']:
+            reloaded.register_discord(link['account_id'],'Old Discord display name')
+            identity=reloaded.resolve('discord',link['account_id'])
+            self.assertEqual(identity['display_name'],'Owner')
+            require_reset(identity,reloaded)
+
     def test_alternate_vault_refused_before_any_memory_changes(self):
         from memory_reset import reset_memory
         with tempfile.TemporaryDirectory() as directory:
@@ -76,11 +97,12 @@ class MemoryResetTests(unittest.TestCase):
                 (root/'session').mkdir()
                 profiles=ContactProfiles(root/'contacts/profiles.json')
                 owner=profiles.profiles[0]
-                owner['linked_accounts']=[{'service':'discord','account_id':'123'},
+                owner['linked_accounts']=[{'service':'discord','account_id':'123','label':'OLD_SECRET link label'},
                                           {'service':'discord','account_id':'456'},
                                           {'service':'example','account_id':'owner'}]
                 owner['preferred_name']='Owner nickname'
                 owner['timezone']='America/New_York'
+                owner['private_extra']='OLD_SECRET extra profile field'
                 profiles.save()
                 saved_owner=copy.deepcopy(owner)
                 profiles.add('Other')
@@ -178,8 +200,7 @@ class MemoryResetTests(unittest.TestCase):
                     self.assertEqual(conversation.histories,{})
                     self.assertEqual(len(profiles.profiles),1)
                     self.assertEqual(profiles.profiles[0]['uuid'],owner['uuid'])
-                    self.assertEqual(profiles.profiles,[saved_owner])
-                    self.assertEqual(json.loads(profiles.path.read_text())['profiles'],[saved_owner])
+                    self.assert_owner_reset(profiles,saved_owner)
                     self.assertEqual(profiles.resolve('discord','123')['contact_uuid'],owner['uuid'])
                     self.assertEqual(soul.read()['uuid'],uid)
                     self.assertEqual(soul.read()['revisions'][-1]['content'],'')
@@ -234,7 +255,7 @@ class MemoryResetTests(unittest.TestCase):
                 convo.turn('/resetmemory')
             self.assertTrue(convo.resetting)
             self.assertEqual({t.name for t in api.tools},{'update_soul','get_current_time'})
-            self.assertEqual(profiles.profiles,[owner])
+            self.assert_owner_reset(profiles,owner)
             self.assertTrue((root/INCOMPLETE).exists())
             with self.assertRaisesRegex(RuntimeError,'reset incomplete'):
                 convo.turn('must not run')

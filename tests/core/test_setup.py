@@ -172,7 +172,8 @@ class LauncherTests(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr)
         pages = list((data/'conversations/obsidian-vault/Generated/Contacts').rglob('*.md'))
         self.assertTrue(any('new sentinel' in p.read_text() for p in pages))
-        self.assertTrue(any('Phat' in p.read_text() for p in pages))
+        self.assertTrue(any('Owner' in p.read_text() for p in pages))
+        self.assertFalse(any('Phat' in p.read_text() for p in pages))
 
     def test_reasoning_separate_from_chat_and_saved_for_its_view(self):
         self.runtime.write_text(self.runtime.read_text().replace(

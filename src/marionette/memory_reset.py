@@ -1,5 +1,4 @@
 """Owner-only live memory reset, called under the conversation turn lock."""
-import copy
 import json
 import os
 from pathlib import Path
@@ -80,7 +79,7 @@ def refresh_tools(conversation, owner):
 def verify(conversation, owner, soul_id, names, keep, infrastructure, directories, root):
     registry = json.loads(conversation.profiles.path.read_text())
     if registry['owner_uuid'] != owner['uuid'] or registry['profiles'] != [owner]:
-        raise RuntimeError('Reset verification failed: owner profile changed.')
+        raise RuntimeError('Reset verification failed: owner profile does not match the cleared identity.')
     state = conversation.soul.read()
     if (state['uuid'] != soul_id or len(state['revisions']) != 1 or
             state['revisions'][0]['name'] or state['revisions'][0]['content']):
@@ -116,7 +115,16 @@ def sync_directory(path):
 def reset_memory(conversation):
     root, database = preflight(conversation)
     owner_id = conversation.profiles.data['owner_uuid']
-    owner = copy.deepcopy(next(p for p in conversation.profiles.profiles if p['uuid'] == owner_id))
+    previous_owner = next(p for p in conversation.profiles.profiles if p['uuid'] == owner_id)
+    # Retain only identity/account authorization. A neutral name and terminal
+    # access keep the schema and profile chooser usable without old personal data.
+    # save() supplies a fresh updated_at; the old creation time is forgotten.
+    owner = {'uuid': owner_id, 'name': 'Owner', 'preferred_name': None,
+             'timezone': None, 'created_at': None, 'updated_at': None,
+             'terminal_enabled': True,
+             'linked_accounts': [{'service': 'discord', 'account_id': link['account_id']}
+                                 for link in previous_owner['linked_accounts']
+                                 if link['service'] == 'discord']}
     soul_id = conversation.soul.read()['uuid']
     names = {tool.name for tool in conversation.api.tools}
     descriptor = root/'session/log-session.json'
@@ -188,7 +196,7 @@ def reset_memory(conversation):
         # before this unlink reaches disk can conservatively restore that guard.
         incomplete.unlink()
         conversation.resetting = False
-        return 'Memory reset. Soul, contact notes, and all chat histories cleared. Your owner profile, permanent IDs, tools, and folders were preserved.'
+        return 'Memory reset. Soul, contact notes, and all chat histories cleared. Owner profile details cleared; your UUID, Discord links, and owner status remain. Soul UUID, tools, and folders were preserved.'
     except BaseException:
         conversation.resetting = True
         raise
