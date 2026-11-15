@@ -14,6 +14,34 @@
 class PuppetTests : public QObject {
     Q_OBJECT
 private slots:
+    void idleArmDeformation() {
+        QJSEngine js;
+        QFile source(":/PuppetMotion.js");
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        QVERIFY(!js.evaluate(QString::fromUtf8(source.readAll())).isError());
+        auto result = js.evaluate(R"JS(
+            var low = Infinity, high = -Infinity;
+            for (var t = 0; t < 12; t += .1) {
+                for (var point of [[270,180],[270,230],[220,270],[325,270],[250,400]]) {
+                    if (idleArmOffset(point[0], point[1], t) !== 0)
+                        throw new Error('Arm motion displaced the neck, body or legs');
+                }
+                var wrist = idleArmOffset(162, 212, t);
+                low = Math.min(low, wrist); high = Math.max(high, wrist);
+                for (var x = 98; x < 440; x += 4) {
+                    for (var y = 168; y < 288; y += 8) {
+                        var top = Math.round(y + idleArmOffset(x, y, t));
+                        var bottom = Math.round(y+8 + idleArmOffset(x, y+8, t));
+                        if (bottom <= top) throw new Error('Arm surface folded over');
+                    }
+                }
+            }
+            if (high-low < 16) throw new Error('Wrist movement is too small to see');
+            true;
+        )JS");
+        QVERIFY2(!result.isError(), qPrintable(result.toString()));
+        QVERIFY(result.toBool());
+    }
     void animationState() {
         QJSEngine js;
         QFile source(":/PuppetMotion.js");
@@ -103,11 +131,11 @@ private slots:
         window->setProperty("paused", true);
         const int stoppedFrame = character->property("frameIndex").toInt();
         const auto stoppedHover = character->property("hoverOffset").toReal();
-        const auto stoppedHead = character->property("headAmount").toReal();
+        const auto stoppedIdleMotion = character->property("idleMotionAmount").toReal();
         QTest::qWait(450);
         QCOMPARE(character->property("frameIndex").toInt(), stoppedFrame);
         QCOMPARE(character->property("hoverOffset").toReal(), stoppedHover);
-        QCOMPARE(character->property("headAmount").toReal(), stoppedHead);
+        QCOMPARE(character->property("idleMotionAmount").toReal(), stoppedIdleMotion);
         window->setProperty("paused", false);
         QVERIFY(QMetaObject::invokeMethod(character, "gesture"));
         QTRY_COMPARE(character->property("animationKind").toString(), QString("giggle"));
@@ -141,6 +169,21 @@ private slots:
                 QDir().mkpath(captures);
                 QVERIFY(rendered.save(captures + QString("/idle-%1.png").arg(frame)));
             }
+        }
+        if (!captures.isEmpty()) {
+            auto player = character->property("player").value<QJSValue>();
+            const auto savedTime = player.property("time");
+            // Sample both ends of the arm wave in each idle pose for visual QA.
+            for (int frame : {24,36}) {
+                player.setProperty("frame", frame);
+                for (int phase = 0; phase < 2; ++phase) {
+                    player.setProperty("time", .8 + phase*1.8);
+                    QVERIFY(QMetaObject::invokeMethod(character, "advance", Q_ARG(QVariant, 0.0)));
+                    QTest::qWait(50);
+                    QVERIFY(window->grabWindow().save(captures + QString("/arms-%1-%2.png").arg(frame).arg(phase)));
+                }
+            }
+            player.setProperty("time", savedTime);
         }
         character->setProperty("animationKind", "giggle");
         previous = QImage();

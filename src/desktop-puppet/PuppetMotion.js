@@ -118,3 +118,26 @@ function shoulderOffset(x, y, bounce) {
         + .15*Math.exp(-Math.pow((x-270)/55,2)));
     return -bounce * taper * shoulders;
 }
+
+function smoothStep(value) {
+    var u = Math.max(0, Math.min(1, value));
+    return u*u*(3-2*u);
+}
+
+function idleArmOffset(x, y, time) {
+    if (x >= 242 && x <= 308) return 0;
+    var left = x < 242;
+    var distance = left ? 242-x : x-308;
+    // The sleeve leads, then the elbow and wrist follow. Different phases
+    // keep the two arms from rising and falling in perfect unison.
+    var phase = time * 1.7 + (left ? 0 : .65);
+    var lift = 2 * Math.sin(phase) * smoothStep(distance / 40)
+        + 6 * Math.sin(phase-.3) * smoothStep((distance-12) / 54)
+        + 8 * Math.sin(phase-.75) * smoothStep((distance-58) / 58);
+    // Below the elbows, exclude the bodice and skirt. The last taper lies
+    // in transparent space beneath the fingertips, preserving the hand shape.
+    var inset = Math.max(0, y-212) * 1.2;
+    var outsideBody = smoothStep((distance-inset) / 32);
+    var bottom = 1 - smoothStep((y-248) / 40);
+    return lift * outsideBody * bottom;
+}
