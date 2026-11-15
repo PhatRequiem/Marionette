@@ -15,7 +15,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 
 `API.with_system()` composes only enabled sections, then appends the current saved
 name and soul description. The soul remains editable and refreshes on subsequent
-turns. These files do not set a fixed personality or grant tool permissions.
+turns. The profile section distinguishes structured field edits from notes and requires a successful save before claiming an update. The clock section requests a fresh read for current date/time questions and explains timezone selection. These files do not set a fixed personality or grant tool permissions.
 
 Qwen-Agent uses the native API (`use_raw_api=True`): tool definitions travel in
 `tools`, while guidance and personal context travel in the system message.
