@@ -47,8 +47,9 @@ def chat(api, capacity, store=None, session_id=None, *, on_startup=None):
         return
     terminal.show_profile(selected)
     soul = Soul(data / 'soul/profile.json')
+    from clock_tool import GetCurrentTime
     from vault_tool import configured_tools
-    api.tools = (soul.bind(api),) + configured_tools(data)
+    api.tools = (soul.bind(api), GetCurrentTime()) + configured_tools(data)
     api.prepare([])
     conversation = Conversation(api, capacity, profiles, selected, ContactNotes(data / 'contact_notes'),
                                 store, session_id, soul=soul)

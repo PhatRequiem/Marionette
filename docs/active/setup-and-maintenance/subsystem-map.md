@@ -10,7 +10,7 @@ Paths in the Python column are relative to `src/marionette/`. Script paths are r
 
 | Subsystem | Primary Python files | Supporting source, scripts and prompts |
 |---|---|---|
-| **Application core** | `session.py`, `memory_reset.py`, `reset_boundary.py` | `chat.sh`, `setup.py`, `downloads.json`; root `STARTUP.md` |
+| **Application core** | `session.py`, `memory_reset.py`, `reset_boundary.py`, `clock_tool.py` | `chat.sh`, `setup.py`, `downloads.json`; root `STARTUP.md`; `clock.md` prompt |
 | **Conversation engine** | `conversation.py`, `context.py`, `commands.py`, `permissions.py` | No separate setup script |
 | **Model engine** | `inference.py`, `coordination.py` | `setup-agent.sh`, `agent-requirements.in`, `agent-requirements.txt`; `tool-guidance.md`, `prompt-guide.md` |
 | **Personal memory** | `contacts.py`, `contact_profile.py`, `contact_notes.py`, `soul.py`, `data_migration.py` | `contact-profile.md`, `contact-notes.md`, `soul.md` prompts |
@@ -152,3 +152,5 @@ A future folder reorganization should follow these ownership groups incrementall
 ## Standalone desktop visual prototype
 
 Communication owns the optional [desktop puppet](../current-operation/desktop-puppet.md): `src/desktop-puppet/`, `scripts/native-linux/desktop-puppet.sh` and `tests/desktop-puppet/`. It currently has no connection to the conversation engine or personal data. Its Qt/Wayland UI is an independently replaceable process.
+
+The read-only `clock_tool.py` adapter and `prompts/clock.md` provide on-demand host time through tool coordination; `tests/core/test_clock_tool.py` covers its contract. It has no persistent memory or background lifecycle.

@@ -1,0 +1,3 @@
+## get_current_time
+
+Use get_current_time when you need a fresh current date or time, including when the timestamp attached to the user's message may be stale. Pass the contact's supplied IANA timezone when known, or a timezone explicitly requested by the user; otherwise use UTC and label it as UTC. Do not guess the user's timezone. The result is one observation of the local computer clock, not a continuously running clock or independent verification that the system clock is accurate. This tool cannot schedule reminders or wake you later. Old clock results in conversation history are historical; call again when a fresh reading matters.

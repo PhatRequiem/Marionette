@@ -4,6 +4,7 @@ Concise behavior guidance, separate from the editable soul and native tool schem
 
 | File | Loaded when |
 |---|---|
+| `clock.md` | `get_current_time` is registered |
 | `tool-guidance.md` | Any supported tool is registered |
 | `log-queries.md` | `query_logs` is registered (enabled in production) |
 | `log-results.md` | Follow-up model requests after `query_logs` returns in the current turn |

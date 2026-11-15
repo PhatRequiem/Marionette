@@ -1,6 +1,6 @@
 # Qwen-Agent tool coordination
 
-Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). Read-only `query_logs` is also registered, scoped to the current session and conversation. The optional `read_vault` tool accesses the local mirror through [Scarecrow](../setup-and-maintenance/obsidian-connection.md), using an explicit read-only HTTP adapter. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
+Marionette uses pinned **Qwen-Agent 0.0.34** for model streaming and its `FnCallAgent` tool loop. The registered production tools are `update_contact_notes` (add, patch, or remove an individual entry), bound to the current sender’s [contact notes](contact-notes.md), and `update_soul`, bound to [Marionette’s soul](soul.md). `update_contact_profile` edits the current contact’s name, preferred name and timezone while protecting identity/account fields. Read-only `get_current_time` reads the local clock on demand. Read-only `query_logs` is also registered, scoped to the current session and conversation. The optional `read_vault` tool accesses the local mirror through [Scarecrow](../setup-and-maintenance/obsidian-connection.md), using an explicit read-only HTTP adapter. There is no unrestricted retrieval, skill creation, shell access, or automatic tool discovery. Ordinary terminal and Discord chat still work as before.
 
 ## Responsibilities
 
@@ -34,3 +34,11 @@ To deliberately upgrade, edit `agent-requirements.in`, regenerate with `uv pip c
 Official references: [Qwen-Agent](https://github.com/QwenLM/Qwen-Agent), [function-call agent](https://github.com/QwenLM/Qwen-Agent/blob/main/qwen_agent/agents/fncall_agent.py), [Qwen3.5 native API example](https://github.com/QwenLM/Qwen-Agent/blob/main/examples/assistant_qwen3.5.py).
 
 The coordinator emits concise tool-call and result summaries for the Reasoning terminal, correlated by request/tool numbers and native call ID. Known tool response contracts determine the status; framework-wrapped exceptions and raised exceptions show Failed, while unknown results remain unverified. This operator display does not modify tool results supplied to the model or conversation context. See [logs](logs.md) for display and retention details.
+
+## Current time
+
+`get_current_time` reads the host wall clock at invocation. With no arguments it returns UTC; an optional `timezone` accepts an IANA name such as `America/New_York`. The JSON result includes `status`, `source`, `current_time_utc`, `timezone`, `current_time` (with numeric UTC offset), and `weekday`. Both timestamps represent the same instant; timezone conversion uses the system timezone database, including daylight-saving rules. Invalid zones and extra fields return an error rather than silently falling back.
+
+The tool is available after startup and memory reset. It does not use the network, write personal data, create a helper process, or schedule reminders. Accuracy depends on the host clock and timezone data; no independent synchronization check is made. The per-message UTC timestamp remains available. Guidance requests a new clock reading when freshness matters and uses UTC when the contact's timezone is unknown. Restart main chat after installing this code to register the tool.
+
+Synthetic tests verify UTC/zone agreement, daylight-saving transitions, invalid input, native Qwen-Agent dispatch, startup registration and reset retention. These checks do not establish how reliably the model chooses to check the time.

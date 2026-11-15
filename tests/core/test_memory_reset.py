@@ -115,6 +115,7 @@ class MemoryResetTests(unittest.TestCase):
                         answer,finish=conversation.turn('/resetmemory',source=source,sender_id='123' if source=='discord' else None)
                     self.assertEqual(finish,'resetmemory')
                     self.assertIn('Memory reset',answer)
+                    self.assertIn('get_current_time', [t.name for t in api.tools])
                     api.reply.assert_not_called()
                     self.assertFalse(api.closing.is_set())
                     self.assertEqual(conversation.histories,{})

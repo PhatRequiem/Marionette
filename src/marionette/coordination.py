@@ -39,7 +39,7 @@ def tool_outcome(name, result):
                 return 'Success'
             if data.get('success') is False:
                 return 'Failed'
-        elif name in ('query_logs', 'read_vault'):
+        elif name in ('query_logs', 'read_vault', 'get_current_time'):
             status = data.get('status')
             if isinstance(status, str):
                 return {'ok': 'Success', 'partial': 'Partial', 'unavailable': 'Unavailable',
