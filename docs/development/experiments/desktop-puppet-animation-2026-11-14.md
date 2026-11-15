@@ -28,7 +28,7 @@ The following stages are ordered by the recorded design decisions. Early preview
 
 | Stage | Decision and outcome | Representative archived previews |
 |---|---|---|
-| Puppet appearance | Keep the purple puppet, cyan eyes and joints; remove strings, the wooden crossbar and cyan/blue hat decoration. | Early prototype preview; current `puppet.png` in Git |
+| Puppet appearance | Keep the purple puppet, cyan eyes and joints; remove strings, the wooden crossbar and cyan/blue hat decoration. | Early prototype preview; original `puppet.png`, subsequently archived as described below |
 | Actual limb movement | Replace whole-character swaying with drawn arm and leg changes and a blink. Use the supplied movement recording as front-facing motion reference. | `marionette-puppet-preview.gif` |
 | Pose construction | Build two six-frame transitions from the supplied poses, combine them, then introduce bobbing holds. Correct an unwanted reversal. | `marionette-six-frame-transition.gif`, `marionette-next-transition.gif`, `marionette-combined-transition.gif`, `marionette-forward-bob.gif` |
 | Longer mapped sequence | Add bobbing and eye opening. Explore arm movement; remove an unwanted lowering/bob addition. Correct frame 30's wrist orientation to match frame 29. | `marionette-24-frame-forward.gif`, `marionette-30-frame-map.png`, `marionette-30-wrists-like29.gif` |
@@ -114,3 +114,20 @@ Offscreen Qt warns that native window masks are unsupported. Those tests validat
 The supported `scripts/native-linux/sync-conversation-vault.sh` command completed successfully. All **24 Active documentation files** in the resulting mirror matched their source bytes, including the puppet guide. The Current operation index contains the puppet-guide link. The Development report and visual archive were verified absent from the mirror, and existing Annotations and Obsidian settings/plugin files retained their hashes.
 
 The private receipt is `data/conversations/development/desktop-puppet/2026-11-14/archive-and-mirror-verification.json`; it also records the successful archive checksum audit and raw-test-log hash. The mirror is a generated view, not another authoritative copy or backup; current procedures remain in the [vault guide](../../active/setup-and-maintenance/conversation-vault.md).
+
+## Later asset retirement and frame audit
+
+The user chose to keep the selected animation after an attempted original-doll redraw. The redraws and expression experiment were not installed; the idle/giggle atlases, QML renderer and motion code remain unchanged from the selected implementation.
+
+The user then identified `src/desktop-puppet/assets/puppet.png` and `puppet-hover.png` as older artwork that no longer matches the current character and requested archival. Both were moved unchanged into local `visual design/archive/retired-puppet-artwork-2026-11-14/`, with a README and manifest. Their original paths remain recoverable from Git commit `04a375c60f31c3113bc1c8277abaaa40d5c10424`. Neither file was referenced by Qt resources or the renderer. The build passed after their removal, and the two active atlas hashes still match the Active guide.
+
+| Retired file | SHA-256 |
+|---|---|
+| `puppet.png` | `9c94a75f7ebf6f91a06af6b256207f93685bc8739fa8f1a599fd260f4ec9d8f7` |
+| `puppet-hover.png` | `f447aa9aacf712d9e75dfa074cbd08196c3bba405bcf1d7558aa2f7dc4e8b72b` |
+
+The historical archive and its existing `~/Marionette Archives/animation-raw-backup-2026-11-14_21-43-29/` tar backup were each checked against all 689 original manifest entries: no checksum mismatches. Historical single frames include earlier revisions and higher-resolution authoring PNGs, so faithful backup does not imply every single frame matches the current runtime pose. The final archived `marionette-body-aligned/atlas.webp` and `marionette-giggle/atlas.webp` were decoded and compared with the native PNG assets: both had identical RGBA pixel hashes.
+
+To make the current set unambiguous, local `visual design/archive/current-animation-frames-2026-11-14/` contains the exact two runtime atlases, matching renderer/motion files, and 20 individual active-pose PNGs. All 13 idle/transition/blink exports and seven giggle exports were verified pixel-for-pixel against their atlas cell rectangles. No resizing or new artwork was applied. Runtime deformation is separate from these raw base poses; the README and manifest explain the numbering and source sizes. The original 691-file historical archive was not modified.
+
+Both new local archive folders were backed up to `~/Marionette Archives/animation-assets-backup-2026-11-14_22-13/retired-art-and-current-frames.tar.gz`. A temporary-directory restore verified all **31 files** against their source hashes. Tar SHA-256: `075fec4640cfde3c2c062f42b2d5e7bba924db0b0670deb87fde0941c141bd9c`. `verification.json` and `SHA256SUMS` sit beside it. This is a same-drive backup, not protection from drive failure. The maintained Active guide was updated and its Obsidian mirror refreshed; no personal-data or animation behavior change was made.

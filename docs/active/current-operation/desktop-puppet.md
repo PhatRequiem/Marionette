@@ -61,9 +61,7 @@ The companion deliberately has no interface to personal data. A future local eve
 
 ## Artwork provenance
 
-`src/desktop-puppet/assets/puppet.png` is a built-in imagegen edit of the puppet concept created in this chat. Final edit prompt: remove all strings and the wooden crossbar, remove cyan/blue hat decoration and loose particles, preserve the face, cyan eyes/joints, purple hair/hat/bow, purple-and-gold outfit and raised-hand pose; restore clothing underneath strings and render a centered full-body transparent cutout. No external character/model assets were downloaded.
-
-SHA-256: `9c94a75f7ebf6f91a06af6b256207f93685bc8739fa8f1a599fd260f4ec9d8f7`.
+The active character artwork is `puppet-idle.png` and `puppet-giggle.png`. The earlier single-pose `puppet.png` and six-frame `puppet-hover.png` were moved out of the source assets at the user's request because their design differs from the selected animation. They are preserved unchanged in local `visual design/archive/retired-puppet-artwork-2026-11-14/`, with source paths and checksums in its manifest. They are also recoverable from Git commit `04a375c60f31c3113bc1c8277abaaa40d5c10424`. Neither was embedded or played; archiving them changes no runtime behavior.
 
 ### Current idle and giggle assets
 
@@ -78,6 +76,8 @@ The current atlases preserve the approved artwork from the local animation previ
 
 Idle uses pose 36, poses 35–31 leading to 24, and the reverse path, at 140 ms per transition frame. The blink uses 24 → 37–42 → 41–37 → 24, with 35 ms closing and 55 ms opening steps. The giggle atlas cells are: 0 arms out; 1 hands moving inward with half-closed eyes; 2 hands at belly; 3–6 settled giggle with the selected leg positions. Its full timing is recorded in `giggleTimeline`; the final two transitional cells reopen the eyes and reset the hands. Head and idle arm motion ease out during the opening hold and resume during the final resting hold; body bobbing continues without resetting its clock. The hands-on-belly part of the giggle keeps its approved timing and shoulder bounce.
 
-`assets/puppet-hover.png` remains as the earlier six-frame design reference and is no longer embedded or played. The reference recording's full turns and inverted flourish are not implemented; those require additional side/back views.
+Exact exports of the 20 active base poses are in local `visual design/archive/current-animation-frames-2026-11-14/frames/`: 13 idle/transition/blink PNGs at 256 pixels and seven giggle PNGs at 512 pixels. They were extracted without resizing and verified pixel-for-pixel against the current atlas cells. Head/arm motion, shoulder pulses and hover are added by the renderer, so these base poses are not screenshots of every moment in playback. The pack includes matching atlases, renderer files and a manifest. Historical authoring PNGs can differ because they precede alignment, resizing or WebP packing; the historical final WebP atlases decode to the same pixels as the current PNG atlases.
+
+The reference recording's full turns and inverted flourish are not implemented; those require additional side/back views.
 
 The dated [animation development report](../../development/experiments/desktop-puppet-animation-2026-11-14.md) records the design decisions, superseded experiments and verification evidence. It also indexes the local visual archive. Development reports and archived previews stay outside the Obsidian mirror; this guide describes current behavior.
